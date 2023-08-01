@@ -2,7 +2,7 @@ import { ServerClient } from 'postmark';
 import { FormStatus } from '../services/forms.service';
 import { RequestStatus, RequestType } from '../services/requests.service';
 import { Taxonomy } from '../services/taxonomies.service';
-const client = new ServerClient(process.env.POSTMARK_API_KEY);
+const client = new ServerClient(process.env.POSTMARK_KEY);
 
 const sender = 'noreply@biip.lt';
 
