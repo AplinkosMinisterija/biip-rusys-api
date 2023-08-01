@@ -11,12 +11,7 @@ export function emailCanBeSent() {
 }
 
 function hostUrl(isAdmin: boolean = false) {
-  const host = isAdmin ? 'admin.biip.lt' : 'rusys.biip.lt';
-  if (process.env.NODE_ENV === 'staging') {
-    return `https://staging.${host}`;
-  }
-
-  return `https://${host}`;
+  return isAdmin ? process.env.ADMIN_HOST : process.env.APP_HOST;
 }
 
 export function notifyFormAssignee(

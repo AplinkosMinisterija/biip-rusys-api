@@ -339,7 +339,7 @@ export default class MinioService extends Moleculer.Service {
     isPrivate: boolean = false,
     bucketName: string = BUCKET_NAME()
   ) {
-    let hostUrl = process.env.MINIO_PUBLIC_URL;
+    let hostUrl = process.env.MINIO_ENDPOINT;
 
     if (isPrivate) {
       hostUrl = `${process.env.SERVER_HOST}/minio`;
