@@ -145,10 +145,12 @@
           apžvalginis žemėlapis:
         </div>
         <%- include('places/table', {places: places}); %>
-        <img
-          src="<%= previewScreenshot %>"
-          class="w-full"
-        />
+          <% if (previewScreenshot) { %>
+            <img
+              src="<%= previewScreenshot %>"
+              class="w-full"
+            />
+          <% } %>
         <% } else { %>
 
         <div>
