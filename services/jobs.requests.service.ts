@@ -5,10 +5,21 @@ import { Action, Method, Service } from 'moleculer-decorators';
 import BullMqMixin from '../mixins/bullmq.mixin';
 import { getMapsSearchParams, getRequestData } from '../utils/pdf/requests';
 import { Request } from './requests.service';
-import { FILE_TYPES } from '../types';
+import { FILE_TYPES, throwNotFoundError } from '../types';
 import { User } from './users.service';
 import { Tenant } from './tenants.service';
+import { toMD5Hash, toReadableStream } from '../utils/functions';
+import moment from 'moment';
+import { AuthType } from './api.service';
+import { getTemplateHtml } from '../utils/html';
 
+function getSecret(request: Request) {
+  return toMD5Hash(
+    `id=${request.id}&date=${moment(request.createdAt).format(
+      'YYYYMMDDHHmmss'
+    )}`
+  );
+}
 @Service({
   name: 'jobs.requests',
   mixins: [BullMqMixin],
@@ -50,26 +61,18 @@ export default class JobsRequestsService extends moleculer.Service {
       {}
     );
 
-    const requestData = await getRequestData(ctx, id);
+    const screenshotsHash = toMD5Hash(
+      `id=${id}&date=${moment().format('YYYYMMDDHHmmsss')}`
+    );
 
-    // set screenshots for places
-    requestData?.places.forEach((p) => {
-      p.screenshot = screenshotsByHash[p.hash] || '';
-    });
+    const redisKey = `screenshots.${screenshotsHash}`;
 
-    // set screenshots for informational forms
-    Object.entries(requestData?.informationalForms).forEach(([key, value]) => {
-      requestData.informationalForms[key].screenshot =
-        screenshotsByHash[value.hash] || '';
-    });
+    await this.broker.cacher.set(redisKey, screenshotsByHash);
 
-    requestData.previewScreenshot =
-      screenshotsByHash[requestData.previewScreenshotHash] || '';
+    const secret = getSecret(request);
 
-    const pdf = await ctx.call('pdf.generate', {
-      template: 'request-pdf.ejs',
-      footer: 'footer.ejs',
-      variables: requestData,
+    const pdf = await ctx.call('tools.makePdf', {
+      url: `${process.env.SERVER_HOST}/jobs/requests/${id}/html?secret=${secret}&skey=${screenshotsHash}`,
     });
 
     const folder = this.getFolderName(
@@ -80,7 +83,7 @@ export default class JobsRequestsService extends moleculer.Service {
     const result: any = await ctx.call(
       'minio.uploadFile',
       {
-        payload: pdf,
+        payload: toReadableStream(pdf),
         folder,
         isPrivate: true,
         types: FILE_TYPES,
@@ -173,6 +176,61 @@ export default class JobsRequestsService extends moleculer.Service {
       },
       childrenJobs
     );
+  }
+
+  @Action({
+    params: {
+      id: {
+        type: 'number',
+        convert: true,
+      },
+      secret: 'string',
+      skey: 'string',
+    },
+    rest: 'GET /:id/html',
+    auth: AuthType.PUBLIC,
+    timeout: 0,
+  })
+  async getRequestHtml(
+    ctx: Context<
+      { id: number; secret: string; skey: string },
+      { $responseType: string; $responseHeaders: any }
+    >
+  ) {
+    ctx.meta.$responseType = 'text/html';
+
+    const { id, secret, skey: screenshotsRedisKey } = ctx.params;
+
+    const request: Request = await ctx.call('requests.resolve', { id });
+
+    const secretToApprove = getSecret(request);
+    if (!request?.id || !secret || secret !== secretToApprove) {
+      return throwNotFoundError('Invalid secret!');
+    }
+
+    const requestData = await getRequestData(ctx, id);
+
+    const screenshotsByHash = await this.broker.cacher.get(
+      `screenshots.${screenshotsRedisKey}`
+    );
+
+    // set screenshots for places
+    requestData?.places.forEach((p) => {
+      p.screenshot = screenshotsByHash[p.hash] || '';
+    });
+
+    // set screenshots for informational forms
+    Object.entries(requestData?.informationalForms).forEach(([key, value]) => {
+      requestData.informationalForms[key].screenshot =
+        screenshotsByHash[value.hash] || '';
+    });
+
+    requestData.previewScreenshot =
+      screenshotsByHash[requestData.previewScreenshotHash] || '';
+
+    const html = getTemplateHtml('request-pdf.ejs', requestData);
+
+    return html;
   }
 
   @Method

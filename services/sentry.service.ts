@@ -1,6 +1,6 @@
 // @ts-ignore
 import SentryMixin from 'moleculer-sentry';
-import Sentry from '@sentry/node';
+import { Integrations } from '@sentry/node';
 import { Service } from 'moleculer-decorators';
 import moleculer from 'moleculer';
 
@@ -21,8 +21,8 @@ import moleculer from 'moleculer';
         tracesSampleRate: 1,
         integrations: [
           // enable HTTP calls tracing
-          new Sentry.Integrations.Http({ tracing: true }),
-          new Sentry.Integrations.Postgres(),
+          new Integrations.Http({ tracing: true }),
+          new Integrations.Postgres(),
         ],
       },
       /** @type {String?} Name of the meta containing user infos. */
