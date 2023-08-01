@@ -1,0 +1,129 @@
+import { ServerClient } from 'postmark';
+import { FormStatus } from '../services/forms.service';
+import { RequestStatus, RequestType } from '../services/requests.service';
+import { Taxonomy } from '../services/taxonomies.service';
+const client = new ServerClient(process.env.POSTMARK_API_KEY);
+
+const sender = 'noreply@biip.lt';
+
+export function emailCanBeSent() {
+  return ['production'].includes(process.env.NODE_ENV);
+}
+
+function hostUrl(isAdmin: boolean = false) {
+  const host = isAdmin ? 'admin.biip.lt' : 'rusys.biip.lt';
+  if (process.env.NODE_ENV === 'staging') {
+    return `https://staging.${host}`;
+  }
+
+  return `https://${host}`;
+}
+
+export function notifyFormAssignee(
+  email: string,
+  formId: number | string,
+  species: Taxonomy
+) {
+  return client.sendEmailWithTemplate({
+    From: sender,
+    To: email.toLowerCase(),
+    TemplateId: 30501356,
+    TemplateModel: {
+      species: species.speciesName,
+      speciesLatin: species.speciesNameLatin,
+      actionUrl: `${hostUrl()}/rusys/stebejimo-anketos/${formId}`,
+    },
+  });
+}
+
+export function notifyOnFormUpdate(
+  email: string,
+  type: string,
+  formId: number | string,
+  taxonomy: Taxonomy,
+  isExpert: boolean = false,
+  isAdmin: boolean = false
+) {
+  const updateTypes: any = {
+    [FormStatus.APPROVED]: 'Pavirtinta',
+    [FormStatus.REJECTED]: 'Atmesta',
+    [FormStatus.SUBMITTED]: 'Pateikta pakartotinai',
+    [FormStatus.RETURNED]: 'Grąžinta taisymui',
+  };
+  const updateType = updateTypes[type] || '';
+
+  if (!updateType) return;
+
+  const path =
+    isExpert || isAdmin ? 'rusys/stebejimo-anketos' : 'stebejimo-anketos';
+
+  return client.sendEmailWithTemplate({
+    From: sender,
+    To: email.toLowerCase(),
+    TemplateId: 30501358,
+    TemplateModel: {
+      title: updateType,
+      titleText: updateType.toLowerCase(),
+      species: taxonomy.speciesName,
+      speciesLatin: taxonomy.speciesNameLatin,
+      actionUrl: `${hostUrl(isAdmin)}/${path}/${formId}`,
+    },
+  });
+}
+
+export function notifyOnRequestUpdate(
+  email: string,
+  type: string,
+  requestId: number | string,
+  requestType: string,
+  isExpert: boolean = false,
+  isAdmin: boolean = false
+) {
+  const updateTypes: any = {
+    [RequestStatus.APPROVED]: 'Pavirtintas',
+    [RequestStatus.REJECTED]: 'Atmestas',
+    [RequestStatus.SUBMITTED]: 'Pateiktas pakartotinai',
+    [RequestStatus.RETURNED]: 'Grąžintas taisymui',
+  };
+  const updateType = updateTypes[type] || '';
+
+  const titleByType = {
+    [RequestType.GET]: 'peržiūros žemėlapyje',
+    [RequestType.GET_ONCE]: 'išrašo',
+    [RequestType.CHECK]: 'tapimo ekspertu',
+  };
+
+  if (!updateType) return;
+
+  const path = isExpert || isAdmin ? 'rusys/prasymai' : 'prasymai';
+
+  return client.sendEmailWithTemplate({
+    From: sender,
+    To: email.toLowerCase(),
+    TemplateId: 30565763,
+    TemplateModel: {
+      title: updateType,
+      titleText: updateType.toLowerCase(),
+      requestType: titleByType[requestType],
+      actionUrl: `${hostUrl(isAdmin)}/${path}/${requestId}`,
+    },
+  });
+}
+
+export function notifyOnFileGenerated(
+  email: string,
+  requestId: number | string,
+  isExpert: boolean = false,
+  isAdmin: boolean = false
+) {
+  const path = isExpert || isAdmin ? 'rusys/prasymai' : 'prasymai';
+
+  return client.sendEmailWithTemplate({
+    From: sender,
+    To: email.toLowerCase(),
+    TemplateId: 30565767,
+    TemplateModel: {
+      actionUrl: `${hostUrl(isAdmin)}/${path}/${requestId}`,
+    },
+  });
+}

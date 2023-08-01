@@ -1,0 +1,171 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <%- include('styles'); %>
+  </head>
+  <body>
+    <div style="width: 620px">
+      <div>
+        <div class="flex justify-between items-center mb-32">
+          <div class="flex items-center gap-8">
+            <img
+              src="https://gamtoje.org/wp-content/uploads/sites/6/2019/12/VSTT-logo-_1-1024x998.jpg"
+              width="75"
+            />
+            <div>
+              <div>Valstybinė saugomų teritorijų tarnyba</div>
+              <div>prie Aplinkos Ministerijos</div>
+              <div class="mb-4">Antakalnio g.25, Vilnius, LT-10312</div>
+              <div>El. paštas: vstt@vstt.lt</div>
+              <div>Tel.: +370 5 272 3284</div>
+            </div>
+          </div>
+          <div class="text-right">
+            <div class="text-4xl font-bold">IŠRAŠAS</div>
+            <div class="text-sm mb-2"><%= systemNameFrom %></div>
+            <div>Nr. <%= id %></div>
+            <div><%= dateNowFull %></div>
+          </div>
+        </div>
+        <table
+          class="w-full table-striped mb-16"
+          cellspacing="0"
+          cellpadding="0"
+        >
+          <tbody>
+            <tr>
+              <td class="w-1/2 text-right font-bold px-4 py-2">
+                Prašymo numeris
+              </td>
+              <td class="w-1/2 px-4 py-2"><%= id %></td>
+            </tr>
+            <tr>
+              <td class="w-1/2 text-right font-bold px-4 py-2">Prašymo data</td>
+              <td class="w-1/2 px-4 py-2"><%= createdAt %></td>
+            </tr>
+            <tr>
+              <td class="w-1/2 text-right font-bold px-4 py-2">
+                Išrašo gavimo tikslas
+              </td>
+              <td class="w-1/2 px-4 py-2"><%= reason %></td>
+            </tr>
+            <tr>
+              <td class="w-1/2 text-right font-bold px-4 py-2">
+                Prašyta teritorija
+              </td>
+              <td class="w-1/2 px-4 py-2"><%= teritory %></td>
+            </tr>
+            <tr>
+              <td class="w-1/2 text-right font-bold px-4 py-2">
+                Išraše pateikiama situacija iki
+              </td>
+              <td class="w-1/2 px-4 py-2"><%= dateUntil %></td>
+            </tr>
+            <tr>
+              <td class="w-1/2 text-right font-bold px-4 py-2">
+                Išrašą suformavo
+              </td>
+              <td class="w-1/2 px-4 py-2"><%= systemName %></td>
+            </tr>
+          </tbody>
+        </table>
+
+        <div class="text-center flex justify-center items-center flex-col">
+          <% if (!isInvasive) { %>
+          <div class="w-3/4">
+            <div class="text-red text-2xl mb-2 font-bold">DĖMESIO!</div>
+            <p>
+              Išraše esančius duomenis, kuriuose yra tikslios saugomų gyvūnų,
+              augalų ir grybų rūšių radaviečių ar augaviečių koordinatės, galima
+              naudoti tik nurodytais tikslais, neatskleisti jų kitiems asmenims,
+              jei tai galėtų sukelti grėsmę saugomų rūšių išlikimui.
+            </p>
+          </div>
+          <div class="w-1/4 my-8">
+            <hr />
+          </div>
+          <div class="w-3/4">
+            <p class="mb-4">
+              Naudotojų patogumui SRIS duomenys yra suskirstyti į dvi
+              kategorijas: „Radavietė“ ir „Radavietė (pavieniai stebėjimai)“.
+            </p>
+            <p class="mb-4">
+              <b>„Radavietėmis“</b> vadinamos vietos, kuriose aptiktos sėslios
+              saugomos rūšys (pvz., augalai, grybai), kiaušinio ar lervos
+              stadijoje esantys gyvūnai ir jų jaunikliai lizduose ar olose, taip
+              pat suaugę gyvūnai veisimosi vietoje arba jų veiklos požymiai -
+              lizdai, uoksai, olos ir pan.
+            </p>
+            <p class="mb-4">
+              Į <b>„Radavietė (pavieniai stebėjimai)“</b> išskiriami tie
+              duomenys, kurie yra apie judrias saugomas gyvūnų rūšis ir jų
+              veiklos požymius, nebūtinai indikuojančius prieraišumą tam tikram
+              taškui ar plotui.
+            </p>
+            <p class="mb-4">
+              Teisinis visų SRIS esančių saugomų rūšių duomenų statusas yra
+              vienodas, nepriklausomai nuo to, kuriai duomenų kategorijai -
+              „Radavietė“ ar „Radavietė (pavieniai stebėjimai)“ - jie yra
+              priskirti.
+            </p>
+          </div>
+          <% } else { %>
+          <div class="w-3/4">
+            <p class="mb-4">Išraše naudojamos sąvokos:</p>
+            <p class="mb-4">
+              <b>„Radavietė“</b> - geografinė vieta ar plotas, kuriuose
+              aptinkama (pastebima) ar kitaip nustatoma invazinių gyvūnų rūšių
+              individų.
+            </p>
+            <p class="mb-4">
+              <b>„Augavietė“</b> - geografinė vieta ar plotas, kuriuose aptinkama
+              (pastebima) ar kitaip nustatoma invazinių augalų rūšių individų.
+            </p>
+          </div>
+          <%}; %>
+        </div>
+      </div>
+
+      <div class="page-break"></div>
+
+      <div>
+        <h1>Išrašo santrauka</h1>
+        <div>
+          <span class="font-bold">Prašyta teritorija:</span> <%= teritory %>
+        </div>
+        <div class="mb-4">
+          <span class="font-bold">Prašytos rūšys:</span> <%= speciesNames %>
+        </div>
+
+        <% if (places.length) { %>
+
+        <div>
+          Teritorijoje aptinkamų prašytų <%= systemNameShort %> radaviečių ir augaviečių
+          apžvalginis žemėlapis:
+        </div>
+        <%- include('places/table', {places: places}); %>
+        <img
+          src="<%= previewScreenshot %>"
+          class="w-full"
+        />
+        <% } else { %>
+
+        <div>
+          Teritorijoje aptinkamų prašytų <%= systemNameShort %> radaviečių ir augaviečių
+          <u><b>nerasta</b></u>
+        </div>
+        <%}; %>
+      </div>
+
+      <% places.forEach(function(place, index){ %>
+      <div class="page-break"></div>
+      <%- include('places/single', {place: place, index: index + 1, species:
+      speciesById[place.species]}); %> <% });%> <%
+      Object.keys(informationalForms).forEach(function(speciesId, index){ %>
+      <div class="page-break"></div>
+      <%- include('forms/informational', {item: informationalForms[speciesId],
+      index: index + 1, species: speciesById[speciesId]}); %> <% });%>
+    </div>
+  </body>
+</html>

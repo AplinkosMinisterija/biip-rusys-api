@@ -1,0 +1,24 @@
+<table class="w-full table-striped my-4" cellspacing="0" cellpadding="0">
+  <thead class="text-left">
+    <tr>
+      <th class="px-4 py-2">Nr.</th>
+      <th class="px-4 py-2">Pavadinimas</th>
+      <th class="px-4 py-2">Lot. pavadinimas</th>
+      <th class="px-4 py-2">Radavietės kodas</th>
+      <th class="px-4 py-2">Paskutinio stebėjimo data</th>
+    </tr>
+  </thead>
+  <% if (places.length) { %>
+  <tbody>
+    <% places.forEach(function(place, index){ %>
+    <tr>
+      <td class="px-4 py-2"><%= index+1 %>.</td>
+      <td class="px-4 py-2"><%= speciesById[place.species].name %></td>
+      <td class="px-4 py-2"><%= speciesById[place.species].nameLatin %></td>
+      <td class="px-4 py-2"><%= place.placeCode %></td>
+      <td class="px-4 py-2"><%= place.placeLastObservedAt %></td>
+    </tr>
+    <% }); %>
+  </tbody>
+  <% } %>
+</table>
