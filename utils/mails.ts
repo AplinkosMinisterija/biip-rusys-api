@@ -2,7 +2,7 @@ import { ServerClient } from 'postmark';
 import { FormStatus } from '../services/forms.service';
 import { RequestStatus, RequestType } from '../services/requests.service';
 import { Taxonomy } from '../services/taxonomies.service';
-const client = new ServerClient(process.env.POSTMARK_API_KEY);
+const client = new ServerClient(process.env.POSTMARK_KEY);
 
 const sender = 'noreply@biip.lt';
 
@@ -11,12 +11,7 @@ export function emailCanBeSent() {
 }
 
 function hostUrl(isAdmin: boolean = false) {
-  const host = isAdmin ? 'admin.biip.lt' : 'rusys.biip.lt';
-  if (process.env.NODE_ENV === 'staging') {
-    return `https://staging.${host}`;
-  }
-
-  return `https://${host}`;
+  return isAdmin ? process.env.ADMIN_HOST : process.env.APP_HOST;
 }
 
 export function notifyFormAssignee(

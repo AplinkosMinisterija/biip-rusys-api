@@ -1,6 +1,6 @@
 import pick from 'lodash/pick';
 import moleculer, { Context, Errors } from 'moleculer';
-import { Method, Service } from 'moleculer-decorators';
+import { Action, Method, Service } from 'moleculer-decorators';
 import ApiGateway from 'moleculer-web';
 import { COMMON_DELETED_SCOPES, EndpointType, RequestMessage } from '../types';
 import { Tenant } from './tenants.service';
@@ -125,6 +125,7 @@ export const AuthType = {
           'POST /tenants/:tenantId/users/:userId': 'tenantUsers.addUser',
           'GET /tenants/:id/users': 'tenantUsers.findByTenant',
           'GET /tenants/:id/users/:userId': 'tenantUsers.getByTenant',
+          'GET /ping': 'api.ping',
         },
         /**
 			* Before call hook. You can check the request.
@@ -190,6 +191,15 @@ export const AuthType = {
   },
 })
 export default class ApiService extends moleculer.Service {
+  @Action({
+    auth: AuthType.PUBLIC,
+  })
+  ping() {
+    return {
+      timestamp: Date.now(),
+    };
+  }
+
   /**
 		* Authenticate the request. It checks the `Authorization` token value in the request header.
 		* Check the token value & resolve the user by the token.

@@ -56,9 +56,10 @@ export default class ToolsService extends moleculer.Service {
       })
         .then((r) => (stream ? r.body?.getReader() : (r.text() as any)))
         .then(resolve)
-        .catch((err) =>
-          reject(err?.message || 'Error while getting screenshot')
-        );
+        .catch((err) => {
+          console.error(err);
+          reject(err?.message || 'Error while getting screenshot');
+        });
     });
   }
 
