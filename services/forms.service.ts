@@ -1359,7 +1359,7 @@ export default class FormsService extends moleculer.Service {
     if (validate) {
       if (entity?.quantity && !value) return true;
 
-      return value > 1 || error;
+      return value >= 1 || error;
     }
 
     return true;
