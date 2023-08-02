@@ -27,6 +27,7 @@ export default class MapsService extends moleculer.Service {
   @Action({
     rest: 'GET /qgisserver',
     auth: AuthType.MAPS_PRIVATE,
+    timeout: 0,
   })
   async qgisQuery(
     ctx: Context<
