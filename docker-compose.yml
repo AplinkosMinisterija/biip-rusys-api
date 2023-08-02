@@ -11,7 +11,7 @@ services:
     environment:
       POSTGRES_USER: postgres
       POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: uetk
+      POSTGRES_DB: rusys
       TZ: 'Etc/GMT'
       PGTZ: 'Etc/GMT'
 

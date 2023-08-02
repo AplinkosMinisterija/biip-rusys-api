@@ -25,6 +25,16 @@ export const mapsSrisInformationalFormsLayerId = 'stebejimai_interpretuojami';
 })
 export default class MapsService extends moleculer.Service {
   @Action({
+    rest: 'GET /qgisserver/auth',
+    auth: AuthType.MAPS_PRIVATE,
+  })
+  checkAuth() {
+    return {
+      success: true
+    }
+  }
+
+  @Action({
     rest: 'GET /qgisserver',
     auth: AuthType.MAPS_PRIVATE,
     timeout: 0,
