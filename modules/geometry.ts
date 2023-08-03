@@ -31,6 +31,13 @@ export const GeometryType = {
   MULTI_POLYGON: 'MultiPolygon',
 };
 
+export const GeometryTypesWithBuffer = [
+  GeometryType.POINT,
+  GeometryType.LINE,
+  GeometryType.MULTI_POINT,
+  GeometryType.MULTI_LINE,
+];
+
 export function geometryToGeom(geometry: GeometryObject) {
   return `ST_AsText(ST_GeomFromGeoJSON('${JSON.stringify(geometry)}'))`;
 }

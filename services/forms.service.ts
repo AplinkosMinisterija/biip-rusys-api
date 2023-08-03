@@ -25,6 +25,7 @@ import {
   DBPagination,
   USER_PUBLIC_POPULATE,
   queryBoolean,
+  throwValidationError,
 } from '../types';
 import { UserAuthMeta } from './api.service';
 
@@ -101,7 +102,7 @@ async function validateActivity({
     });
 
     if (!isValid) {
-      throw new moleculer.Errors.ValidationError('Invalid activity');
+      return throwValidationError('Invalid activity', params);
     }
   }
 
@@ -127,7 +128,7 @@ async function validateEvolution({
     });
 
     if (!isValid) {
-      throw new moleculer.Errors.ValidationError('Invalid evolution');
+      return throwValidationError('Invalid evolution', params);
     }
   }
 
@@ -152,7 +153,7 @@ async function validateMethod({
     });
 
     if (!isValid) {
-      throw new moleculer.Errors.ValidationError('Invalid method');
+      return throwValidationError('Invalid method', params);
     }
   }
 
@@ -1110,7 +1111,7 @@ export default class FormsService extends moleculer.Service {
   @Method
   async getFormType(ctx: Context, speciesId: number) {
     if (!speciesId) {
-      throw new moleculer.Errors.ValidationError('No species');
+      return throwValidationError('No species');
     }
 
     const taxonomy: Taxonomy = await ctx.call('taxonomies.findBySpeciesId', {
@@ -1223,17 +1224,18 @@ export default class FormsService extends moleculer.Service {
         const geomItem = geom.features[0];
         const value = geometryToGeom(geomItem.geometry);
         ctx.params.geom = table.client.raw(geometryFromText(value));
-        ctx.params.geomBufferSize = geomItem.properties?.bufferSize || form?.geomBufferSize || null;
+        ctx.params.geomBufferSize =
+          geomItem.properties?.bufferSize || form?.geomBufferSize || null;
       } catch (err) {
-        throw new moleculer.Errors.ValidationError(err.message);
+        return throwValidationError(err.message, ctx.params);
       }
     } else if (id) {
       const form: Form = await ctx.call('forms.resolve', { id });
       if (!form.geom) {
-        throw new moleculer.Errors.ValidationError('No geometry');
+        return throwValidationError('No geometry', ctx.params);
       }
     } else {
-      throw new moleculer.Errors.ValidationError('Invalid geometry');
+      return throwValidationError('Invalid geometry', ctx.params);
     }
 
     return ctx;

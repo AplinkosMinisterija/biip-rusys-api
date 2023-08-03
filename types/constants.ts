@@ -16,20 +16,37 @@ export enum EndpointType {
 }
 
 export function throwUnauthorizedError(
-  message?: string
+  message?: string,
+  data?: any
 ): Errors.MoleculerError {
   throw new Moleculer.Errors.MoleculerClientError(
     message || `Unauthorized.`,
     401,
-    'UNAUTHORIZED'
+    'UNAUTHORIZED',
+    data
   );
 }
 
-export function throwNotFoundError(message?: string): Errors.MoleculerError {
+export function throwValidationError(
+  message?: string,
+  data?: any
+): Errors.MoleculerError {
+  throw new Moleculer.Errors.ValidationError(
+    message || `Not valid.`,
+    'VALIDATION_ERROR',
+    data
+  );
+}
+
+export function throwNotFoundError(
+  message?: string,
+  data?: any
+): Errors.MoleculerError {
   throw new Moleculer.Errors.MoleculerClientError(
     message || `Not found.`,
     404,
-    'NOT_FOUND'
+    'NOT_FOUND',
+    data
   );
 }
 
