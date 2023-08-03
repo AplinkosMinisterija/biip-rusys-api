@@ -1210,6 +1210,11 @@ export default class FormsService extends moleculer.Service {
   ) {
     const { geom, id } = ctx.params;
 
+    let form: Form;
+    if (id) {
+      form = await ctx.call('forms.resolve', { id });
+    }
+
     if (geom?.features?.length) {
       const adapter = await this.getAdapter(ctx);
       const table = adapter.getTable();
@@ -1218,7 +1223,7 @@ export default class FormsService extends moleculer.Service {
         const geomItem = geom.features[0];
         const value = geometryToGeom(geomItem.geometry);
         ctx.params.geom = table.client.raw(geometryFromText(value));
-        ctx.params.geomBufferSize = geomItem.properties?.bufferSize || null;
+        ctx.params.geomBufferSize = geomItem.properties?.bufferSize || form?.geomBufferSize || null;
       } catch (err) {
         throw new moleculer.Errors.ValidationError(err.message);
       }
