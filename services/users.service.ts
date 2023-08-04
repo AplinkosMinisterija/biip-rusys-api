@@ -577,8 +577,13 @@ export default class UsersService extends moleculer.Service {
   }
 
   @Event()
-  async 'cache.clean.users'() {
+  async 'users.**'() {
     this.broker.emit('cache.clean.auth');
     this.broker.emit(`cache.clean.${this.fullName}`);
+  }
+
+  @Event()
+  async 'cache.clean.users'() {
+    await this.broker.cacher?.clean(`${this.fullName}.**`);
   }
 }

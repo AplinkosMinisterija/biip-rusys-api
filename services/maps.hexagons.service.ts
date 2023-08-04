@@ -57,10 +57,10 @@ export default class MapsHexagonService extends moleculer.Service {
   @Action({
     auth: AuthType.PUBLIC,
     rest: 'GET /',
-    // cache: {
-    //   keys: [],
-    //   ttl: 60 * 60 * 24,
-    // },
+    cache: {
+      keys: [],
+      ttl: 60 * 60 * 24,
+    },
   })
   async all(ctx: Context) {
     const adapter = await this.getAdapter(ctx);

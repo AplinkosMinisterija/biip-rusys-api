@@ -40,6 +40,7 @@ export default function (opts: any = {}) {
     mixins: [DbService(opts), filtersMixin()],
 
     async started() {
+      await this.getAdapter();
     },
 
     actions: {
