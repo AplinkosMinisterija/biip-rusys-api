@@ -396,14 +396,12 @@ export interface Form extends BaseModelInterface {
           width: {
             type: 'number',
             required: true,
-            integer: true,
-            min: 1,
+            positive: true,
           },
           height: {
             type: 'number',
             required: true,
-            integer: true,
-            min: 1,
+            positive: true,
           },
           unit: {
             type: 'string',
