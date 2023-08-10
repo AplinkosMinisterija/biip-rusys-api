@@ -70,7 +70,13 @@ export default class JobsRequestsService extends moleculer.Service {
     await this.broker.cacher.set(redisKey, screenshotsByHash);
 
     const secret = getSecret(request);
-    const footerHtml = getTemplateHtml('footer.ejs', { id });
+
+    const requestData = await getRequestData(ctx, id, false);
+
+    const footerHtml = getTemplateHtml('footer.ejs', {
+      id,
+      systemNameFooter: requestData.systemNameFooter,
+    });
 
     const pdf = await ctx.call('tools.makePdf', {
       url: `${process.env.SERVER_HOST}/jobs/requests/${id}/html?secret=${secret}&skey=${screenshotsHash}`,
