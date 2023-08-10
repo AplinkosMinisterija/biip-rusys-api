@@ -71,8 +71,16 @@ export default class JobsRequestsService extends moleculer.Service {
 
     const secret = getSecret(request);
 
+    const requestData = await getRequestData(ctx, id, false);
+
+    const footerHtml = getTemplateHtml('footer.ejs', {
+      id,
+      systemName: requestData.systemNameFooter,
+    });
+
     const pdf = await ctx.call('tools.makePdf', {
       url: `${process.env.SERVER_HOST}/jobs/requests/${id}/html?secret=${secret}&skey=${screenshotsHash}`,
+      footer: footerHtml,
     });
 
     const folder = this.getFolderName(
