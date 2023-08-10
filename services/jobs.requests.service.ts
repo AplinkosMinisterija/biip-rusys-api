@@ -75,7 +75,7 @@ export default class JobsRequestsService extends moleculer.Service {
 
     const footerHtml = getTemplateHtml('footer.ejs', {
       id,
-      systemNameFooter: requestData.systemNameFooter,
+      systemName: requestData.systemNameFooter,
     });
 
     const pdf = await ctx.call('tools.makePdf', {
