@@ -10,6 +10,7 @@ const config = {
     tableName: 'migrations',
     directory: path.resolve('./database/migrations')
   },
+  pool: { min: 0, max: 2 },
   ...knexSnakeCaseMappers(),
 };
 
