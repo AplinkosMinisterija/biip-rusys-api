@@ -79,7 +79,7 @@ export default class MapsService extends moleculer.Service {
       method: 'POST',
       body: new URLSearchParams(ctx.params).toString(),
       headers: {
-        'x-auth-key': 'testinisraktas',
+        'x-auth-key': process.env.QGIS_SERVER_AUTH_KEY,
         'Content-Type': 'application/x-www-form-urlencoded',
       },
     });
@@ -298,9 +298,9 @@ export default class MapsService extends moleculer.Service {
   }
 
   created() {
-    if (!process.env.JWT_MAPS_SECRET) {
+    if (!process.env.JWT_MAPS_SECRET || !process.env.QGIS_SERVER_AUTH_KEY) {
       this.broker.fatal(
-        "Environment variable 'JWT_MAPS_SECRET' must be configured!"
+        "Environment variable 'JWT_MAPS_SECRET' and 'QGIS_SERVER_AUTH_KEY' must be configured!"
       );
     }
   }
