@@ -81,9 +81,7 @@ export interface Place extends BaseModelInterface {
         type: 'number',
         columnType: 'integer',
         columnName: 'speciesId',
-        populate: {
-          action: 'taxonomies.species.resolve',
-        },
+        populate: 'taxonomies.species.resolve',
       },
 
       geom: {
