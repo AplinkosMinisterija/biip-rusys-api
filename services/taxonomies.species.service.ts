@@ -148,12 +148,9 @@ const publicPopulate = ['class', 'conventions'];
 
       taxonomy: {
         virtual: true,
-        populate(ctx: any, _values: any, items: any[]) {
-          return Promise.all(
-            items.map((item) => {
-              return ctx.call('taxonomies.findBySpeciesId', { id: item.id });
-            })
-          );
+        populate: {
+          keyField: 'id',
+          action: 'taxonomies.findBySpeciesId',
         },
       },
 

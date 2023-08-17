@@ -356,7 +356,6 @@ export default class TaxonomiesService extends moleculer.Service {
       query.showHidden = showHidden;
     }
 
-    console.log('multi?', multi)
     if (multi) {
       const result = await ctx.call(`taxonomies.find`, {
         query,
