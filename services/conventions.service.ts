@@ -64,16 +64,20 @@ export interface Convention extends BaseModelInterface {
       children: {
         virtual: true,
         type: 'array',
-        populate(ctx: any, _values: any, conventions: any[]) {
-          return Promise.all(
-            conventions.map((convention: any) => {
-              return ctx.call('conventions.find', {
-                query: { parent: convention.id },
-                populate: 'children',
-                sort: 'name',
-              });
-            })
-          );
+        async populate(ctx: any, _values: any, conventions: any[]) {
+          const ids = conventions.map((c) => c.id);
+          if (!ids?.length) return [];
+          const childrenConventions = await ctx.call('conventions.find', {
+            query: {
+              parent: { $in: ids },
+            },
+            populate: 'children',
+            sort: 'name',
+            mapping: 'parent',
+            mappingMulti: true,
+          });
+
+          return conventions.map((c) => childrenConventions[c.id]);
         },
       },
 

@@ -78,6 +78,45 @@ export default function (opts: any = {}) {
       },
     },
 
+    hooks: {
+      after: {
+        find: [
+          async function (
+            ctx: Context<{
+              mapping: string;
+              mappingMulti: boolean;
+              mappingField: string;
+            }>,
+            data: any[]
+          ) {
+            if (ctx.params.mapping) {
+              const { mapping, mappingMulti, mappingField } = ctx.params;
+              return data?.reduce((acc: any, item) => {
+                let value: any = item;
+
+                if (mappingField) {
+                  value = item[mappingField];
+                }
+
+                if (mappingMulti) {
+                  return {
+                    ...acc,
+                    [`${item[mapping]}`]: [
+                      ...(acc[`${item[mapping]}`] || []),
+                      value,
+                    ],
+                  };
+                }
+
+                return { ...acc, [`${item[mapping]}`]: value };
+              }, {});
+            }
+            return data;
+          },
+        ],
+      },
+    },
+
     merged(schema: any) {
       if (schema.actions) {
         for (const action in schema.actions) {
