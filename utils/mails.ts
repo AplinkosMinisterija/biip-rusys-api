@@ -85,7 +85,7 @@ export function notifyOnRequestUpdate(
   const titleByType = {
     [RequestType.GET]: 'peržiūros žemėlapyje',
     [RequestType.GET_ONCE]: 'išrašo',
-    [RequestType.CHECK]: 'tapimo ekspertu',
+    [RequestType.CHECK]: 'prašymas tapti ekspertu',
   };
 
   if (!updateType) return;
