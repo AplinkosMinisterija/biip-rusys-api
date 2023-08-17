@@ -89,25 +89,18 @@ export interface Place extends BaseModelInterface {
       geom: {
         type: 'any',
         raw: true,
-
-        populate: async (ctx: any, _values: any, places: Place[]) => {
-          const result = await ctx.call('places.getGeometryJson', {
-            id: places.map((place) => place.id),
-          });
-
-          return places.map((place) => result[`${place.id}`] || {});
+        populate: {
+          keyField: 'id',
+          action: 'places.getGeometryJson',
         },
       },
 
       area: {
         type: 'number',
         virtual: true,
-        populate(ctx: any, _values: any, places: Place[]) {
-          return Promise.all(
-            places.map((place) => {
-              return ctx.call('places.getGeometryArea', { id: place.id });
-            })
-          );
+        populate: {
+          keyField: 'id',
+          action: 'places.getGeometryArea',
         },
       },
 

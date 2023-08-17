@@ -195,12 +195,9 @@ const populatePermissions = (field: string) => {
       geom: {
         type: 'any',
         raw: true,
-        populate: async (ctx: any, _values: any, requests: Request[]) => {
-          const result = await ctx.call('requests.getGeometryJson', {
-            id: requests.map((request) => request.id),
-          });
-
-          return requests.map((request) => result[`${request.id}`] || {});
+        populate: {
+          keyField: 'id',
+          action: 'requests.getGeometryJson',
         },
       },
 

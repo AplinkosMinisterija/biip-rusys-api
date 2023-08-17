@@ -56,9 +56,7 @@ export const PlaceHistoryStatus = {
         columnType: 'integer',
         columnName: 'placeId',
         required: true,
-        populate: {
-          action: 'places.resolve',
-        },
+        populate: 'places.resolve',
       },
 
       status: {
@@ -70,26 +68,18 @@ export const PlaceHistoryStatus = {
       geom: {
         type: 'any',
         raw: true,
-        populate: async (ctx: any, _values: any, histories: PlaceHistory[]) => {
-          const result = await ctx.call('places.histories.getGeometryJson', {
-            id: histories.map((history) => history.id),
-          });
-
-          return histories.map((history) => result[`${history.id}`] || {});
+        populate: {
+          keyField: 'id',
+          action: 'places.histories.getGeometryJson',
         },
       },
 
       area: {
         type: 'number',
         virtual: true,
-        populate(ctx: any, _values: any, histories: PlaceHistory[]) {
-          return Promise.all(
-            histories.map((history) =>
-              ctx.call('places.histories.getGeometryArea', {
-                id: history.id,
-              })
-            )
-          );
+        populate: {
+          keyField: 'id',
+          action: 'places.histories.getGeometryArea',
         },
       },
 
