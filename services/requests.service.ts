@@ -241,22 +241,6 @@ const populatePermissions = (field: string) => {
         },
       },
 
-      history: {
-        type: 'array',
-        items: { type: 'object' },
-        virtual: true,
-        populate(ctx: any, _values: any, requests: Request[]) {
-          return Promise.all(
-            requests.map((request) =>
-              ctx.call('requests.getHistory', {
-                id: request.id,
-                type: 'find',
-              })
-            )
-          );
-        },
-      },
-
       data: {
         type: 'object',
       },

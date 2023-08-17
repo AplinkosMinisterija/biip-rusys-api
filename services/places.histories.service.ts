@@ -98,14 +98,9 @@ export const PlaceHistoryStatus = {
         columnType: 'json',
         columnName: 'relevantFormIds',
         items: { type: 'number' },
-        populate(ctx: any, _values: any, histories: PlaceHistory[]) {
-          return Promise.all(
-            histories.map((history) =>
-              ctx.call('forms.resolve', {
-                id: (history as any).relevantFormIds,
-              })
-            )
-          );
+        populate: {
+          keyField: 'relevantForms',
+          action: 'forms.resolve',
         },
       },
 

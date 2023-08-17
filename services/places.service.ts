@@ -115,42 +115,14 @@ export interface Place extends BaseModelInterface {
         type: 'array',
         items: { type: 'number' },
         virtual: true,
-        async populate(ctx: any, _values: any, places: Place[]) {
-          const forms: Form[] = await ctx.call('forms.find', {
-            query: {
-              place: {
-                $in: places.map((place) => place.id),
-              },
-            },
+        populate: {
+          keyField: 'id',
+          action: 'forms.populateByProp',
+          params: {
+            queryKey: 'place',
+            mappingMulti: true,
             sort: '-observedAt',
-          });
-
-          const formsByPlace: Record<Place['id'], Form[]> = {};
-
-          forms.forEach((form) => {
-            formsByPlace[form.place as number] ??= [];
-            formsByPlace[form.place as number].push(form);
-          });
-
-          return places.map((place) => formsByPlace[place.id]);
-        },
-      },
-
-      history: {
-        type: 'array',
-        items: { type: 'object' },
-        virtual: true,
-        populate(ctx: any, _values: any, places: any[]) {
-          return Promise.all(
-            places.map((place: any) => {
-              return ctx.call('places.histories.find', {
-                sort: '-createdAt',
-                query: {
-                  place: place.id,
-                },
-              });
-            })
-          );
+          },
         },
       },
 
