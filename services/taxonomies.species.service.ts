@@ -80,16 +80,12 @@ const publicPopulate = ['class', 'conventions'];
         columnType: 'integer',
         columnName: 'classId',
         required: true,
-        populate(ctx: any, _values: any, species: any[]) {
-          return Promise.all(
-            species.map((s: any) => {
-              return ctx.call('taxonomies.classes.resolve', {
-                id: s.classId,
-                populate: 'phylum',
-                fields: ['id', 'name', 'nameLatin', 'phylum'],
-              });
-            })
-          );
+        populate: {
+          action: 'taxonomies.classes.resolve',
+          params: {
+            fields: ['id', 'name', 'nameLatin', 'phylum'],
+            populate: 'phylum',
+          },
         },
       },
 
