@@ -75,7 +75,7 @@ export function notifyOnRequestUpdate(
   isAdmin: boolean = false
 ) {
   const updateTypes: any = {
-    [RequestStatus.APPROVED]: 'Pavirtintas',
+    [RequestStatus.APPROVED]: 'Patvirtintas',
     [RequestStatus.REJECTED]: 'Atmestas',
     [RequestStatus.SUBMITTED]: 'Pateiktas pakartotinai',
     [RequestStatus.RETURNED]: 'Grąžintas taisymui',
