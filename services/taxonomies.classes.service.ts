@@ -50,32 +50,27 @@ export interface TaxonomyClass extends BaseModelInterface {
         columnType: 'integer',
         columnName: 'phylumId',
         required: true,
-        populate(ctx: any, _values: any, classes: any[]) {
-          return Promise.all(
-            classes.map((c: any) => {
-              return ctx.call('taxonomies.phylums.resolve', {
-                id: c.phylumId,
-                populate: 'kingdom',
-                fields: ['id', 'name', 'nameLatin', 'kingdom'],
-              });
-            })
-          );
+        populate: {
+          action: 'taxonomies.phylums.resolve',
+          params: {
+            populate: 'kingdom',
+            fields: ['id', 'name', 'nameLatin', 'kingdom'],
+          },
         },
       },
 
       species: {
         virtual: true,
         type: 'array',
-        populate(ctx: any, _values: any, classes: any[]) {
-          return Promise.all(
-            classes.map((c: any) => {
-              return ctx.call('taxonomies.species.find', {
-                query: { class: c.id },
-                fields: ['id', 'name', 'nameLatin', 'synonyms', 'type'],
-                sort: 'name',
-              });
-            })
-          );
+        populate: {
+          keyField: 'id',
+          action: 'taxonomies.species.populateByProp',
+          params: {
+            queryKey: 'class',
+            fields: ['id', 'name', 'nameLatin', 'synonyms', 'type', 'class'],
+            sort: 'name',
+            mappingMulti: true,
+          },
         },
       },
 
