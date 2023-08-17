@@ -324,6 +324,10 @@ export default class TaxonomiesService extends moleculer.Service {
           convert: true,
         },
       ],
+      mapping: {
+        type: 'boolean',
+        default: false,
+      },
       showHidden: {
         type: 'boolean',
         default: false,
@@ -331,9 +335,13 @@ export default class TaxonomiesService extends moleculer.Service {
     },
   })
   async findBySpeciesId(
-    ctx: Context<{ id: number | number[]; showHidden: boolean }>
+    ctx: Context<{
+      id: number | number[];
+      showHidden: boolean;
+      mapping?: boolean;
+    }>
   ) {
-    const { id, showHidden } = ctx.params;
+    const { id, showHidden, mapping } = ctx.params;
     const multi = Array.isArray(id);
 
     const query: any = {
@@ -348,8 +356,15 @@ export default class TaxonomiesService extends moleculer.Service {
       query.showHidden = showHidden;
     }
 
+    console.log('multi?', multi)
     if (multi) {
-      return ctx.call(`taxonomies.find`, { query });
+      const result = await ctx.call(`taxonomies.find`, {
+        query,
+        mapping: mapping ? 'speciesId' : '',
+      });
+
+      console.log(result)
+      return result
     }
 
     const taxonomy: Taxonomy = await ctx.call('taxonomies.findOne', { query });

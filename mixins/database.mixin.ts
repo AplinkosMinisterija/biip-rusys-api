@@ -12,6 +12,34 @@ export const MaterializedView = {
   APPROVED_FORMS: 'approvedForms',
 };
 
+function makeMapping(
+  data: any[],
+  mapping?: string,
+  options?: {
+    mappingMulti?: boolean;
+    mappingField?: string;
+  }
+) {
+  if (!mapping) return data;
+
+  return data?.reduce((acc: any, item) => {
+    let value: any = item;
+
+    if (options?.mappingField) {
+      value = item[options.mappingField];
+    }
+
+    if (options?.mappingMulti) {
+      return {
+        ...acc,
+        [`${item[mapping]}`]: [...(acc[`${item[mapping]}`] || []), value],
+      };
+    }
+
+    return { ...acc, [`${item[mapping]}`]: value };
+  }, {});
+}
+
 export default function (opts: any = {}) {
   const adapter: any = {
     type: 'Knex',
@@ -55,6 +83,39 @@ export default function (opts: any = {}) {
       async removeAllEntities(ctx: any) {
         return await this.clearEntities(ctx);
       },
+
+      async populateByProp(
+        ctx: Context<{
+          id: number | number[];
+          queryKey: string;
+          query: any;
+          mapping?: boolean;
+          mappingMulti?: boolean;
+          mappingField: string;
+        }>
+      ): Promise<any> {
+        const { id, queryKey, query, mapping, mappingMulti, mappingField } =
+          ctx.params;
+
+        delete ctx.params.queryKey;
+        delete ctx.params.id;
+        delete ctx.params.mapping;
+        delete ctx.params.mappingMulti;
+        delete ctx.params.mappingField;
+
+        const entities = await this.findEntities(ctx, {
+          ...ctx.params,
+          query: {
+            ...(query || {}),
+            [queryKey]: { $in: id },
+          },
+        });
+
+        return makeMapping(entities, mapping ? queryKey : '', {
+          mappingMulti,
+          mappingField: mappingField,
+        });
+      },
     },
 
     methods: {
@@ -89,29 +150,11 @@ export default function (opts: any = {}) {
             }>,
             data: any[]
           ) {
-            if (ctx.params.mapping) {
-              const { mapping, mappingMulti, mappingField } = ctx.params;
-              return data?.reduce((acc: any, item) => {
-                let value: any = item;
-
-                if (mappingField) {
-                  value = item[mappingField];
-                }
-
-                if (mappingMulti) {
-                  return {
-                    ...acc,
-                    [`${item[mapping]}`]: [
-                      ...(acc[`${item[mapping]}`] || []),
-                      value,
-                    ],
-                  };
-                }
-
-                return { ...acc, [`${item[mapping]}`]: value };
-              }, {});
-            }
-            return data;
+            const { mapping, mappingMulti, mappingField } = ctx.params;
+            return makeMapping(data, mapping, {
+              mappingMulti,
+              mappingField,
+            });
           },
         ],
       },
