@@ -361,15 +361,12 @@ export interface Form extends BaseModelInterface {
         columnName: 'speciesId',
         required: true,
         immutable: true,
-        populate(ctx: any, _values: any, forms: any[]) {
-          return Promise.all(
-            forms.map((form) => {
-              return ctx.call('taxonomies.findBySpeciesId', {
-                id: form.speciesId,
-                showHidden: true,
-              });
-            })
-          );
+        populate: {
+          keyField: 'species',
+          action: 'taxonomies.findBySpeciesId',
+          params: {
+            showHidden: true,
+          },
         },
       },
 

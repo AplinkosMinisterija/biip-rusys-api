@@ -195,12 +195,9 @@ const populatePermissions = (field: string) => {
       geom: {
         type: 'any',
         raw: true,
-        populate: async (ctx: any, _values: any, requests: Request[]) => {
-          const result = await ctx.call('requests.getGeometryJson', {
-            id: requests.map((request) => request.id),
-          });
-
-          return requests.map((request) => result[`${request.id}`] || {});
+        populate: {
+          keyField: 'id',
+          action: 'requests.getGeometryJson',
         },
       },
 
@@ -238,22 +235,6 @@ const populatePermissions = (field: string) => {
           const { user, statusChanged } = ctx?.meta;
           if (user?.type !== UserType.ADMIN || !statusChanged) return;
           return new Date();
-        },
-      },
-
-      history: {
-        type: 'array',
-        items: { type: 'object' },
-        virtual: true,
-        populate(ctx: any, _values: any, requests: Request[]) {
-          return Promise.all(
-            requests.map((request) =>
-              ctx.call('requests.getHistory', {
-                id: request.id,
-                type: 'find',
-              })
-            )
-          );
         },
       },
 

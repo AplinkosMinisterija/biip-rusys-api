@@ -90,7 +90,7 @@ export default {
     },
     async getGeometryArea(
       ctx: Context<{
-        id: number;
+        id: number | number[];
         field?: string;
       }>
     ) {
@@ -98,12 +98,24 @@ export default {
       const table = adapter.getTable();
 
       const { id, field } = ctx.params;
-      const res = await table
-        .select(table.client.raw(`${areaFn(field)} as area`))
-        .where('id', id)
-        .first();
+      const multi = Array.isArray(id);
 
-      return Number(res.area).toFixed(2);
+      const query = table.select(
+        'id',
+        table.client.raw(`${areaFn(field)} as area`)
+      );
+
+      query[multi ? 'whereIn' : 'where']('id', id);
+
+      const res: any[] = await query;
+
+      const result = res.reduce((acc: { [key: string]: any }, item) => {
+        acc[`${item.id}`] = Number(Number(item.area).toFixed(2));
+        return acc;
+      }, {});
+
+      if (!multi) return result[`${id}`];
+      return result;
     },
   },
 };

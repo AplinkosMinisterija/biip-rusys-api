@@ -42,17 +42,16 @@ export interface TaxonomyKingdom extends BaseModelInterface {
       phylums: {
         virtual: true,
         type: 'array',
-        populate(ctx: any, _values: any, kingdoms: any[]) {
-          return Promise.all(
-            kingdoms.map((kingdom: any) => {
-              return ctx.call('taxonomies.phylums.find', {
-                query: { kingdom: kingdom.id },
-                fields: ['id', 'name', 'nameLatin', 'classes'],
-                populate: 'classes',
-                sort: 'name',
-              });
-            })
-          );
+        populate: {
+          keyField: 'id',
+          action: 'taxonomies.phylums.populateByProp',
+          params: {
+            queryKey: 'kingdom',
+            fields: ['id', 'name', 'nameLatin', 'classes', 'kingdom'],
+            populate: 'classes',
+            sort: 'name',
+            mappingMulti: true,
+          },
         },
       },
 
