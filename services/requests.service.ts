@@ -194,11 +194,7 @@ const populatePermissions = (field: string) => {
 
       geom: {
         type: 'any',
-        raw: true,
-        populate: {
-          keyField: 'id',
-          action: 'requests.getGeometryJson',
-        },
+        geom: true,
       },
 
       canEdit: {

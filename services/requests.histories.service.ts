@@ -57,6 +57,7 @@ export const RequestHistoryTypes = {
 
       geom: {
         type: 'any',
+        geom: true,
         hidden: 'byDefault',
       },
 

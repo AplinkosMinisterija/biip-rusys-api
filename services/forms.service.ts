@@ -7,6 +7,7 @@ import DbConnection, { MaterializedView } from '../mixins/database.mixin';
 import GeometriesMixin, {
   areaFn,
   distanceFn,
+  validateGeom,
 } from '../mixins/geometries.mixin';
 
 import moment from 'moment';
@@ -33,11 +34,7 @@ import { FormHistoryTypes } from './forms.histories.service';
 import { Place } from './places.service';
 import { Tenant } from './tenants.service';
 import { User, USERS_DEFAULT_SCOPES, UserType } from './users.service';
-import {
-  geometryFromText,
-  geometryToGeom,
-  GeomFeatureCollection,
-} from '../modules/geometry';
+import { GeometryType } from '../modules/geometry';
 import {
   emailCanBeSent,
   notifyFormAssignee,
@@ -258,27 +255,21 @@ export interface Form extends BaseModelInterface {
 
       geom: {
         type: 'any',
-        raw: true,
-        async populate(ctx: any, _values: any, forms: Form[]) {
-          const result = await ctx.call('forms.getGeometryJson', {
-            id: forms.map((f) => f.id),
-            propertiesById: forms.reduce((acc: any, form) => {
-              if (!form.geomBufferSize) return acc;
-
-              acc[`${form.id}`] = {
-                bufferSize: form.geomBufferSize,
-              };
-
-              return acc;
-            }, {}),
-          });
-
-          return forms.map((form) => result[`${form.id}`] || {});
+        geom: true,
+        validate: validateGeom([GeometryType.POINT, GeometryType.MULTI_LINE]),
+        featureProperties: {
+          bufferSize: 'geomBufferSize',
         },
       },
 
       geomBufferSize: {
         type: 'number',
+        set({ params }: any) {
+          return this.getPropertiesFromFeatureCollection(
+            params.geom,
+            'bufferSize'
+          );
+        },
         hidden: 'byDefault',
       },
 
@@ -556,12 +547,8 @@ export interface Form extends BaseModelInterface {
 
   hooks: {
     before: {
-      create: [
-        'parseGeomField',
-        'validateIsInformational',
-        'validateStatusChange',
-      ],
-      update: ['parseGeomField', 'validateStatusChange'],
+      create: ['validateIsInformational', 'validateStatusChange'],
+      update: ['validateStatusChange'],
     },
   },
   actions: {
@@ -1196,45 +1183,37 @@ export default class FormsService extends moleculer.Service {
     );
   }
 
-  @Method
-  async parseGeomField(
-    ctx: Context<{
-      id?: number;
-      geom?: GeomFeatureCollection;
-      geomBufferSize?: number;
-    }>
-  ) {
-    const { geom, id } = ctx.params;
+  // @Method
+  // async parseGeomField(
+  //   ctx: Context<{
+  //     id?: number;
+  //     geom?: any;
+  //     geomBufferSize?: number;
+  //   }>
+  // ) {
+  //   const { geom, id } = ctx.params;
 
-    let form: Form;
-    if (id) {
-      form = await ctx.call('forms.resolve', { id });
-    }
+  //   let form: Form;
+  //   if (id) {
+  //     form = await ctx.call('forms.resolve', { id });
+  //   }
 
-    if (geom?.features?.length) {
-      const adapter = await this.getAdapter(ctx);
-      const table = adapter.getTable();
+  //   if (geom?.features?.length) {
+  //     ctx.params.geomBufferSize = this.getPropertiesFromFeatureCollection(
+  //       geom,
+  //       'bufferSize'
+  //     );
+  //   } else if (id) {
+  //     const form: Form = await ctx.call('forms.resolve', { id });
+  //     if (!form.geom) {
+  //       throwValidationError('No geometry', ctx.params);
+  //     }
+  //   } else {
+  //     throwValidationError('Invalid geometry', ctx.params);
+  //   }
 
-      try {
-        const geomItem = geom.features[0];
-        const value = geometryToGeom(geomItem.geometry);
-        ctx.params.geom = table.client.raw(geometryFromText(value));
-        ctx.params.geomBufferSize =
-          geomItem.properties?.bufferSize || form?.geomBufferSize || null;
-      } catch (err) {
-        return throwValidationError(err.message, ctx.params);
-      }
-    } else if (id) {
-      const form: Form = await ctx.call('forms.resolve', { id });
-      if (!form.geom) {
-        return throwValidationError('No geometry', ctx.params);
-      }
-    } else {
-      return throwValidationError('Invalid geometry', ctx.params);
-    }
-
-    return ctx;
-  }
+  //   return ctx;
+  // }
 
   @Method
   async assignPlaceIfNeeded(ctx: Context, form: Form) {

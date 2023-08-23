@@ -67,19 +67,15 @@ export const PlaceHistoryStatus = {
 
       geom: {
         type: 'any',
-        raw: true,
-        populate: {
-          keyField: 'id',
-          action: 'places.histories.getGeometryJson',
-        },
+        geom: true,
       },
 
       area: {
         type: 'number',
         virtual: true,
-        populate: {
-          keyField: 'id',
-          action: 'places.histories.getGeometryArea',
+        geom: {
+          type: 'area',
+          field: 'geom',
         },
       },
 

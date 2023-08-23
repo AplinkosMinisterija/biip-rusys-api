@@ -28,7 +28,6 @@ import { UserAuthMeta } from './api.service';
 import { Form } from './forms.service';
 import { PlaceHistory } from './places.histories.service';
 import { TaxonomySpecies } from './taxonomies.species.service';
-import { Tenant } from './tenants.service';
 import { User, UserType } from './users.service';
 
 const PlaceStatus = {
@@ -86,19 +85,15 @@ export interface Place extends BaseModelInterface {
 
       geom: {
         type: 'any',
-        raw: true,
-        populate: {
-          keyField: 'id',
-          action: 'places.getGeometryJson',
-        },
+        geom: true,
       },
 
       area: {
         type: 'number',
         virtual: true,
-        populate: {
-          keyField: 'id',
-          action: 'places.getGeometryArea',
+        geom: {
+          type: 'area',
+          field: 'geom',
         },
       },
 
