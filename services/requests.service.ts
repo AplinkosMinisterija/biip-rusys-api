@@ -36,15 +36,14 @@ import {
   notifyOnRequestUpdate,
   notifyOnFileGenerated,
 } from '../utils/mails';
-import GeometriesMixin, {
-  geomToFeatureCollection,
-} from '../mixins/geometries.mixin';
 import { Taxonomy } from './taxonomies.service';
 import _ from 'lodash';
 import {
   getInformationalFormsByRequestIds,
   getPlacesByRequestIds,
 } from '../utils/db.queries';
+import { GeometryType, PostgisMixin } from '@moleculer/postgis';
+import { getFeatureCollection } from 'geojsonjs';
 
 export const RequestType = {
   GET: 'GET',
@@ -112,7 +111,9 @@ const populatePermissions = (field: string) => {
       collection: 'requests',
       entityChangedOldEntity: true,
     }),
-    GeometriesMixin,
+    PostgisMixin({
+      srid: 3346,
+    }),
   ],
 
   settings: {
@@ -194,7 +195,10 @@ const populatePermissions = (field: string) => {
 
       geom: {
         type: 'any',
-        geom: true,
+        geom: {
+          multi: true,
+          types: [GeometryType.POLYGON, GeometryType.MULTI_POLYGON],
+        },
       },
 
       canEdit: {
@@ -624,7 +628,7 @@ export default class RequestsService extends moleculer.Service {
         ...acc,
         {
           placeId: Number(key),
-          geom: geomToFeatureCollection(mapByPlace[key]),
+          geom: getFeatureCollection(mapByPlace[key]),
         },
       ],
       []
@@ -658,8 +662,6 @@ export default class RequestsService extends moleculer.Service {
   async getInfomationalFormsByRequest(
     ctx: Context<{ id: number | number[]; date: string }>
   ) {
-    const adapter = await this.getAdapter(ctx);
-
     const { id, date } = ctx.params;
     const ids = Array.isArray(id) ? id : [id];
 
@@ -689,7 +691,7 @@ export default class RequestsService extends moleculer.Service {
         ...acc,
         {
           formId: Number(key),
-          geom: geomToFeatureCollection(mapByForm[key]),
+          geom: getFeatureCollection(mapByForm[key]),
         },
       ],
       []

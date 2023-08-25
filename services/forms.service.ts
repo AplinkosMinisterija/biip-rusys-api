@@ -4,11 +4,8 @@ import moleculer, { Context, RestSchema } from 'moleculer';
 import { Action, Event, Method, Service } from 'moleculer-decorators';
 
 import DbConnection, { MaterializedView } from '../mixins/database.mixin';
-import GeometriesMixin, {
-  areaFn,
-  distanceFn,
-  validateGeom,
-} from '../mixins/geometries.mixin';
+
+import { PostgisMixin, areaQuery, distanceQuery } from '@moleculer/postgis';
 
 import moment from 'moment';
 
@@ -34,7 +31,6 @@ import { FormHistoryTypes } from './forms.histories.service';
 import { Place } from './places.service';
 import { Tenant } from './tenants.service';
 import { User, USERS_DEFAULT_SCOPES, UserType } from './users.service';
-import { GeometryType } from '../modules/geometry';
 import {
   emailCanBeSent,
   notifyFormAssignee,
@@ -184,7 +180,9 @@ export interface Form extends BaseModelInterface {
       collection: 'forms',
       entityChangedOldEntity: true,
     }),
-    GeometriesMixin,
+    PostgisMixin({
+      srid: 3346,
+    }),
   ],
 
   settings: {
@@ -255,20 +253,23 @@ export interface Form extends BaseModelInterface {
 
       geom: {
         type: 'any',
-        geom: true,
-        validate: validateGeom([GeometryType.POINT, GeometryType.MULTI_LINE]),
-        featureProperties: {
-          bufferSize: 'geomBufferSize',
+        geom: {
+          type: 'geom',
+          properties: {
+            bufferSize: 'geomBufferSize',
+          },
         },
       },
 
       geomBufferSize: {
         type: 'number',
         set({ params }: any) {
-          return this.getPropertiesFromFeatureCollection(
+          const bufferSizes = this._getPropertiesFromFeatureCollection(
             params.geom,
             'bufferSize'
           );
+          if (!bufferSizes || !bufferSizes?.length) return;
+          return bufferSizes[0];
         },
         hidden: 'byDefault',
       },
@@ -501,7 +502,9 @@ export interface Form extends BaseModelInterface {
       ...COMMON_SCOPES,
       visibleToUser(query: any, ctx: Context<null, UserAuthMeta>, params: any) {
         const { user, profile } = ctx?.meta;
-        if (!user?.id || user?.type === UserType.ADMIN) return query;
+        // if (!user?.id || user?.type === UserType.ADMIN) {
+        return query;
+        // }
 
         const createdByUserQuery = {
           createdBy: user?.id,
@@ -543,6 +546,7 @@ export interface Form extends BaseModelInterface {
     },
 
     defaultScopes: AUTH_PROTECTED_SCOPES,
+    defaultPopulates: ['geom'],
   },
 
   hooks: {
@@ -902,17 +906,24 @@ export default class FormsService extends moleculer.Service {
     const formsTable = 'forms';
     const placesTable = 'places';
 
+    // const { id } = ctx.params;
+    // const form: Form = await ctx.call('forms.resolve', { id });
+
     const allPlacesBySpecies = table
       .select(
         `${placesTable}.id`,
         `${placesTable}.code`,
         adapter.client.raw(
-          `${distanceFn(
+          `${distanceQuery(
             `${formsTable}.geom`,
-            `${placesTable}.geom`
-          )} as distance`
+            `${placesTable}.geom`,
+            'distance',
+            3346
+          )}`
         ),
-        adapter.client.raw(`${areaFn(`${placesTable}.geom`)} as area`)
+        adapter.client.raw(
+          `${(areaQuery(`${placesTable}.geom`), 'area', 3346)}`
+        )
       )
       .leftJoin(
         placesTable,

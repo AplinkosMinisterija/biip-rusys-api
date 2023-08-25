@@ -4,7 +4,7 @@ import moleculer, { Context } from 'moleculer';
 import { Action, Event, Method, Service } from 'moleculer-decorators';
 
 import DbConnection, { MaterializedView } from '../mixins/database.mixin';
-import GeometriesMixin, { geomAsGeoJsonFn } from '../mixins/geometries.mixin';
+import { asGeoJsonQuery } from '@moleculer/postgis';
 import {
   geometryFromText,
   GeometryObject,
@@ -29,6 +29,8 @@ import { Form } from './forms.service';
 import { PlaceHistory } from './places.histories.service';
 import { TaxonomySpecies } from './taxonomies.species.service';
 import { User, UserType } from './users.service';
+
+import { PostgisMixin, GeometryType } from '@moleculer/postgis';
 
 const PlaceStatus = {
   INITIAL: 'INITIAL',
@@ -56,7 +58,9 @@ export interface Place extends BaseModelInterface {
     DbConnection({
       collection: 'places',
     }),
-    GeometriesMixin,
+    PostgisMixin({
+      srid: 3346,
+    }),
   ],
 
   settings: {
@@ -85,7 +89,10 @@ export interface Place extends BaseModelInterface {
 
       geom: {
         type: 'any',
-        geom: true,
+        geom: {
+          multi: true,
+          types: [GeometryType.POLYGON, GeometryType.MULTI_POLYGON],
+        },
       },
 
       area: {
@@ -132,6 +139,7 @@ export interface Place extends BaseModelInterface {
     },
 
     defaultScopes: [...COMMON_DEFAULT_SCOPES],
+    defaultPopulates: ['geom', 'area'],
   },
 
   actions: {
@@ -307,7 +315,15 @@ export default class PlacesService extends moleculer.Service {
       quantity: number;
       geom: GeometryObject;
     } = await adapter.client
-      .select('*', adapter.client.raw(geomAsGeoJsonFn()))
+      .select(
+        '*',
+        adapter.client.raw(
+          asGeoJsonQuery('geom', 'geom', 3346, {
+            options: 0,
+            digits: 0,
+          })
+        )
+      )
       .from(adapter.client.raw(`rusys_get_place_change_data(${id})`))
       .first();
 
