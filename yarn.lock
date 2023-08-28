@@ -4303,10 +4303,10 @@ moleculer-decorators@^1.3.0:
     ramda "0.27.1"
     ramda-adjunct "^2.35.0"
 
-moleculer-postgis@^0.0.1:
-  version "0.0.1"
-  resolved "https://registry.yarnpkg.com/moleculer-postgis/-/moleculer-postgis-0.0.1.tgz#002878c62a4e7efac2d5724af17dc79ff1708db0"
-  integrity sha512-arnhSaiB4PKTzScLaB6jOPxKWFA0ns4hvcj0AJQrpohHWXgir40XOr/sEbFkVXazAGyWnzLAnMREO2k4DQFT2A==
+moleculer-postgis@^0.0.2:
+  version "0.0.2"
+  resolved "https://registry.yarnpkg.com/moleculer-postgis/-/moleculer-postgis-0.0.2.tgz#7ff5daf29277e2a294e28f659e839ee190cb2dbf"
+  integrity sha512-bq+s/YSisGWd1R3BpLDxk41ofkIOUnh502d2nIBYJu5ctvSiE5TMzUSibjxdbKxqzpoVTklsjRCFjzccrxTakw==
   dependencies:
     geojsonjs "^0.1.1"
     lodash "^4.17.21"

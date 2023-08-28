@@ -5,7 +5,7 @@ import { Action, Event, Method, Service } from 'moleculer-decorators';
 
 import DbConnection, { MaterializedView } from '../mixins/database.mixin';
 
-import { PostgisMixin, areaQuery, distanceQuery } from 'moleculer-postgis';
+import PostgisMixin, { areaQuery, distanceQuery } from 'moleculer-postgis';
 
 import moment from 'moment';
 
