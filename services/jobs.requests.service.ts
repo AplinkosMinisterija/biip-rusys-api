@@ -71,7 +71,7 @@ export default class JobsRequestsService extends moleculer.Service {
 
     const secret = getSecret(request);
 
-    const requestData = await getRequestData(ctx, id, false);
+    const requestData = await getRequestData(ctx, id);
 
     const footerHtml = getTemplateHtml('footer.ejs', {
       id,
@@ -122,7 +122,7 @@ export default class JobsRequestsService extends moleculer.Service {
     const data: any[] = [];
 
     const { id } = ctx.params;
-    const requestData = await getRequestData(ctx, id, false);
+    const requestData = await getRequestData(ctx, id);
 
     const params = await getMapsSearchParams(ctx);
 

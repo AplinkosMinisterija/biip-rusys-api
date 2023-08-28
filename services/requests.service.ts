@@ -25,11 +25,6 @@ import { RequestHistoryTypes } from './requests.histories.service';
 import { Tenant } from './tenants.service';
 import { User, USERS_DEFAULT_SCOPES, UserType } from './users.service';
 
-import {
-  geometriesToGeomCollection,
-  geometryFromText,
-  GeomFeatureCollection,
-} from '../modules/geometry';
 import { TaxonomySpeciesType } from './taxonomies.species.service';
 import {
   emailCanBeSent,
@@ -294,8 +289,8 @@ const populatePermissions = (field: string) => {
   },
   hooks: {
     before: {
-      create: ['validateStatusChange', 'parseGeomField'],
-      update: ['validateStatusChange', 'parseGeomField'],
+      create: ['validateStatusChange'],
+      update: ['validateStatusChange'],
     },
   },
 
@@ -887,42 +882,6 @@ export default class RequestsService extends moleculer.Service {
     }
 
     return [...speciesMap.keys()];
-  }
-
-  @Method
-  async parseGeomField(
-    ctx: Context<{ id?: number; type?: string; geom: GeomFeatureCollection }>
-  ) {
-    const { geom, id } = ctx.params;
-
-    const errMessage = 'No geometry was passed';
-    let request: Request;
-    let type: string = ctx.params.type;
-    if (id) {
-      request = await this.broker.call('requests.resolve', { id });
-      type = request?.type;
-    }
-
-    if (type !== RequestType.CHECK) {
-      if (!request?.geom && !geom?.features?.length) {
-        throw new moleculer.Errors.ValidationError(errMessage);
-      }
-    }
-
-    if (geom?.features?.length) {
-      const adapter = await this.getAdapter(ctx);
-      const table = adapter.getTable();
-
-      try {
-        const geomItems = geom.features.map((i) => i.geometry);
-        const value = geometriesToGeomCollection(geomItems);
-        ctx.params.geom = table.client.raw(geometryFromText(value));
-      } catch (err) {
-        throw new moleculer.Errors.ValidationError(err.message);
-      }
-    }
-
-    return ctx;
   }
 
   @Method

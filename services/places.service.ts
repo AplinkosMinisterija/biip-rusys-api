@@ -4,14 +4,8 @@ import moleculer, { Context } from 'moleculer';
 import { Action, Event, Method, Service } from 'moleculer-decorators';
 
 import DbConnection, { MaterializedView } from '../mixins/database.mixin';
-import { asGeoJsonQuery } from '@moleculer/postgis';
-import {
-  geometryFromText,
-  GeometryObject,
-  geometryToGeom,
-  GeomFeatureCollection,
-} from '../modules/geometry';
 
+import { FeatureCollection, Geometry } from 'geojsonjs';
 import {
   COMMON_FIELDS,
   COMMON_DEFAULT_SCOPES,
@@ -30,7 +24,7 @@ import { PlaceHistory } from './places.histories.service';
 import { TaxonomySpecies } from './taxonomies.species.service';
 import { User, UserType } from './users.service';
 
-import { PostgisMixin, GeometryType } from '@moleculer/postgis';
+import { PostgisMixin, GeometryType, asGeoJsonQuery } from '@moleculer/postgis';
 
 const PlaceStatus = {
   INITIAL: 'INITIAL',
@@ -47,7 +41,7 @@ export interface Place extends BaseModelInterface {
   history: PlaceHistory[];
   species: number | TaxonomySpecies;
   forms?: Form[];
-  geom?: GeomFeatureCollection;
+  geom?: FeatureCollection;
   canEdit?: boolean;
 }
 
@@ -313,7 +307,7 @@ export default class PlacesService extends moleculer.Service {
       status: string;
       formIds: number[];
       quantity: number;
-      geom: GeometryObject;
+      geom: Geometry;
     } = await adapter.client
       .select(
         '*',
@@ -327,9 +321,7 @@ export default class PlacesService extends moleculer.Service {
       .from(adapter.client.raw(`rusys_get_place_change_data(${id})`))
       .first();
 
-    const geometry = adapter.client.raw(
-      geometryFromText(geometryToGeom(data.geom))
-    );
+    const geometry = this.parseGeom(ctx, data.geom);
 
     const saveData = {
       status: data.status,
