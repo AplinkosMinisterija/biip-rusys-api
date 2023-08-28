@@ -37,7 +37,7 @@ import {
   getInformationalFormsByRequestIds,
   getPlacesByRequestIds,
 } from '../utils/db.queries';
-import { GeometryType, PostgisMixin } from '@moleculer/postgis';
+import { GeometryType, PostgisMixin } from 'moleculer-postgis';
 import { getFeatureCollection } from 'geojsonjs';
 
 export const RequestType = {

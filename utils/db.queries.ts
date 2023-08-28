@@ -2,7 +2,7 @@ import knex, { Knex } from 'knex';
 import _, { snakeCase } from 'lodash';
 import config from '../knexfile';
 import { queryBooleanPlain } from '../types';
-import { asGeoJsonQuery } from '@moleculer/postgis';
+import { asGeoJsonQuery } from 'moleculer-postgis';
 
 let knexAdapter: Knex;
 const getAdapter = () => {

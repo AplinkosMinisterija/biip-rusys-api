@@ -17,7 +17,7 @@ import {
 } from './maps.service';
 import { getMapsGridStatsQuery } from '../utils/db.queries';
 import { queryBooleanPlain } from '../types';
-import { PostgisMixin } from '@moleculer/postgis';
+import { PostgisMixin } from 'moleculer-postgis';
 import { getFeatureCollection } from 'geojsonjs';
 @Service({
   name: 'maps.hexagons',
