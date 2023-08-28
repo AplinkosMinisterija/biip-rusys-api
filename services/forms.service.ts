@@ -502,9 +502,9 @@ export interface Form extends BaseModelInterface {
       ...COMMON_SCOPES,
       visibleToUser(query: any, ctx: Context<null, UserAuthMeta>, params: any) {
         const { user, profile } = ctx?.meta;
-        // if (!user?.id || user?.type === UserType.ADMIN) {
-        return query;
-        // }
+        if (!user?.id || user?.type === UserType.ADMIN) {
+          return query;
+        }
 
         const createdByUserQuery = {
           createdBy: user?.id,
@@ -906,9 +906,6 @@ export default class FormsService extends moleculer.Service {
     const formsTable = 'forms';
     const placesTable = 'places';
 
-    // const { id } = ctx.params;
-    // const form: Form = await ctx.call('forms.resolve', { id });
-
     const allPlacesBySpecies = table
       .select(
         `${placesTable}.id`,
@@ -1193,38 +1190,6 @@ export default class FormsService extends moleculer.Service {
       { meta, parentCtx: null }
     );
   }
-
-  // @Method
-  // async parseGeomField(
-  //   ctx: Context<{
-  //     id?: number;
-  //     geom?: any;
-  //     geomBufferSize?: number;
-  //   }>
-  // ) {
-  //   const { geom, id } = ctx.params;
-
-  //   let form: Form;
-  //   if (id) {
-  //     form = await ctx.call('forms.resolve', { id });
-  //   }
-
-  //   if (geom?.features?.length) {
-  //     ctx.params.geomBufferSize = this.getPropertiesFromFeatureCollection(
-  //       geom,
-  //       'bufferSize'
-  //     );
-  //   } else if (id) {
-  //     const form: Form = await ctx.call('forms.resolve', { id });
-  //     if (!form.geom) {
-  //       throwValidationError('No geometry', ctx.params);
-  //     }
-  //   } else {
-  //     throwValidationError('Invalid geometry', ctx.params);
-  //   }
-
-  //   return ctx;
-  // }
 
   @Method
   async assignPlaceIfNeeded(ctx: Context, form: Form) {
