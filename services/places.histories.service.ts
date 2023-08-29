@@ -70,9 +70,7 @@ export const PlaceHistoryStatus = {
       geom: {
         type: 'any',
         geom: {
-          type: 'geom',
           multi: true,
-          types: [GeometryType.POLYGON, GeometryType.MULTI_POLYGON],
         },
       },
 
