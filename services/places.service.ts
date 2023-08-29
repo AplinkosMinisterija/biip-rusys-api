@@ -17,6 +17,7 @@ import {
   throwUnauthorizedError,
   queryBoolean,
   COMMON_DELETED_SCOPES,
+  throwValidationError,
 } from '../types';
 import { UserAuthMeta } from './api.service';
 import { Form } from './forms.service';
@@ -321,12 +322,16 @@ export default class PlacesService extends moleculer.Service {
       .from(adapter.client.raw(`rusys_get_place_change_data(${id})`))
       .first();
 
-    const geometry = this.parseGeom(ctx, data.geom);
+    const geometry = await this.parseGeom(ctx, data.geom);
+
+    if (!geometry?.geom) {
+      throwValidationError('Empty geometry', geometry);
+    }
 
     const saveData = {
       status: data.status,
       quantity: data.quantity,
-      geom: geometry,
+      geom: geometry?.geom,
     };
 
     await ctx.call('places.histories.create', {
