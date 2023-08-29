@@ -1195,7 +1195,10 @@ export default class FormsService extends moleculer.Service {
       return form;
     }
 
-    ctx.emit('places.changed', { id: form.place });
+    ctx.emit('places.changed', {
+      id: form.place,
+      comment: (ctx.params as any)?.comment,
+    });
 
     return form;
   }
