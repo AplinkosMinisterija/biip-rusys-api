@@ -86,7 +86,6 @@ export interface Place extends BaseModelInterface {
         type: 'any',
         geom: {
           multi: true,
-          types: [GeometryType.POLYGON, GeometryType.MULTI_POLYGON],
         },
       },
 
@@ -322,16 +321,14 @@ export default class PlacesService extends moleculer.Service {
       .from(adapter.client.raw(`rusys_get_place_change_data(${id})`))
       .first();
 
-    const geometry = await this.parseGeom(ctx, data.geom);
-
-    if (!geometry?.geom) {
-      throwValidationError('Empty geometry', geometry);
+    if (!data?.geom) {
+      throwValidationError('Empty geometry', data.geom);
     }
 
     const saveData = {
       status: data.status,
       quantity: data.quantity,
-      geom: geometry?.geom,
+      geom: data?.geom,
     };
 
     await ctx.call('places.histories.create', {
