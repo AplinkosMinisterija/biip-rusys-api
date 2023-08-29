@@ -14,7 +14,7 @@ import {
 
 import { Form } from './forms.service';
 import { Place } from './places.service';
-import PostgisMixin, { GeometryType } from 'moleculer-postgis';
+import PostgisMixin from 'moleculer-postgis';
 
 export interface PlaceHistory extends BaseModelInterface {
   place: number | Place;

@@ -25,7 +25,7 @@ import { PlaceHistory } from './places.histories.service';
 import { TaxonomySpecies } from './taxonomies.species.service';
 import { User, UserType } from './users.service';
 
-import PostgisMixin, { GeometryType, asGeoJsonQuery } from 'moleculer-postgis';
+import PostgisMixin, { asGeoJsonQuery } from 'moleculer-postgis';
 
 const PlaceStatus = {
   INITIAL: 'INITIAL',
