@@ -918,9 +918,7 @@ export default class FormsService extends moleculer.Service {
             3346
           )}`
         ),
-        adapter.client.raw(
-          `${(areaQuery(`${placesTable}.geom`), 'area', 3346)}`
-        )
+        adapter.client.raw(`${areaQuery(`${placesTable}.geom`, 'area', 3346)}`)
       )
       .leftJoin(
         placesTable,
