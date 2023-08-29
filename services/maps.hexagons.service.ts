@@ -4,7 +4,6 @@ import moleculer, { Context } from 'moleculer';
 import { Action, Method, Service } from 'moleculer-decorators';
 import DbConnection from '../mixins/database.mixin';
 
-import { geomAsGeoJsonFn } from '../mixins/geometries.mixin';
 import _, { snakeCase } from 'lodash';
 import { TaxonomySpeciesType } from './taxonomies.species.service';
 import { AuthType, UserAuthMeta } from './api.service';
@@ -18,6 +17,8 @@ import {
 } from './maps.service';
 import { getMapsGridStatsQuery } from '../utils/db.queries';
 import { queryBooleanPlain } from '../types';
+import PostgisMixin from 'moleculer-postgis';
+import { getFeatureCollection } from 'geojsonjs';
 @Service({
   name: 'maps.hexagons',
 
@@ -26,7 +27,29 @@ import { queryBooleanPlain } from '../types';
       collection: 'mapsHexagonGrid',
       createActions: false,
     }),
+    PostgisMixin({
+      srid: 3346,
+    }),
   ],
+
+  settings: {
+    fields: {
+      id: {
+        type: 'string',
+        columnType: 'integer',
+        primaryKey: true,
+        secure: true,
+      },
+
+      geom: {
+        type: 'any',
+        geom: {
+          type: 'geom',
+          properties: ['id'],
+        },
+      },
+    },
+  },
 })
 export default class MapsHexagonService extends moleculer.Service {
   @Action({
@@ -63,57 +86,11 @@ export default class MapsHexagonService extends moleculer.Service {
     },
   })
   async all(ctx: Context) {
-    const adapter = await this.getAdapter(ctx);
-    const table = adapter.getTable();
+    const items: any[] = await this.findEntities(ctx, {
+      populate: 'geom',
+    });
 
-    const toJsonbObject = (obj: any, as?: string) => {
-      const value: string[] = Object.keys(obj).reduce(
-        (acc: string[], key: string) => {
-          acc.push(`'${key}', ${obj[key]}`);
-          return acc;
-        },
-        []
-      );
-
-      const result = `jsonb_build_object(${value.join(',')})`;
-
-      if (!as) return result;
-      return `${result} as ${as}`;
-    };
-
-    const result: any = await adapter.client
-      .select(
-        adapter.client.raw(
-          toJsonbObject(
-            {
-              type: "'FeatureCollection'",
-              features: 'jsonb_agg(features.feature)',
-            },
-            'data'
-          )
-        )
-      )
-      .from(
-        table
-          .select(
-            adapter.client.raw(
-              toJsonbObject(
-                {
-                  type: "'Feature'",
-                  geometry: geomAsGeoJsonFn('geom', ''),
-                  properties: toJsonbObject({
-                    id: 'id',
-                  }),
-                },
-                'feature'
-              )
-            )
-          )
-          .as('features')
-      )
-      .first();
-
-    return result.data;
+    return getFeatureCollection(items.map((i) => i.geom));
   }
 
   @Method

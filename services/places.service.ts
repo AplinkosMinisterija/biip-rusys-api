@@ -4,14 +4,8 @@ import moleculer, { Context } from 'moleculer';
 import { Action, Event, Method, Service } from 'moleculer-decorators';
 
 import DbConnection, { MaterializedView } from '../mixins/database.mixin';
-import GeometriesMixin, { geomAsGeoJsonFn } from '../mixins/geometries.mixin';
-import {
-  geometryFromText,
-  GeometryObject,
-  geometryToGeom,
-  GeomFeatureCollection,
-} from '../modules/geometry';
 
+import { FeatureCollection, Geometry } from 'geojsonjs';
 import {
   COMMON_FIELDS,
   COMMON_DEFAULT_SCOPES,
@@ -23,13 +17,15 @@ import {
   throwUnauthorizedError,
   queryBoolean,
   COMMON_DELETED_SCOPES,
+  throwValidationError,
 } from '../types';
 import { UserAuthMeta } from './api.service';
 import { Form } from './forms.service';
 import { PlaceHistory } from './places.histories.service';
 import { TaxonomySpecies } from './taxonomies.species.service';
-import { Tenant } from './tenants.service';
 import { User, UserType } from './users.service';
+
+import PostgisMixin, { asGeoJsonQuery } from 'moleculer-postgis';
 
 const PlaceStatus = {
   INITIAL: 'INITIAL',
@@ -46,7 +42,7 @@ export interface Place extends BaseModelInterface {
   history: PlaceHistory[];
   species: number | TaxonomySpecies;
   forms?: Form[];
-  geom?: GeomFeatureCollection;
+  geom?: FeatureCollection;
   canEdit?: boolean;
 }
 
@@ -57,7 +53,9 @@ export interface Place extends BaseModelInterface {
     DbConnection({
       collection: 'places',
     }),
-    GeometriesMixin,
+    PostgisMixin({
+      srid: 3346,
+    }),
   ],
 
   settings: {
@@ -86,19 +84,17 @@ export interface Place extends BaseModelInterface {
 
       geom: {
         type: 'any',
-        raw: true,
-        populate: {
-          keyField: 'id',
-          action: 'places.getGeometryJson',
+        geom: {
+          multi: true,
         },
       },
 
       area: {
         type: 'number',
         virtual: true,
-        populate: {
-          keyField: 'id',
-          action: 'places.getGeometryArea',
+        geom: {
+          type: 'area',
+          field: 'geom',
         },
       },
 
@@ -137,6 +133,7 @@ export interface Place extends BaseModelInterface {
     },
 
     defaultScopes: [...COMMON_DEFAULT_SCOPES],
+    defaultPopulates: ['geom', 'area'],
   },
 
   actions: {
@@ -310,20 +307,28 @@ export default class PlacesService extends moleculer.Service {
       status: string;
       formIds: number[];
       quantity: number;
-      geom: GeometryObject;
+      geom: Geometry;
     } = await adapter.client
-      .select('*', adapter.client.raw(geomAsGeoJsonFn()))
+      .select(
+        '*',
+        adapter.client.raw(
+          asGeoJsonQuery('geom', 'geom', 3346, {
+            options: 0,
+            digits: 0,
+          })
+        )
+      )
       .from(adapter.client.raw(`rusys_get_place_change_data(${id})`))
       .first();
 
-    const geometry = adapter.client.raw(
-      geometryFromText(geometryToGeom(data.geom))
-    );
+    if (!data?.geom) {
+      throwValidationError('Empty geometry', data.geom);
+    }
 
     const saveData = {
       status: data.status,
       quantity: data.quantity,
-      geom: geometry,
+      geom: data?.geom,
     };
 
     await ctx.call('places.histories.create', {

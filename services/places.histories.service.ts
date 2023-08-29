@@ -14,7 +14,7 @@ import {
 
 import { Form } from './forms.service';
 import { Place } from './places.service';
-import GeometriesMixin from '../mixins/geometries.mixin';
+import PostgisMixin from 'moleculer-postgis';
 
 export interface PlaceHistory extends BaseModelInterface {
   place: number | Place;
@@ -39,7 +39,9 @@ export const PlaceHistoryStatus = {
       collection: 'placeHistories',
       rest: false,
     }),
-    GeometriesMixin,
+    PostgisMixin({
+      srid: 3346,
+    }),
   ],
 
   settings: {
@@ -67,19 +69,17 @@ export const PlaceHistoryStatus = {
 
       geom: {
         type: 'any',
-        raw: true,
-        populate: {
-          keyField: 'id',
-          action: 'places.histories.getGeometryJson',
+        geom: {
+          multi: true,
         },
       },
 
       area: {
         type: 'number',
         virtual: true,
-        populate: {
-          keyField: 'id',
-          action: 'places.histories.getGeometryArea',
+        geom: {
+          type: 'area',
+          field: 'geom',
         },
       },
 

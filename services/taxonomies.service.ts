@@ -362,7 +362,6 @@ export default class TaxonomiesService extends moleculer.Service {
         mapping: mapping ? 'speciesId' : '',
       });
 
-      console.log(result)
       return result
     }
 

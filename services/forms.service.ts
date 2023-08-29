@@ -4,10 +4,8 @@ import moleculer, { Context, RestSchema } from 'moleculer';
 import { Action, Event, Method, Service } from 'moleculer-decorators';
 
 import DbConnection, { MaterializedView } from '../mixins/database.mixin';
-import GeometriesMixin, {
-  areaFn,
-  distanceFn,
-} from '../mixins/geometries.mixin';
+
+import PostgisMixin, { areaQuery, distanceQuery } from 'moleculer-postgis';
 
 import moment from 'moment';
 
@@ -33,11 +31,6 @@ import { FormHistoryTypes } from './forms.histories.service';
 import { Place } from './places.service';
 import { Tenant } from './tenants.service';
 import { User, USERS_DEFAULT_SCOPES, UserType } from './users.service';
-import {
-  geometryFromText,
-  geometryToGeom,
-  GeomFeatureCollection,
-} from '../modules/geometry';
 import {
   emailCanBeSent,
   notifyFormAssignee,
@@ -187,7 +180,9 @@ export interface Form extends BaseModelInterface {
       collection: 'forms',
       entityChangedOldEntity: true,
     }),
-    GeometriesMixin,
+    PostgisMixin({
+      srid: 3346,
+    }),
   ],
 
   settings: {
@@ -258,27 +253,24 @@ export interface Form extends BaseModelInterface {
 
       geom: {
         type: 'any',
-        raw: true,
-        async populate(ctx: any, _values: any, forms: Form[]) {
-          const result = await ctx.call('forms.getGeometryJson', {
-            id: forms.map((f) => f.id),
-            propertiesById: forms.reduce((acc: any, form) => {
-              if (!form.geomBufferSize) return acc;
-
-              acc[`${form.id}`] = {
-                bufferSize: form.geomBufferSize,
-              };
-
-              return acc;
-            }, {}),
-          });
-
-          return forms.map((form) => result[`${form.id}`] || {});
+        geom: {
+          type: 'geom',
+          properties: {
+            bufferSize: 'geomBufferSize',
+          },
         },
       },
 
       geomBufferSize: {
         type: 'number',
+        set({ params }: any) {
+          const bufferSizes = this._getPropertiesFromFeatureCollection(
+            params.geom,
+            'bufferSize'
+          );
+          if (!bufferSizes || !bufferSizes?.length) return;
+          return bufferSizes[0] || 1;
+        },
         hidden: 'byDefault',
       },
 
@@ -510,7 +502,9 @@ export interface Form extends BaseModelInterface {
       ...COMMON_SCOPES,
       visibleToUser(query: any, ctx: Context<null, UserAuthMeta>, params: any) {
         const { user, profile } = ctx?.meta;
-        if (!user?.id || user?.type === UserType.ADMIN) return query;
+        if (!user?.id || user?.type === UserType.ADMIN) {
+          return query;
+        }
 
         const createdByUserQuery = {
           createdBy: user?.id,
@@ -552,16 +546,13 @@ export interface Form extends BaseModelInterface {
     },
 
     defaultScopes: AUTH_PROTECTED_SCOPES,
+    defaultPopulates: ['geom'],
   },
 
   hooks: {
     before: {
-      create: [
-        'parseGeomField',
-        'validateIsInformational',
-        'validateStatusChange',
-      ],
-      update: ['parseGeomField', 'validateStatusChange'],
+      create: ['validateIsInformational', 'validateStatusChange'],
+      update: ['validateStatusChange'],
     },
   },
   actions: {
@@ -920,12 +911,14 @@ export default class FormsService extends moleculer.Service {
         `${placesTable}.id`,
         `${placesTable}.code`,
         adapter.client.raw(
-          `${distanceFn(
+          `${distanceQuery(
             `${formsTable}.geom`,
-            `${placesTable}.geom`
-          )} as distance`
+            `${placesTable}.geom`,
+            'distance',
+            3346
+          )}`
         ),
-        adapter.client.raw(`${areaFn(`${placesTable}.geom`)} as area`)
+        adapter.client.raw(`${areaQuery(`${placesTable}.geom`, 'area', 3346)}`)
       )
       .leftJoin(
         placesTable,
@@ -1194,46 +1187,6 @@ export default class FormsService extends moleculer.Service {
       },
       { meta, parentCtx: null }
     );
-  }
-
-  @Method
-  async parseGeomField(
-    ctx: Context<{
-      id?: number;
-      geom?: GeomFeatureCollection;
-      geomBufferSize?: number;
-    }>
-  ) {
-    const { geom, id } = ctx.params;
-
-    let form: Form;
-    if (id) {
-      form = await ctx.call('forms.resolve', { id });
-    }
-
-    if (geom?.features?.length) {
-      const adapter = await this.getAdapter(ctx);
-      const table = adapter.getTable();
-
-      try {
-        const geomItem = geom.features[0];
-        const value = geometryToGeom(geomItem.geometry);
-        ctx.params.geom = table.client.raw(geometryFromText(value));
-        ctx.params.geomBufferSize =
-          geomItem.properties?.bufferSize || form?.geomBufferSize || null;
-      } catch (err) {
-        return throwValidationError(err.message, ctx.params);
-      }
-    } else if (id) {
-      const form: Form = await ctx.call('forms.resolve', { id });
-      if (!form.geom) {
-        return throwValidationError('No geometry', ctx.params);
-      }
-    } else {
-      return throwValidationError('Invalid geometry', ctx.params);
-    }
-
-    return ctx;
   }
 
   @Method

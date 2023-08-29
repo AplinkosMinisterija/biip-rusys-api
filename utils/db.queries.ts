@@ -1,8 +1,8 @@
 import knex, { Knex } from 'knex';
-import { geomAsGeoJsonFn } from '../mixins/geometries.mixin';
 import _, { snakeCase } from 'lodash';
 import config from '../knexfile';
 import { queryBooleanPlain } from '../types';
+import { asGeoJsonQuery } from 'moleculer-postgis';
 
 let knexAdapter: Knex;
 const getAdapter = () => {
@@ -102,7 +102,12 @@ export function getPlacesByRequestIds(
   };
 
   const geomQuery = (tableName: string) => {
-    return knex.raw(geomAsGeoJsonFn(`${tableName}.geom`));
+    return knex.raw(
+      asGeoJsonQuery(`${tableName}.geom`, 'geom', 3346, {
+        digits: 0,
+        options: 0,
+      })
+    );
   };
 
   if (!date) {
@@ -162,7 +167,12 @@ export function getInformationalFormsByRequestIds(
   };
 
   const geomQuery = (tableName: string) => {
-    return knex.raw(geomAsGeoJsonFn(`${snakeCase(tableName)}.geom`));
+    return knex.raw(
+      asGeoJsonQuery(`${snakeCase(tableName)}.geom`, 'geom', 3346, {
+        digits: 0,
+        options: 0,
+      })
+    );
   };
 
   const requestsGeom = knex

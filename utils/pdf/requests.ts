@@ -6,10 +6,16 @@ import {
 import { Request } from '../../services/requests.service';
 import { Moment } from 'moment';
 import moment from 'moment-timezone';
-import { GeomFeature, GeomFeatureCollection } from '../../modules/geometry';
 import { Place } from '../../services/places.service';
 import { Form } from '../../services/forms.service';
 import { toMD5Hash } from '../functions';
+import {
+  FeatureCollection,
+  Feature,
+  Geometry,
+  getGeometries,
+  GeometryType,
+} from 'geojsonjs';
 
 const dateFormat = 'YYYY-MM-DD';
 const dateFormatFull = `${dateFormat} HH:mm`;
@@ -82,23 +88,19 @@ export async function getMapsSearchParams(
   return searchParams;
 }
 
-function getGeometryWithTranslates(geom: GeomFeatureCollection | GeomFeature) {
-  let features = [];
-  if (geom.type !== 'FeatureCollection') {
-    features = [(geom as GeomFeature).geometry];
-  } else {
-    features = (geom as GeomFeatureCollection).features.map((f) => f.geometry);
-  }
+function getGeometryWithTranslates(geom: FeatureCollection | Feature) {
+  const geometries: Geometry[] = getGeometries(geom);
 
-  return features.map((f) => {
-    let translatedType: any = {
-      MultiPolygon: 'Poligonas',
-      Polygon: 'Poligonas',
-      Line: 'Linija',
-      MultiLine: 'Linija',
-      Point: 'Taškas',
-      MultiPoint: 'Taškas',
-    };
+  const translatedType: any = {
+    [GeometryType.MULTI_POLYGON]: 'Poligonas',
+    [GeometryType.POLYGON]: 'Poligonas',
+    [GeometryType.MULTI_LINE_STRING]: 'Linija',
+    [GeometryType.LINE_STRING]: 'Linija',
+    [GeometryType.POINT]: 'Taškas',
+    [GeometryType.MULTI_POINT]: 'Taškas',
+  };
+
+  return geometries.map((g) => {
     const coordinatesToString = (coordinates: any[]): string => {
       const allItemsAreNumbers = coordinates.every((i) => !isNaN(i));
       let text = '';
@@ -112,14 +114,14 @@ function getGeometryWithTranslates(geom: GeomFeatureCollection | GeomFeature) {
     };
 
     return {
-      type: translatedType[f.type],
-      coordinates: coordinatesToString(f.coordinates),
+      type: translatedType[g.type],
+      coordinates: coordinatesToString(g.coordinates),
     };
   });
 }
 
 async function getPlaces(ctx: Context, requestId: number, date: string) {
-  const placesData: Array<{ placeId: number; geom: GeomFeatureCollection }> =
+  const placesData: Array<{ placeId: number; geom: FeatureCollection }> =
     await ctx.call('requests.getPlacesByRequest', {
       id: requestId,
       date: formatDate(date),
@@ -178,7 +180,7 @@ async function getInformationalForms(
 ) {
   const informationalForms: Array<{
     formId: number;
-    geom: GeomFeatureCollection;
+    geom: FeatureCollection;
   }> = await ctx.call('requests.getInfomationalFormsByRequest', {
     id: requestId,
     date: formatDate(date),
@@ -244,11 +246,7 @@ async function getInformationalForms(
   return mappedForms;
 }
 
-export async function getRequestData(
-  ctx: Context,
-  id: number,
-  makeScreenshot: boolean = true
-) {
+export async function getRequestData(ctx: Context, id: number) {
   const request: Request = await ctx.call('requests.resolve', {
     id,
     populate: 'inheritedSpecies,tenant,createdBy',

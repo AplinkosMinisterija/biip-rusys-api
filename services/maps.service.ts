@@ -7,10 +7,9 @@ import { AuthType, UserAuthMeta } from './api.service';
 import { Request, RequestStatus, RequestType } from './requests.service';
 import { UserType } from './users.service';
 
-import { Readable } from 'stream';
 import jwt, { VerifyErrors } from 'jsonwebtoken';
 import moment from 'moment';
-import { featuresToFeatureCollection } from '../mixins/geometries.mixin';
+import { getFeatureCollection } from 'geojsonjs';
 import { camelCase } from 'lodash';
 import { getEndangeredPlacesAndFromsByRequestsIds } from '../utils/db.queries';
 import { toReadableStream } from '../utils/functions';
@@ -30,8 +29,8 @@ export default class MapsService extends moleculer.Service {
   })
   checkAuth() {
     return {
-      success: true
-    }
+      success: true,
+    };
   }
 
   @Action({
@@ -103,12 +102,7 @@ export default class MapsService extends moleculer.Service {
       populate: 'geom',
     });
 
-    return featuresToFeatureCollection(
-      requests
-        .map((r) => r.geom?.features || [])
-        .filter((features) => features && features.length)
-        .reduce((acc, features) => [...acc, ...features], [])
-    );
+    return getFeatureCollection(requests.map((r) => r.geom));
   }
 
   @Action({
