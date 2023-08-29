@@ -269,7 +269,7 @@ export interface Form extends BaseModelInterface {
             'bufferSize'
           );
           if (!bufferSizes || !bufferSizes?.length) return;
-          return bufferSizes[0];
+          return bufferSizes[0] || 1;
         },
         hidden: 'byDefault',
       },
@@ -1195,10 +1195,7 @@ export default class FormsService extends moleculer.Service {
       return form;
     }
 
-    ctx.emit('places.changed', {
-      id: form.place,
-      comment: (ctx.params as any)?.comment,
-    });
+    ctx.emit('places.changed', { id: form.place });
 
     return form;
   }
