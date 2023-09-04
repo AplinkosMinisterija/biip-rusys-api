@@ -53,7 +53,7 @@ import { getFeatureCollection } from 'geojsonjs';
 })
 export default class MapsHexagonService extends moleculer.Service {
   @Action({
-    rest: 'GET /stats',
+    rest: ['GET /stats', 'POST /stats'],
     auth: AuthType.MAPS_PUBLIC,
   })
   async getStats(ctx: Context<{ layers: any }, UserAuthMeta>) {
@@ -102,6 +102,7 @@ export default class MapsHexagonService extends moleculer.Service {
         phylumId?: number | object;
         classId?: number | object;
         id?: number | object;
+        forms?: number | object;
         layers?: { [key: string]: string[] };
       },
       UserAuthMeta
@@ -124,6 +125,7 @@ export default class MapsHexagonService extends moleculer.Service {
       phylumId,
       layers: requestLayers,
       id,
+      forms,
     } = ctx?.params;
 
     let layers: { [key: string]: string[] } = {
@@ -172,7 +174,7 @@ export default class MapsHexagonService extends moleculer.Service {
         id: !id && !!placesIds ? { $in: placesIds } : id,
       },
       forms: {
-        id: !!formsIds ? { $in: formsIds } : id,
+        id: !forms && !!formsIds ? { $in: formsIds } : forms,
       },
     };
 

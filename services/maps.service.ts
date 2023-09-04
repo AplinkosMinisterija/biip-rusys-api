@@ -34,7 +34,7 @@ export default class MapsService extends moleculer.Service {
   }
 
   @Action({
-    rest: 'GET /qgisserver',
+    rest: ['GET /qgisserver', 'POST /qgisserver'],
     auth: AuthType.MAPS_PRIVATE,
     timeout: 0,
   })
@@ -90,6 +90,47 @@ export default class MapsService extends moleculer.Service {
     const reader = response?.body?.getReader?.();
 
     return toReadableStream(reader);
+  }
+
+  @Action({
+    params: {
+      id: {
+        type: 'number',
+        convert: true,
+      },
+    },
+    auth: AuthType.PUBLIC,
+    rest: 'GET /requests/:id/geom',
+  })
+  async getRequestGeom(ctx: Context<{ id: number }>) {
+    const request: Request = await ctx.call('requests.resolve', {
+      id: ctx.params.id,
+      populate: 'geom',
+      throwIfNotExist: true,
+    });
+
+    return request?.geom;
+  }
+
+  @Action({
+    params: {
+      id: {
+        type: 'number',
+        convert: true,
+      },
+    },
+    auth: AuthType.PUBLIC,
+    rest: 'GET /requests/:id/items',
+  })
+  async getRequestItems(ctx: Context<{ id: number }>) {
+    const request: Request = await ctx.call('requests.resolve', {
+      id: ctx.params.id,
+      throwIfNotExist: true,
+    });
+
+    const data = await getEndangeredPlacesAndFromsByRequestsIds([request.id]);
+
+    return data?.[0] || {};
   }
 
   @Action({
