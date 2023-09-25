@@ -4,6 +4,8 @@ import moleculer, { Context, RestSchema } from 'moleculer';
 import { Action, Event, Method, Service } from 'moleculer-decorators';
 
 import DbConnection from '../mixins/database.mixin';
+// @ts-ignore
+import Cron from '@r2d2bzh/moleculer-cron';
 
 import {
   COMMON_FIELDS,
@@ -39,6 +41,7 @@ import {
 } from '../utils/db.queries';
 import PostgisMixin, { GeometryType } from 'moleculer-postgis';
 import { getFeatureCollection } from 'geojsonjs';
+import moment from 'moment';
 
 export const RequestType = {
   GET: 'GET',
@@ -109,6 +112,37 @@ const populatePermissions = (field: string) => {
     PostgisMixin({
       srid: 3346,
     }),
+    Cron,
+  ],
+
+  crons: [
+    {
+      name: 'removeExpiredRequests',
+      cronTime: '0 4 * * *',
+      async onTick() {
+        const requests: Request[] = await this.call('requests.find', {
+          query: {
+            type: RequestType.GET,
+            status: RequestStatus.APPROVED,
+          },
+        });
+
+        const expiredRequests: Request[] = requests
+          .filter((r) => !!r.data?.accessDate)
+          .filter((r) => moment(r.data.accessDate).diff(moment()) < 0);
+
+        for (const request of expiredRequests) {
+          if (request.id === 54) {
+            await this.call('requests.remove', {
+              id: request.id,
+              comment:
+                'Automatiškai ištrintas pasibaigusio galiojimo prašymas prašymas.',
+            });
+          }
+        }
+      },
+      timeZone: 'Europe/Vilnius',
+    },
   ],
 
   settings: {
