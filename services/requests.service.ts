@@ -129,16 +129,14 @@ const populatePermissions = (field: string) => {
 
         const expiredRequests: Request[] = requests
           .filter((r) => !!r.data?.accessDate)
-          .filter((r) => moment(r.data.accessDate).diff(moment()) < 0);
+          .filter((r) => !moment(r.data.accessDate).diff(moment()));
 
         for (const request of expiredRequests) {
-          if (request.id === 54) {
-            await this.call('requests.remove', {
-              id: request.id,
-              comment:
-                'Automatiškai ištrintas pasibaigusio galiojimo prašymas prašymas.',
-            });
-          }
+          await this.call('requests.remove', {
+            id: request.id,
+            comment:
+              'Automatiškai panaikintas pasibaigusio galiojimo prieigos prašymas.',
+          });
         }
       },
       timeZone: 'Europe/Vilnius',
