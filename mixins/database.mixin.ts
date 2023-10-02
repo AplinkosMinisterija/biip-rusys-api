@@ -94,8 +94,12 @@ export default function (opts: any = {}) {
           mappingField: string;
         }>
       ): Promise<any> {
-        const { id, queryKey, query, mapping, mappingMulti, mappingField } =
+        const { queryKey, query, mapping, mappingMulti, mappingField } =
           ctx.params;
+
+        const ids = Array.isArray(ctx.params.id)
+          ? ctx.params.id
+          : [ctx.params.id];
 
         delete ctx.params.queryKey;
         delete ctx.params.id;
@@ -107,14 +111,16 @@ export default function (opts: any = {}) {
           ...ctx.params,
           query: {
             ...(query || {}),
-            [queryKey]: { $in: id },
+            [queryKey]: { $in: ids },
           },
         });
 
-        return makeMapping(entities, mapping ? queryKey : '', {
+        const resultById = makeMapping(entities, mapping ? queryKey : '', {
           mappingMulti,
           mappingField: mappingField,
         });
+
+        return ids.map((id) => resultById[id] || null);
       },
     },
 
