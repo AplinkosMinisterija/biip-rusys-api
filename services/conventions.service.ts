@@ -1,16 +1,16 @@
 'use strict';
 
 import moleculer, { Context } from 'moleculer';
-import { Action, Method, Service } from 'moleculer-decorators';
+import { Method, Service } from 'moleculer-decorators';
 
-import DbConnection from '../mixins/database.mixin';
+import DbConnection, { PopulateHandlerFn } from '../mixins/database.mixin';
 import {
-  COMMON_FIELDS,
-  COMMON_DEFAULT_SCOPES,
-  COMMON_SCOPES,
   BaseModelInterface,
-  FieldHookCallback,
+  COMMON_DEFAULT_SCOPES,
+  COMMON_FIELDS,
+  COMMON_SCOPES,
   EndpointType,
+  FieldHookCallback,
 } from '../types';
 
 export interface Convention extends BaseModelInterface {
@@ -66,7 +66,7 @@ export interface Convention extends BaseModelInterface {
         type: 'array',
         populate: {
           keyField: 'id',
-          action: 'conventions.populateByProp',
+          handler: PopulateHandlerFn('conventions.populateByProp'),
           params: {
             populate: 'children',
             sort: 'name',

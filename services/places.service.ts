@@ -3,20 +3,22 @@
 import moleculer, { Context } from 'moleculer';
 import { Action, Event, Method, Service } from 'moleculer-decorators';
 
-import DbConnection, { MaterializedView } from '../mixins/database.mixin';
+import DbConnection, {
+  MaterializedView,
+  PopulateHandlerFn,
+} from '../mixins/database.mixin';
 
 import { FeatureCollection, Geometry } from 'geojsonjs';
 import {
-  COMMON_FIELDS,
-  COMMON_DEFAULT_SCOPES,
-  COMMON_SCOPES,
   BaseModelInterface,
+  COMMON_DEFAULT_SCOPES,
+  COMMON_DELETED_SCOPES,
+  COMMON_FIELDS,
+  COMMON_SCOPES,
   EndpointType,
   EntityChangedParams,
   FieldHookCallback,
   throwUnauthorizedError,
-  queryBoolean,
-  COMMON_DELETED_SCOPES,
   throwValidationError,
 } from '../types';
 import { UserAuthMeta } from './api.service';
@@ -104,7 +106,7 @@ export interface Place extends BaseModelInterface {
         virtual: true,
         populate: {
           keyField: 'id',
-          action: 'forms.populateByProp',
+          handler: PopulateHandlerFn('forms.populateByProp'),
           params: {
             queryKey: 'place',
             mappingMulti: true,

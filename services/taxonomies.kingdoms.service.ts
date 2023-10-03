@@ -1,14 +1,14 @@
 'use strict';
 
-import moleculer, { Context } from 'moleculer';
-import { Action, Method, Service } from 'moleculer-decorators';
+import moleculer from 'moleculer';
+import { Service } from 'moleculer-decorators';
 
-import DbConnection from '../mixins/database.mixin';
+import DbConnection, { PopulateHandlerFn } from '../mixins/database.mixin';
 import {
-  COMMON_FIELDS,
-  COMMON_DEFAULT_SCOPES,
-  COMMON_SCOPES,
   BaseModelInterface,
+  COMMON_DEFAULT_SCOPES,
+  COMMON_FIELDS,
+  COMMON_SCOPES,
   EndpointType,
 } from '../types';
 
@@ -44,7 +44,7 @@ export interface TaxonomyKingdom extends BaseModelInterface {
         type: 'array',
         populate: {
           keyField: 'id',
-          action: 'taxonomies.phylums.populateByProp',
+          handler: PopulateHandlerFn('taxonomies.phylums.populateByProp'),
           params: {
             queryKey: 'kingdom',
             fields: ['id', 'name', 'nameLatin', 'classes', 'kingdom'],
