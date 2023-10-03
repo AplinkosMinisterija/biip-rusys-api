@@ -120,7 +120,13 @@ export default function (opts: any = {}) {
           mappingField: mappingField,
         });
 
-        return ids.map((id) => resultById[id] || null);
+        return ids.reduce(
+          (acc: any, id) => ({
+            ...acc,
+            [`${id}`]: resultById[id] || (mappingMulti ? [] : ''),
+          }),
+          {}
+        );
       },
     },
 
