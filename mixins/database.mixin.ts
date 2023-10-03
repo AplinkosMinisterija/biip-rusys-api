@@ -30,7 +30,11 @@ export function PopulateHandlerFn(action: string) {
       fieldName = rule.keyField;
     }
 
-    return docs?.map((d) => byKey[d[fieldName]] || null);
+    return docs?.map((d) => {
+      const fieldValue = d[fieldName];
+      if (!fieldValue) return null;
+      return byKey[fieldValue] || null;
+    });
   };
 }
 
