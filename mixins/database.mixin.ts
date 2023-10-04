@@ -12,6 +12,32 @@ export const MaterializedView = {
   APPROVED_FORMS: 'approvedForms',
 };
 
+export function PopulateHandlerFn(action: string) {
+  return async function (ctx: Context, values: any[], docs: any[], field: any) {
+    if (!values.length) return null;
+    const rule = field.populate;
+    const params = {
+      ...(rule.params || {}),
+      id: values,
+      mapping: true,
+      throwIfNotExist: false,
+    };
+
+    const byKey: any = await ctx.call(action, params, rule.callOptions);
+
+    let fieldName = field.name;
+    if (rule.keyField) {
+      fieldName = rule.keyField;
+    }
+
+    return docs?.map((d) => {
+      const fieldValue = d[fieldName];
+      if (!fieldValue) return null;
+      return byKey[fieldValue] || null;
+    });
+  };
+}
+
 function makeMapping(
   data: any[],
   mapping?: string,
