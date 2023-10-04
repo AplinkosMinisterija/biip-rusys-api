@@ -25,7 +25,7 @@ function getSecret(request: Request) {
   mixins: [BullMqMixin],
   settings: {
     bullmq: {
-      worker: { concurrency: 10 },
+      worker: { concurrency: 5 },
       job: {
         attempts: 5,
         failParentOnFailure: true,

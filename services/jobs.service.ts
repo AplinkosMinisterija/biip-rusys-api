@@ -11,7 +11,7 @@ import moment from 'moment';
   mixins: [BullMqMixin],
   settings: {
     bullmq: {
-      worker: { concurrency: 10 },
+      worker: { concurrency: 5 },
       job: {
         attempts: 10,
         backoff: 1000,
