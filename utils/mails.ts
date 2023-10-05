@@ -40,7 +40,7 @@ export function notifyOnFormUpdate(
   isAdmin: boolean = false
 ) {
   const updateTypes: any = {
-    [FormStatus.APPROVED]: 'Pavirtinta',
+    [FormStatus.APPROVED]: 'Patvirtinta',
     [FormStatus.REJECTED]: 'Atmesta',
     [FormStatus.SUBMITTED]: 'Pateikta pakartotinai',
     [FormStatus.RETURNED]: 'Grąžinta taisymui',
