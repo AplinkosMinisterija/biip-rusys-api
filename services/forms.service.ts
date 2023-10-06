@@ -939,35 +939,6 @@ export default class FormsService extends moleculer.Service {
 
   @Action({
     params: {
-      userId: {
-        type: 'number',
-        convert: true,
-      },
-    },
-  })
-  async getStatsByUser(ctx: Context<{ userId: number }>) {
-    const { userId } = ctx.params;
-
-    const createdBy = userId;
-
-    const approvedCount: number = await this.countEntities(ctx, {
-      query: { createdBy, status: FormStatus.APPROVED },
-      scope: WITHOUT_AUTH_SCOPES,
-    });
-
-    const rejectedCount: number = await this.countEntities(ctx, {
-      query: { createdBy, status: FormStatus.REJECTED },
-      scope: WITHOUT_AUTH_SCOPES,
-    });
-
-    return {
-      approvedForms: approvedCount,
-      rejectedForms: rejectedCount,
-    };
-  }
-
-  @Action({
-    params: {
       id: [
         { type: 'number', convert: true, optional: true },
         {

@@ -4,7 +4,7 @@ import moleculer, { Context } from 'moleculer';
 import { Action, Event, Method, Service } from 'moleculer-decorators';
 
 import { UserAuthMeta } from './api.service';
-import DbConnection from '../mixins/database.mixin';
+import DbConnection, { PopulateHandlerFn } from '../mixins/database.mixin';
 import {
   COMMON_FIELDS,
   COMMON_DEFAULT_SCOPES,
@@ -17,6 +17,7 @@ import {
 } from '../types';
 import { TenantUserRole } from './tenantUsers.service';
 import { Tenant } from './tenants.service';
+import { FormStatus } from './forms.service';
 
 export enum UserType {
   ADMIN = 'ADMIN',
@@ -136,14 +137,36 @@ export const USERS_DEFAULT_SCOPES = [
       stats: {
         type: 'object',
         virtual: true,
-        get: async ({ entity, ctx }: FieldHookCallback) => {
-          if (!entity?.id) return {};
+        populate: {
+          keyField: 'id',
+          handler: PopulateHandlerFn('forms.populateByProp'),
+          params: {
+            mappingMulti: true,
+            field: 'status',
+            queryKey: 'createdBy',
+            scope: [`-${VISIBLE_TO_USER_SCOPE}`],
+            query: {
+              status: {
+                $in: [FormStatus.APPROVED, FormStatus.REJECTED],
+              },
+            },
+          },
+        },
+        get: async ({ entity, ctx, value }: FieldHookCallback) => {
+          const response = {
+            approvedForms: 0,
+            rejectedForms: 0,
+          };
+          if (!value?.length || !Array.isArray(value)) return response;
 
-          const stats: any = await ctx.call('forms.getStatsByUser', {
-            userId: entity.id,
-          });
+          response.approvedForms = value.filter(
+            (i) => i.status === FormStatus.APPROVED
+          ).length;
+          response.rejectedForms = value.filter(
+            (i) => i.status === FormStatus.REJECTED
+          ).length;
 
-          return stats;
+          return response;
         },
       },
 
@@ -202,6 +225,7 @@ export const USERS_DEFAULT_SCOPES = [
     },
 
     defaultScopes: AUTH_PROTECTED_SCOPES,
+    defaultPopulates: ['stats'],
   },
 
   actions: {
