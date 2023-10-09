@@ -88,13 +88,13 @@ const updateTaxonomies = async function () {
         virtual: true,
         get({ value }: any) {
           if (!value?.length) return;
-          return value.map((c: any) => conventionToText(c)).join(', ') || '';
+          return value.map((c: any) => c.asText).join(', ') || '';
         },
         populate: {
-          keyField: 'conventions',
+          keyField: 'speciesConventions',
           action: 'conventions.resolve',
           params: {
-            populate: 'parent',
+            populate: 'asText',
           },
         },
       },
@@ -340,10 +340,6 @@ export default class TaxonomiesService extends moleculer.Service {
           convert: true,
         },
       ],
-      mapping: {
-        type: 'boolean',
-        default: false,
-      },
       showHidden: {
         type: 'boolean',
         default: false,
@@ -355,9 +351,10 @@ export default class TaxonomiesService extends moleculer.Service {
       id: number | number[];
       showHidden: boolean;
       mapping?: boolean;
+      populate?: any;
     }>
   ) {
-    const { id, showHidden, mapping } = ctx.params;
+    const { id, showHidden, mapping, populate } = ctx.params;
     const multi = Array.isArray(id);
 
     const query: any = {
@@ -376,12 +373,16 @@ export default class TaxonomiesService extends moleculer.Service {
       const result = await ctx.call(`taxonomies.find`, {
         query,
         mapping: mapping ? 'speciesId' : '',
+        populate,
       });
 
       return result;
     }
 
-    const taxonomy: Taxonomy = await ctx.call('taxonomies.findOne', { query });
+    const taxonomy: Taxonomy = await ctx.call('taxonomies.findOne', {
+      query,
+      populate,
+    });
 
     if (!taxonomy?.speciesId) {
       return throwNotFoundError('Taxonomy not found');

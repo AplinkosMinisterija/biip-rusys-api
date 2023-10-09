@@ -118,13 +118,13 @@ const publicPopulate = ['class', 'conventions'];
         virtual: true,
         get({ value }: any) {
           if (!value?.length) return;
-          return value.map((c: any) => conventionToText(c)).join(', ') || '';
+          return value.map((c: any) => c.asText).join(', ') || '';
         },
         populate: {
           keyField: 'conventions',
           action: 'conventions.resolve',
           params: {
-            populate: 'parent',
+            populate: 'asText',
           },
         },
       },

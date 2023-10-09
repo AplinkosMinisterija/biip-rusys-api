@@ -86,6 +86,23 @@ export function conventionToText(
         },
       },
 
+      asText: {
+        virtual: true,
+        get({ value }: any) {
+          if (!value?.id) return;
+
+          return conventionToText(value);
+        },
+
+        populate: {
+          keyField: 'id',
+          action: 'conventions.resolve',
+          params: {
+            populate: 'parent',
+          },
+        },
+      },
+
       ...COMMON_FIELDS,
     },
 
