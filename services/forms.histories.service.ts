@@ -1,15 +1,13 @@
 'use strict';
 
-import moleculer, { Context } from 'moleculer';
-import { Action, Method, Service } from 'moleculer-decorators';
+import moleculer from 'moleculer';
+import { Service } from 'moleculer-decorators';
 
 import DbConnection from '../mixins/database.mixin';
 import {
-  COMMON_FIELDS,
   COMMON_DEFAULT_SCOPES,
-  COMMON_SCOPES,
-  FieldHookCallback,
-  COMMON_HIDDEN_FIELDS,
+  COMMON_FIELDS_WITH_HIDDEN,
+  COMMON_SCOPES
 } from '../types';
 
 export const FormHistoryTypes = {
@@ -58,7 +56,7 @@ export const FormHistoryTypes = {
 
       comment: 'string',
 
-      ...COMMON_HIDDEN_FIELDS,
+      ...COMMON_FIELDS_WITH_HIDDEN(),
     },
 
     scopes: {

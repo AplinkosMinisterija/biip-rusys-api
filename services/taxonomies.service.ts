@@ -8,7 +8,7 @@ import { TaxonomySpeciesType } from './taxonomies.species.service';
 import { FormType } from './forms.types.service';
 import { Convention } from './conventions.service';
 import { AuthType, UserAuthMeta } from './api.service';
-import { queryBoolean, throwNotFoundError } from '../types';
+import { ADDITIONAL_CACHE_KEYS, queryBoolean, throwNotFoundError } from '../types';
 import { UserType } from './users.service';
 
 export interface Taxonomy {
@@ -57,7 +57,7 @@ const updateTaxonomies = async function () {
       },
       cache: {
         enabled: true,
-        additionalKeys: ['#user.isExpert', '#user.type'],
+        additionalKeys: ADDITIONAL_CACHE_KEYS,
       },
     }),
   ],

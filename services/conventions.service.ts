@@ -5,12 +5,14 @@ import { Method, Service } from 'moleculer-decorators';
 
 import DbConnection, { PopulateHandlerFn } from '../mixins/database.mixin';
 import {
+  ADDITIONAL_CACHE_KEYS,
+  ALL_COMMON_FIELDS_NAMES,
   BaseModelInterface,
   COMMON_DEFAULT_SCOPES,
-  COMMON_FIELDS,
+  COMMON_FIELDS_WITH_PERMISSIONS,
   COMMON_SCOPES,
   EndpointType,
-  FieldHookCallback,
+  FieldHookCallback
 } from '../types';
 
 export interface Convention extends BaseModelInterface {
@@ -21,10 +23,7 @@ export interface Convention extends BaseModelInterface {
   children?: Convention[];
 }
 
-function conventionToText(
-  convention: Convention,
-  append: string = ''
-): string {
+function conventionToText(convention: Convention, append: string = ''): string {
   const text = `${convention.name}${append ? ` (${append})` : ''}`;
   if (!convention.parent) return text;
 
@@ -39,6 +38,7 @@ function conventionToText(
       collection: 'conventions',
       cache: {
         enabled: true,
+        additionalKeys: ADDITIONAL_CACHE_KEYS,
       },
     }),
   ],
@@ -103,7 +103,10 @@ function conventionToText(
         },
       },
 
-      ...COMMON_FIELDS,
+      ...COMMON_FIELDS_WITH_PERMISSIONS(
+        EndpointType.ADMIN,
+        ALL_COMMON_FIELDS_NAMES
+      ),
     },
 
     scopes: {
