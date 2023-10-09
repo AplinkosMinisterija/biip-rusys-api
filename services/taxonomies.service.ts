@@ -6,7 +6,7 @@ import _ from 'lodash';
 import DbConnection, { MaterializedView } from '../mixins/database.mixin';
 import { TaxonomySpeciesType } from './taxonomies.species.service';
 import { FormType } from './forms.types.service';
-import { Convention } from './conventions.service';
+import { Convention, conventionToText } from './conventions.service';
 import { AuthType, UserAuthMeta } from './api.service';
 import { queryBoolean, throwNotFoundError } from '../types';
 import { UserType } from './users.service';
@@ -18,6 +18,7 @@ export interface Taxonomy {
   speciesType: string;
   speciesSynonyms: string[];
   speciesConventions?: number[] | Convention[];
+  speciesConventionsText?: string;
   speciesPhotos?: Array<{ name: string; size: number; url: string }>;
   speciesDescription?: string;
   classId: number;
@@ -76,6 +77,21 @@ const updateTaxonomies = async function () {
         columnType: 'json',
         items: { type: 'number' },
         populate: {
+          action: 'conventions.resolve',
+          params: {
+            populate: 'parent',
+          },
+        },
+      },
+      speciesConventionsText: {
+        type: 'string',
+        virtual: true,
+        get({ value }: any) {
+          if (!value?.length) return;
+          return value.map((c: any) => conventionToText(c)).join(', ') || '';
+        },
+        populate: {
+          keyField: 'conventions',
           action: 'conventions.resolve',
           params: {
             populate: 'parent',
@@ -362,7 +378,7 @@ export default class TaxonomiesService extends moleculer.Service {
         mapping: mapping ? 'speciesId' : '',
       });
 
-      return result
+      return result;
     }
 
     const taxonomy: Taxonomy = await ctx.call('taxonomies.findOne', { query });

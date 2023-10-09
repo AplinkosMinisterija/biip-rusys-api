@@ -21,6 +21,16 @@ export interface Convention extends BaseModelInterface {
   children?: Convention[];
 }
 
+export function conventionToText(
+  convention: Convention,
+  append: string = ''
+): string {
+  const text = `${convention.name}${append ? ` (${append})` : ''}`;
+  if (!convention.parent) return text;
+
+  return `${conventionToText(convention.parent as Convention, text)}`;
+}
+
 @Service({
   name: 'conventions',
 
