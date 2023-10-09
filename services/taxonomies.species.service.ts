@@ -14,7 +14,7 @@ import {
   throwNotFoundError,
   queryBoolean,
 } from '../types';
-import { Convention, conventionToText } from './conventions.service';
+import { Convention } from './conventions.service';
 import { TaxonomyClass } from './taxonomies.classes.service';
 import { TaxonomyKingdom } from './taxonomies.kingdoms.service';
 import { TaxonomyPhylum } from './taxonomies.phylums.service';

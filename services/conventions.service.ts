@@ -21,7 +21,7 @@ export interface Convention extends BaseModelInterface {
   children?: Convention[];
 }
 
-export function conventionToText(
+function conventionToText(
   convention: Convention,
   append: string = ''
 ): string {
