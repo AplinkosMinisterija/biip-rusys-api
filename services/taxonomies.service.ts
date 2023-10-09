@@ -8,7 +8,7 @@ import { TaxonomySpeciesType } from './taxonomies.species.service';
 import { FormType } from './forms.types.service';
 import { Convention } from './conventions.service';
 import { AuthType, UserAuthMeta } from './api.service';
-import { queryBoolean, throwNotFoundError } from '../types';
+import { ADDITIONAL_CACHE_KEYS, queryBoolean, throwNotFoundError } from '../types';
 import { UserType } from './users.service';
 
 export interface Taxonomy {
@@ -18,6 +18,7 @@ export interface Taxonomy {
   speciesType: string;
   speciesSynonyms: string[];
   speciesConventions?: number[] | Convention[];
+  speciesConventionsText?: string;
   speciesPhotos?: Array<{ name: string; size: number; url: string }>;
   speciesDescription?: string;
   classId: number;
@@ -56,7 +57,7 @@ const updateTaxonomies = async function () {
       },
       cache: {
         enabled: true,
-        additionalKeys: ['#user.isExpert', '#user.type'],
+        additionalKeys: ADDITIONAL_CACHE_KEYS,
       },
     }),
   ],
@@ -79,6 +80,21 @@ const updateTaxonomies = async function () {
           action: 'conventions.resolve',
           params: {
             populate: 'parent',
+          },
+        },
+      },
+      speciesConventionsText: {
+        type: 'string',
+        virtual: true,
+        get({ value }: any) {
+          if (!value?.length) return;
+          return value.map((c: any) => c.asText).join(', ') || '';
+        },
+        populate: {
+          keyField: 'speciesConventions',
+          action: 'conventions.resolve',
+          params: {
+            populate: 'asText',
           },
         },
       },
@@ -230,6 +246,7 @@ export default class TaxonomiesService extends moleculer.Service {
       page: number;
       pageSize: number;
       searchFields: string[];
+      populate?: any;
     }>
   ) {
     const {
@@ -241,6 +258,7 @@ export default class TaxonomiesService extends moleculer.Service {
       kingdomId,
       phylumId,
       classId,
+      populate,
     } = ctx.params;
 
     const query: any = {};
@@ -248,7 +266,10 @@ export default class TaxonomiesService extends moleculer.Service {
       query.speciesType = { $in: types };
     }
 
-    const items: Taxonomy[] = await ctx.call('taxonomies.find', { query });
+    const items: Taxonomy[] = await ctx.call('taxonomies.find', {
+      query,
+      populate,
+    });
 
     const regex = new RegExp(
       search.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'),
@@ -324,10 +345,6 @@ export default class TaxonomiesService extends moleculer.Service {
           convert: true,
         },
       ],
-      mapping: {
-        type: 'boolean',
-        default: false,
-      },
       showHidden: {
         type: 'boolean',
         default: false,
@@ -339,9 +356,10 @@ export default class TaxonomiesService extends moleculer.Service {
       id: number | number[];
       showHidden: boolean;
       mapping?: boolean;
+      populate?: any;
     }>
   ) {
-    const { id, showHidden, mapping } = ctx.params;
+    const { id, showHidden, mapping, populate } = ctx.params;
     const multi = Array.isArray(id);
 
     const query: any = {
@@ -360,12 +378,16 @@ export default class TaxonomiesService extends moleculer.Service {
       const result = await ctx.call(`taxonomies.find`, {
         query,
         mapping: mapping ? 'speciesId' : '',
+        populate,
       });
 
-      return result
+      return result;
     }
 
-    const taxonomy: Taxonomy = await ctx.call('taxonomies.findOne', { query });
+    const taxonomy: Taxonomy = await ctx.call('taxonomies.findOne', {
+      query,
+      populate,
+    });
 
     if (!taxonomy?.speciesId) {
       return throwNotFoundError('Taxonomy not found');

@@ -5,16 +5,15 @@ import { Service } from 'moleculer-decorators';
 
 import DbConnection from '../mixins/database.mixin';
 import {
-  COMMON_FIELDS,
-  COMMON_DEFAULT_SCOPES,
-  COMMON_SCOPES,
   BaseModelInterface,
-  COMMON_HIDDEN_FIELDS,
+  COMMON_DEFAULT_SCOPES,
+  COMMON_FIELDS_WITH_HIDDEN,
+  COMMON_SCOPES,
 } from '../types';
 
+import PostgisMixin from 'moleculer-postgis';
 import { Form } from './forms.service';
 import { Place } from './places.service';
-import PostgisMixin from 'moleculer-postgis';
 
 export interface PlaceHistory extends BaseModelInterface {
   place: number | Place;
@@ -98,7 +97,7 @@ export const PlaceHistoryStatus = {
 
       comment: 'string',
 
-      ...COMMON_HIDDEN_FIELDS,
+      ...COMMON_FIELDS_WITH_HIDDEN(),
     },
 
     scopes: {

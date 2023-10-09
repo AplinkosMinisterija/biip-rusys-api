@@ -1,16 +1,15 @@
 'use strict';
 
-import moleculer, { Context } from 'moleculer';
-import { Action, Method, Service } from 'moleculer-decorators';
+import moleculer from 'moleculer';
+import { Service } from 'moleculer-decorators';
 
 import DbConnection from '../mixins/database.mixin';
 import {
-  COMMON_FIELDS,
-  COMMON_DEFAULT_SCOPES,
-  COMMON_SCOPES,
   BaseModelInterface,
-  FieldHookCallback,
-  EndpointType,
+  COMMON_DEFAULT_SCOPES,
+  COMMON_FIELDS,
+  COMMON_SCOPES,
+  EndpointType
 } from '../types';
 
 export interface FormSettingSource extends BaseModelInterface {

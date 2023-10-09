@@ -5,12 +5,14 @@ import { Method, Service } from 'moleculer-decorators';
 
 import DbConnection, { PopulateHandlerFn } from '../mixins/database.mixin';
 import {
+  ADDITIONAL_CACHE_KEYS,
+  ALL_COMMON_FIELDS_NAMES,
   BaseModelInterface,
   COMMON_DEFAULT_SCOPES,
-  COMMON_FIELDS,
+  COMMON_FIELDS_WITH_PERMISSIONS,
   COMMON_SCOPES,
   EndpointType,
-  FieldHookCallback,
+  FieldHookCallback
 } from '../types';
 
 export interface Convention extends BaseModelInterface {
@@ -21,6 +23,13 @@ export interface Convention extends BaseModelInterface {
   children?: Convention[];
 }
 
+function conventionToText(convention: Convention, append: string = ''): string {
+  const text = `${convention.name}${append ? ` (${append})` : ''}`;
+  if (!convention.parent) return text;
+
+  return `${conventionToText(convention.parent as Convention, text)}`;
+}
+
 @Service({
   name: 'conventions',
 
@@ -29,6 +38,7 @@ export interface Convention extends BaseModelInterface {
       collection: 'conventions',
       cache: {
         enabled: true,
+        additionalKeys: ADDITIONAL_CACHE_KEYS,
       },
     }),
   ],
@@ -76,7 +86,27 @@ export interface Convention extends BaseModelInterface {
         },
       },
 
-      ...COMMON_FIELDS,
+      asText: {
+        virtual: true,
+        get({ value }: any) {
+          if (!value?.id) return;
+
+          return conventionToText(value);
+        },
+
+        populate: {
+          keyField: 'id',
+          action: 'conventions.resolve',
+          params: {
+            populate: 'parent',
+          },
+        },
+      },
+
+      ...COMMON_FIELDS_WITH_PERMISSIONS(
+        EndpointType.ADMIN,
+        ALL_COMMON_FIELDS_NAMES
+      ),
     },
 
     scopes: {

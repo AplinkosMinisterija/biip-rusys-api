@@ -114,35 +114,18 @@ const publicPopulate = ['class', 'conventions'];
       },
 
       conventionsText: {
-        type: 'array',
-        columnType: 'json',
-        items: { type: 'number' },
-        populate(ctx: any, _values: any, items: any[], field: any) {
-          return Promise.all(
-            items.map(async (item) => {
-              if (!item.conventions?.length) return [];
-              const conventions: Convention[] = await ctx.call(
-                'conventions.resolve',
-                {
-                  id: item.conventions,
-                  populate: 'parent',
-                }
-              );
-
-              function toText(
-                convention: Convention,
-                append: string = ''
-              ): string {
-                const text = `${convention.name}${
-                  append ? ` (${append})` : ''
-                }`;
-                if (!convention.parent) return text;
-
-                return `${toText(convention.parent as Convention, text)}`;
-              }
-              return conventions.map((c) => toText(c)).join(', ') || '';
-            })
-          );
+        type: 'string',
+        virtual: true,
+        get({ value }: any) {
+          if (!value?.length) return;
+          return value.map((c: any) => c.asText).join(', ') || '';
+        },
+        populate: {
+          keyField: 'conventions',
+          action: 'conventions.resolve',
+          params: {
+            populate: 'asText',
+          },
         },
       },
 

@@ -5,6 +5,7 @@ const DbService = require('@moleculer/database').Service;
 import config from '../knexfile';
 import filtersMixin from 'moleculer-knex-filters';
 import { Context } from 'moleculer';
+import { UserAuthMeta } from '../services/api.service';
 
 export const MaterializedView = {
   TAXONOMIES_ALL: 'taxonomiesAll',
@@ -165,6 +166,27 @@ export default function (opts: any = {}) {
         );
 
         return ids.filter((id) => queryIds.indexOf(id) >= 0);
+      },
+
+      async checkFieldAuthority(
+        ctx: Context<{}, UserAuthMeta>,
+        permissions: string | string[],
+        _params: any,
+        _field: any
+      ) {
+        if (!ctx?.meta?.user?.id) return false;
+
+        if (!Array.isArray(permissions)) {
+          permissions = [permissions];
+        }
+
+        if (!permissions.length) return false;
+
+        const result = await ctx.call('auth.validateType', {
+          types: permissions,
+        });
+
+        return !!result;
       },
 
       async refreshMaterializedView(ctx: Context, name: string) {

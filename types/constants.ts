@@ -15,6 +15,8 @@ export enum EndpointType {
   SELF = 'SELF',
 }
 
+export const ADDITIONAL_CACHE_KEYS = ['#user.type', '#user.isExpert'];
+
 export function throwUnauthorizedError(
   message?: string,
   data?: any
@@ -190,20 +192,51 @@ export const COMMON_FIELDS = {
   },
 };
 
-export const COMMON_HIDDEN_FIELDS = _.merge(COMMON_FIELDS, {
-  deletedBy: {
-    hidden: 'byDefault',
-  },
-  deletedAt: {
-    hidden: 'byDefault',
-  },
-  updatedAt: {
-    hidden: 'byDefault',
-  },
-  updatedBy: {
-    hidden: 'byDefault',
-  },
-});
+export const UPDATED_DELETED_FIELDS_NAMES = [
+  'updatedAt',
+  'updatedBy',
+  'deletedAt',
+  'deletedBy',
+];
+
+export const ALL_COMMON_FIELDS_NAMES = [
+  'createdAt',
+  'createdBy',
+  'updatedAt',
+  'updatedBy',
+  'deletedAt',
+  'deletedBy',
+];
+
+export function COMMON_FIELDS_WITH_PERMISSIONS(
+  permissions: string | string[],
+  fields?: string[]
+) {
+  fields = fields || UPDATED_DELETED_FIELDS_NAMES;
+  return _.merge(
+    COMMON_FIELDS,
+    fields.reduce((acc: any, field: string) => {
+      acc[field] = {
+        permission: permissions,
+      };
+      return acc;
+    }, {})
+  );
+}
+
+export function COMMON_FIELDS_WITH_HIDDEN(
+  fields: string[] = UPDATED_DELETED_FIELDS_NAMES
+) {
+  return _.merge(
+    COMMON_FIELDS,
+    fields.reduce((acc: any, field: string) => {
+      acc[field] = {
+        hidden: 'byDefault',
+      };
+      return acc;
+    }, {})
+  );
+}
 
 function fieldValueForDeletedScope({ ctx, value }: any) {
   if (!ctx?.params?.scope) return;
