@@ -141,6 +141,16 @@ const publicPopulate = ['class', 'conventions'];
         type: 'boolean',
       },
 
+      ltAddedAt: {
+        type: 'date',
+        columnType: 'datetime',
+      },
+
+      euAddedAt: {
+        type: 'date',
+        columnType: 'datetime',
+      },
+
       synonyms: {
         type: 'array',
         columnType: 'json',
