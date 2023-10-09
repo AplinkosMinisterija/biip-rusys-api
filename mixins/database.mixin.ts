@@ -14,13 +14,23 @@ export const MaterializedView = {
 };
 
 export function PopulateHandlerFn(action: string) {
-  return async function (ctx: Context, values: any[], docs: any[], field: any) {
+  return async function (
+    ctx: Context<{ populate: string | string[] }>,
+    values: any[],
+    docs: any[],
+    field: any
+  ) {
     if (!values.length) return null;
     const rule = field.populate;
+    let populate = rule.populate;
+    if (rule.inheritPopulate) {
+      populate = ctx.params.populate;
+    }
     const params = {
       ...(rule.params || {}),
       id: values,
       mapping: true,
+      populate,
       throwIfNotExist: false,
     };
 

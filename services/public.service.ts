@@ -80,6 +80,16 @@ export default class PublicService extends moleculer.Service {
     this.broker.cacher.clean();
   }
 
+  @Action({
+    rest: 'GET /conventions',
+    auth: AuthType.PUBLIC,
+  })
+  async getConventionsTree(ctx: Context<{}>) {
+    return ctx.call('conventions.find', {
+      populate: ['children', 'asText'],
+    });
+  }
+
   @Method
   async getTaxonomySpecies(id: number, type: string) {
     const taxonomySpecies: TaxonomySpecies = await this.broker.call(

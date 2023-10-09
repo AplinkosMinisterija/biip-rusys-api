@@ -77,8 +77,8 @@ function conventionToText(convention: Convention, append: string = ''): string {
         populate: {
           keyField: 'id',
           handler: PopulateHandlerFn('conventions.populateByProp'),
+          inheritPopulate: true,
           params: {
-            populate: 'children',
             sort: 'name',
             mappingMulti: true,
             queryKey: 'parent',
