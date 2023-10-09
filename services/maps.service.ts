@@ -7,10 +7,10 @@ import { AuthType, UserAuthMeta } from './api.service';
 import { Request, RequestStatus, RequestType } from './requests.service';
 import { UserType } from './users.service';
 
-import jwt, { VerifyErrors } from 'jsonwebtoken';
-import moment from 'moment';
 import { getFeatureCollection } from 'geojsonjs';
+import jwt, { VerifyErrors } from 'jsonwebtoken';
 import { camelCase } from 'lodash';
+import moment from 'moment';
 import { getEndangeredPlacesAndFromsByRequestsIds } from '../utils/db.queries';
 import { toReadableStream } from '../utils/functions';
 

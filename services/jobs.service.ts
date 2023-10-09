@@ -2,9 +2,9 @@
 
 import moleculer, { Context } from 'moleculer';
 import { Action, Service } from 'moleculer-decorators';
+import moment from 'moment';
 import BullMqMixin from '../mixins/bullmq.mixin';
 import { toReadableStream } from '../utils/functions';
-import moment from 'moment';
 
 @Service({
   name: 'jobs',

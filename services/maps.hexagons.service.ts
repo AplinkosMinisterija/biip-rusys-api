@@ -4,21 +4,20 @@ import moleculer, { Context } from 'moleculer';
 import { Action, Method, Service } from 'moleculer-decorators';
 import DbConnection from '../mixins/database.mixin';
 
+import { getFeatureCollection } from 'geojsonjs';
 import _, { snakeCase } from 'lodash';
-import { TaxonomySpeciesType } from './taxonomies.species.service';
+import PostgisMixin from 'moleculer-postgis';
+import { queryBooleanPlain } from '../types';
+import { getMapsGridStatsQuery } from '../utils/db.queries';
 import { AuthType, UserAuthMeta } from './api.service';
-import { UserType } from './users.service';
-import { Knex } from 'knex';
 import {
   mapsInvaPlacesIntroducedLayerId,
   mapsInvaPlacesInvasiveLayerId,
   mapsSrisInformationalFormsLayerId,
   mapsSrisPlacesLayerId,
 } from './maps.service';
-import { getMapsGridStatsQuery } from '../utils/db.queries';
-import { queryBooleanPlain } from '../types';
-import PostgisMixin from 'moleculer-postgis';
-import { getFeatureCollection } from 'geojsonjs';
+import { TaxonomySpeciesType } from './taxonomies.species.service';
+import { UserType } from './users.service';
 @Service({
   name: 'maps.hexagons',
 
