@@ -246,6 +246,7 @@ export default class TaxonomiesService extends moleculer.Service {
       page: number;
       pageSize: number;
       searchFields: string[];
+      populate?: any;
     }>
   ) {
     const {
@@ -257,6 +258,7 @@ export default class TaxonomiesService extends moleculer.Service {
       kingdomId,
       phylumId,
       classId,
+      populate,
     } = ctx.params;
 
     const query: any = {};
@@ -264,7 +266,10 @@ export default class TaxonomiesService extends moleculer.Service {
       query.speciesType = { $in: types };
     }
 
-    const items: Taxonomy[] = await ctx.call('taxonomies.find', { query });
+    const items: Taxonomy[] = await ctx.call('taxonomies.find', {
+      query,
+      populate,
+    });
 
     const regex = new RegExp(
       search.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'),

@@ -84,7 +84,10 @@ export default class PublicService extends moleculer.Service {
   async getTaxonomySpecies(id: number, type: string) {
     const taxonomySpecies: TaxonomySpecies = await this.broker.call(
       'taxonomies.species.resolve',
-      { id, populate: 'conventions,conventionsText' }
+      {
+        id,
+        throwIfNotExist: true,
+      }
     );
 
     if (!taxonomySpecies?.id || taxonomySpecies.type !== type) {
@@ -95,6 +98,7 @@ export default class PublicService extends moleculer.Service {
       'taxonomies.findBySpeciesId',
       {
         id,
+        populate: ['speciesConventions', 'speciesConventionsText'],
       }
     );
 
@@ -108,6 +112,7 @@ export default class PublicService extends moleculer.Service {
       {
         ...params,
         types: [type],
+        populate: ['speciesConventions', 'speciesConventionsText'],
       }
     );
 
@@ -119,22 +124,6 @@ export default class PublicService extends moleculer.Service {
 
   @Method
   mapSpeciesItem(taxonomy: Taxonomy, species?: TaxonomySpecies) {
-    const data: any = {
-      id: taxonomy.speciesId,
-      name: taxonomy.speciesName,
-      nameLatin: taxonomy.speciesNameLatin,
-      photos: taxonomy.speciesPhotos || [],
-      synonyms: taxonomy.speciesSynonyms || [],
-      className: taxonomy.className,
-      classNameLatin: taxonomy.classNameLatin,
-      phylumName: taxonomy.phylumName,
-      phylumNameLatin: taxonomy.phylumNameLatin,
-      kingdomName: taxonomy.kingdomName,
-      kingdomNameLatin: taxonomy.kingdomNameLatin,
-    };
-
-    if (!species?.id) return data;
-
     const mapConvention = (convention?: Convention): any => {
       if (!convention) return;
 
@@ -147,8 +136,25 @@ export default class PublicService extends moleculer.Service {
       };
     };
 
-    data.conventions = species.conventions?.map(mapConvention) || [];
-    data.conventionsText = species.conventionsText;
+    const data: any = {
+      id: taxonomy.speciesId,
+      name: taxonomy.speciesName,
+      nameLatin: taxonomy.speciesNameLatin,
+      photos: taxonomy.speciesPhotos || [],
+      synonyms: taxonomy.speciesSynonyms || [],
+      className: taxonomy.className,
+      classNameLatin: taxonomy.classNameLatin,
+      phylumName: taxonomy.phylumName,
+      phylumNameLatin: taxonomy.phylumNameLatin,
+      kingdomName: taxonomy.kingdomName,
+      kingdomNameLatin: taxonomy.kingdomNameLatin,
+      conventions:
+        (taxonomy.speciesConventions as Convention[])?.map(mapConvention) || [],
+      conventionsText: taxonomy.speciesConventionsText || null,
+    };
+
+    if (!species?.id) return data;
+
     data.description = species.description;
     data.content = species.content || {};
 
