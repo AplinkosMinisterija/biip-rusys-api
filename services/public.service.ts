@@ -142,6 +142,8 @@ export default class PublicService extends moleculer.Service {
       nameLatin: taxonomy.speciesNameLatin,
       photos: taxonomy.speciesPhotos || [],
       synonyms: taxonomy.speciesSynonyms || [],
+      ltAddedAt: taxonomy.speciesLtAddedAt,
+      euAddedAt: taxonomy.speciesEuAddedAt,
       className: taxonomy.className,
       classNameLatin: taxonomy.classNameLatin,
       phylumName: taxonomy.phylumName,

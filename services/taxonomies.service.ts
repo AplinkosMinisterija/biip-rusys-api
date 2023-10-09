@@ -25,6 +25,8 @@ export interface Taxonomy {
   speciesConventionsText?: string;
   speciesPhotos?: Array<{ name: string; size: number; url: string }>;
   speciesDescription?: string;
+  speciesLtAddedAt: Date;
+  speciesEuAddedAt: Date;
   classId: number;
   className: string;
   classNameLatin: string;
