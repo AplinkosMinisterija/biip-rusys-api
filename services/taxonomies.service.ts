@@ -243,11 +243,18 @@ export default class TaxonomiesService extends moleculer.Service {
         items: 'string',
         optional: true,
       },
-      query: {
-        type: 'object',
-        optional: true,
-        default: {},
-      },
+      query: [
+        {
+          type: 'object',
+          optional: true,
+          convert: true,
+          default: {},
+        },
+        {
+          type: 'string',
+          optional: true,
+        },
+      ],
     },
   })
   async search(
