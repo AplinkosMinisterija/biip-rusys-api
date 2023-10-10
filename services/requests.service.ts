@@ -42,6 +42,7 @@ import {
 import PostgisMixin, { GeometryType } from 'moleculer-postgis';
 import { getFeatureCollection } from 'geojsonjs';
 import moment from 'moment';
+import { parseToObject } from '../utils/functions';
 
 export const RequestType = {
   GET: 'GET',
@@ -460,9 +461,7 @@ export default class RequestsService extends moleculer.Service {
     types: [EndpointType.ADMIN, EndpointType.TENANT_USER],
   })
   async my(ctx: Context<{ query: any }, UserAuthMeta>) {
-    if (typeof ctx.params.query === 'string') {
-      ctx.params.query = JSON.parse(ctx.params.query);
-    }
+    ctx.params.query = parseToObject(ctx.params.query);
 
     ctx.params.query = ctx.params.query || {};
     ctx.params.query.createdBy = ctx.meta.user.id;

@@ -23,3 +23,13 @@ export function toReadableStream(fetchReadable: any): NodeJS.ReadableStream {
 export function toMD5Hash(text: string) {
   return createHash('md5').update(text).digest('hex');
 }
+
+export function parseToObject(data: object | string) {
+  if (typeof data === 'string') {
+    try {
+      data = JSON.parse(data);
+    } catch (err) {}
+  }
+
+  return data;
+}

@@ -39,6 +39,7 @@ import {
 import { Taxonomy } from './taxonomies.service';
 import _ from 'lodash';
 import { FormType } from './forms.types.service';
+import { parseToObject } from '../utils/functions';
 
 export const FormStatus = {
   CREATED: 'CREATED',
@@ -881,9 +882,7 @@ export default class FormsService extends moleculer.Service {
     types: [EndpointType.ADMIN, EndpointType.EXPERT, EndpointType.TENANT_USER],
   })
   async my(ctx: Context<{ query: any }, UserAuthMeta>) {
-    if (typeof ctx.params.query === 'string') {
-      ctx.params.query = JSON.parse(ctx.params.query);
-    }
+    ctx.params.query = parseToObject(ctx.params.query);
 
     ctx.params.query = ctx.params.query || {};
     ctx.params.query.createdBy = ctx.meta?.user?.id;

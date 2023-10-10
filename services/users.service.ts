@@ -18,6 +18,7 @@ import {
 import { TenantUserRole } from './tenantUsers.service';
 import { Tenant } from './tenants.service';
 import { FormStatus } from './forms.service';
+import { parseToObject } from '../utils/functions';
 
 export enum UserType {
   ADMIN = 'ADMIN',
@@ -556,9 +557,7 @@ export default class UsersService extends moleculer.Service {
     rest: 'GET /experts',
   })
   async getExperts(ctx: Context<{ query: any }, UserAuthMeta>) {
-    if (typeof ctx.params.query === 'string') {
-      ctx.params.query = JSON.parse(ctx.params.query);
-    }
+    ctx.params.query = parseToObject(ctx.params.query);
 
     const userIds: [] = await ctx.call('requests.getExpertsIds');
 

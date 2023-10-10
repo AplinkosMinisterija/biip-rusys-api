@@ -14,6 +14,7 @@ import {
   throwNotFoundError,
 } from '../types';
 import { UserType } from './users.service';
+import { parseToObject } from '../utils/functions';
 
 export interface Taxonomy {
   speciesId: number;
@@ -242,14 +243,17 @@ export default class TaxonomiesService extends moleculer.Service {
         items: 'string',
         optional: true,
       },
+      query: {
+        type: 'object',
+        optional: true,
+        default: {},
+      },
     },
   })
   async search(
     ctx: Context<{
       search: string;
-      kingdomId: number;
-      phylumId: number;
-      classId: number;
+      query: any;
       types: string[];
       page: number;
       pageSize: number;
@@ -263,13 +267,11 @@ export default class TaxonomiesService extends moleculer.Service {
       pageSize,
       page,
       searchFields: fields,
-      kingdomId,
-      phylumId,
-      classId,
       populate,
     } = ctx.params;
 
-    const query: any = {};
+    const query: any = parseToObject(ctx.params.query || {});
+
     if (types?.length) {
       query.speciesType = { $in: types };
     }
@@ -290,24 +292,14 @@ export default class TaxonomiesService extends moleculer.Service {
       return regex.test(value);
     };
 
-    const filterByTaxonomyId = (taxonomy: Taxonomy) => {
-      if (kingdomId) return taxonomy.kingdomId === Number(kingdomId);
-      else if (phylumId) return taxonomy.phylumId === Number(phylumId);
-      else if (classId) return taxonomy.classId === Number(classId);
-      return true;
-    };
-
     const rows = items
-      .filter(filterByTaxonomyId)
-      .filter((taxonomy: any) => {
-        return fields.some((f) => testValue(taxonomy[f]));
-      })
       .map((taxonomy: any) => {
         return {
           ...taxonomy,
           hits: fields.filter((f) => testValue(taxonomy[f])),
         };
-      });
+      })
+      .filter((taxonomy: any) => !!taxonomy.hits?.length);
 
     const itemsStart = (page - 1) * pageSize;
     const itemsEnd = itemsStart + pageSize;

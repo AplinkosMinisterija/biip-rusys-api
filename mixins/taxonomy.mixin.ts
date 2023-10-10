@@ -1,5 +1,7 @@
 'use strict';
 
+import { parseToObject } from "../utils/functions";
+
 export default function (opts: { taxonomies: string[] }) {
   const taxonomiesToFilter: any = {
     KINGDOM: {
@@ -25,9 +27,7 @@ export default function (opts: { taxonomies: string[] }) {
 
     methods: {
       async assignTaxonomyFilter(ctx: any) {
-        if (typeof ctx.params.query === 'string') {
-          ctx.params.query = JSON.parse(ctx.params.query);
-        }
+        ctx.params.query = parseToObject(ctx.params.query);
 
         ctx.params.query = ctx.params.query || {};
         const queryKeys = Object.keys(taxonomiesToFilter).filter(
