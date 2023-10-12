@@ -130,7 +130,7 @@ const populatePermissions = (field: string) => {
 
         const expiredRequests: Request[] = requests
           .filter((r) => !!r.data?.accessDate)
-          .filter((r) => !moment(r.data.accessDate).diff(moment()));
+          .filter((r) => moment(r.data.accessDate).diff(moment()) < 0);
 
         for (const request of expiredRequests) {
           await this.call('requests.remove', {
