@@ -148,11 +148,6 @@ export default class MapsService extends moleculer.Service {
 
   @Action({
     rest: 'GET /auth',
-    // cache: {
-    //   keys: ['#user.id', '#profile.id'],
-    //   // default - 24 hours
-    //   ttl: 60 * 60 * 24,
-    // },
   })
   async generateToken(ctx: Context<{ server?: boolean }, UserAuthMeta>) {
     const { user } = ctx.meta;
@@ -180,6 +175,37 @@ export default class MapsService extends moleculer.Service {
       token,
       expires: moment().add(1, 'day').format(),
     };
+  }
+
+  @Action({
+    rest: 'GET /auth/me',
+    auth: AuthType.MAPS_PRIVATE,
+    cache: {
+      keys: ['#user.id', '#profile.id'],
+    },
+  })
+  async getUserData(ctx: Context<{}, UserAuthMeta>) {
+    const { user, profile } = ctx.meta;
+    const data: any = {
+      id: user.id,
+      firstName: user.firstName,
+      lastName: user.lastName,
+      type: user.type,
+    };
+
+    if (user.isExpert) {
+      data.isExpert = user.isExpert;
+    }
+
+    if (profile?.id) {
+      data.tenant = {
+        id: profile.id,
+        name: profile.name,
+        role: profile.role,
+      };
+    }
+
+    return data;
   }
 
   @Action({
