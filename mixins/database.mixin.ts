@@ -22,7 +22,7 @@ export function PopulateHandlerFn(action: string) {
   ) {
     if (!values.length) return null;
     const rule = field.populate;
-    let populate = rule.populate;
+    let populate = rule.params?.populate;
     if (rule.inheritPopulate) {
       populate = ctx.params.populate;
     }
