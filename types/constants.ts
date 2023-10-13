@@ -214,6 +214,7 @@ export function COMMON_FIELDS_WITH_PERMISSIONS(
 ) {
   fields = fields || UPDATED_DELETED_FIELDS_NAMES;
   return _.merge(
+    {},
     COMMON_FIELDS,
     fields.reduce((acc: any, field: string) => {
       acc[field] = {
@@ -228,6 +229,7 @@ export function COMMON_FIELDS_WITH_HIDDEN(
   fields: string[] = UPDATED_DELETED_FIELDS_NAMES
 ) {
   return _.merge(
+    {},
     COMMON_FIELDS,
     fields.reduce((acc: any, field: string) => {
       acc[field] = {

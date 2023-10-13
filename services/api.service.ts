@@ -6,6 +6,7 @@ import { COMMON_DELETED_SCOPES, EndpointType, RequestMessage } from '../types';
 import { Tenant } from './tenants.service';
 import { User } from './users.service';
 import { throwUnauthorizedError } from '../types';
+import { Handlers } from '@sentry/node';
 export interface UserAuthMeta {
   user: User;
   profile?: Tenant;
@@ -101,7 +102,7 @@ export const AuthType = {
         ],
 
         // Route-level Express middlewares. More info: https://moleculer.services/docs/0.14/moleculer-web.html#Middlewares
-        use: [],
+        use: [Handlers.requestHandler(), Handlers.tracingHandler()],
 
         // Enable/disable parameter merging method. More info: https://moleculer.services/docs/0.14/moleculer-web.html#Disable-merging
         mergeParams: true,
