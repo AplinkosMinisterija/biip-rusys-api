@@ -266,6 +266,11 @@ export default class TaxonomiesService extends moleculer.Service {
       pageSize: number;
       searchFields: string[];
       populate?: any;
+
+      // TODO: remove
+      kingdomId: number;
+      phylumId: number;
+      classId: number;
     }>
   ) {
     const {
@@ -281,6 +286,17 @@ export default class TaxonomiesService extends moleculer.Service {
 
     if (types?.length) {
       query.speciesType = { $in: types };
+    }
+
+    // TODO: remove
+    if (ctx.params.kingdomId) {
+      query.kingdomId = ctx.params.kingdomId;
+    }
+    if (ctx.params.phylumId) {
+      query.phylumId = ctx.params.kingdomId;
+    }
+    if (ctx.params.classId) {
+      query.classId = ctx.params.classId;
     }
 
     const items: Taxonomy[] = await ctx.call('taxonomies.find', {
