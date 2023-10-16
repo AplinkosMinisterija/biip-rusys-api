@@ -8,41 +8,39 @@ import DbConnection from '../mixins/database.mixin';
 import Cron from '@r2d2bzh/moleculer-cron';
 
 import {
-  COMMON_FIELDS,
-  COMMON_DEFAULT_SCOPES,
-  COMMON_SCOPES,
-  BaseModelInterface,
-  TENANT_FIELD,
-  COMMON_DELETED_SCOPES,
-  EndpointType,
-  FieldHookCallback,
-  ContextMeta,
-  EntityChangedParams,
-  FILE_TYPES,
   ALL_FILE_TYPES,
-  throwNotFoundError,
+  BaseModelInterface,
+  COMMON_DEFAULT_SCOPES,
+  COMMON_DELETED_SCOPES,
+  COMMON_FIELDS,
+  COMMON_SCOPES,
+  ContextMeta,
+  DBPagination,
+  EndpointType,
+  EntityChangedParams,
+  FieldHookCallback,
+  TENANT_FIELD,
 } from '../types';
-import { AuthType, UserAuthMeta } from './api.service';
+import { UserAuthMeta } from './api.service';
 import { RequestHistoryTypes } from './requests.histories.service';
 import { Tenant } from './tenants.service';
-import { User, USERS_DEFAULT_SCOPES, UserType } from './users.service';
+import { USERS_DEFAULT_SCOPES, User, UserType } from './users.service';
 
-import { TaxonomySpeciesType } from './taxonomies.species.service';
-import {
-  emailCanBeSent,
-  notifyOnRequestUpdate,
-  notifyOnFileGenerated,
-} from '../utils/mails';
-import { Taxonomy } from './taxonomies.service';
-import _ from 'lodash';
+import { getFeatureCollection } from 'geojsonjs';
+import PostgisMixin, { GeometryType } from 'moleculer-postgis';
+import moment from 'moment';
 import {
   getInformationalFormsByRequestIds,
   getPlacesByRequestIds,
 } from '../utils/db.queries';
-import PostgisMixin, { GeometryType } from 'moleculer-postgis';
-import { getFeatureCollection } from 'geojsonjs';
-import moment from 'moment';
 import { parseToObject } from '../utils/functions';
+import {
+  emailCanBeSent,
+  notifyOnFileGenerated,
+  notifyOnRequestUpdate,
+} from '../utils/mails';
+import { Taxonomy } from './taxonomies.service';
+import { TaxonomySpeciesType } from './taxonomies.species.service';
 
 export const RequestType = {
   GET: 'GET',
@@ -703,6 +701,18 @@ export default class RequestsService extends moleculer.Service {
   }
 
   @Method
+  async getAdminEmails() {
+    const authUsers: DBPagination<any> = await this.broker.call(
+      'auth.permissions.getUsersByAccess',
+      {
+        access: 'SPECIES_REQUESTS_EMAILS',
+      }
+    );
+
+    return authUsers?.rows?.map((u) => u.email) || [];
+  }
+
+  @Method
   async getTaxonomiesByRequest(request: Request) {
     const taxonomyMap: any = {
       [TaxonomyTypes.KINGDOM]: {
@@ -897,14 +907,35 @@ export default class RequestsService extends moleculer.Service {
   async sendNotificationOnStatusChange(request: Request) {
     if (!emailCanBeSent()) return;
 
-    const notifyAdmin = request.status === RequestStatus.SUBMITTED;
+    if (
+      [RequestStatus.SUBMITTED, RequestStatus.CREATED].includes(request.status)
+    ) {
+      const emails = await this.getAdminEmails();
+      if (!emails?.length) return;
 
-    if (notifyAdmin) return;
+      return emails.map((email) => {
+        notifyOnRequestUpdate(
+          email,
+          request.status,
+          request.id,
+          request.type,
+          false,
+          true
+        );
+      });
+    }
 
     const user: User = await this.broker.call('users.resolve', {
       id: request.createdBy,
       scope: USERS_DEFAULT_SCOPES,
     });
+
+    const expertSpecies: any[] = await this.broker.call(
+      'requests.getExpertSpecies',
+      {
+        userId: user.id,
+      }
+    );
 
     const approvedGetOnceRequest =
       request.status === RequestStatus.APPROVED &&
@@ -917,7 +948,7 @@ export default class RequestsService extends moleculer.Service {
       request.status,
       request.id,
       request.type,
-      notifyAdmin,
+      !!expertSpecies?.length,
       user.type === UserType.ADMIN
     );
   }
@@ -1048,7 +1079,7 @@ export default class RequestsService extends moleculer.Service {
       );
 
       await this.generatePdfIfNeeded(request);
-      await this.sendNotificationOnStatusChange(request);
+      this.sendNotificationOnStatusChange(request);
     }
 
     if (
@@ -1098,6 +1129,8 @@ export default class RequestsService extends moleculer.Service {
         'Automatiškai patvirtintas prašymas.'
       );
       await this.generatePdfIfNeeded(request);
+    } else {
+      this.sendNotificationOnStatusChange(request);
     }
   }
 
