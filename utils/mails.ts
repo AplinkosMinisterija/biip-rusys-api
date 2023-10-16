@@ -7,7 +7,7 @@ const client = new ServerClient(process.env.POSTMARK_KEY);
 const sender = 'noreply@biip.lt';
 
 export function emailCanBeSent() {
-  return ['production'].includes(process.env.NODE_ENV);
+  return ['staging', 'production'].includes(process.env.NODE_ENV);
 }
 
 function hostUrl(isAdmin: boolean = false) {
@@ -68,19 +68,20 @@ export function notifyOnFormUpdate(
 
 export function notifyOnRequestUpdate(
   email: string,
-  type: string,
+  status: string,
   requestId: number | string,
   requestType: string,
   isExpert: boolean = false,
   isAdmin: boolean = false
 ) {
   const updateTypes: any = {
+    [RequestStatus.CREATED]: 'Pateiktas',
     [RequestStatus.APPROVED]: 'Patvirtintas',
     [RequestStatus.REJECTED]: 'Atmestas',
     [RequestStatus.SUBMITTED]: 'Pateiktas pakartotinai',
     [RequestStatus.RETURNED]: 'Grąžintas taisymui',
   };
-  const updateType = updateTypes[type] || '';
+  const updateType = updateTypes[status] || '';
 
   const titleByType = {
     [RequestType.GET]: 'peržiūros žemėlapyje',
@@ -99,7 +100,7 @@ export function notifyOnRequestUpdate(
     TemplateModel: {
       title: updateType,
       titleText: updateType.toLowerCase(),
-      requestType: titleByType[requestType],
+      requestType: `${isAdmin ? 'peržiūrai ' : ''}${titleByType[requestType]}`,
       actionUrl: `${hostUrl(isAdmin)}/${path}/${requestId}`,
     },
   });
