@@ -28,6 +28,7 @@ export const PlaceHistoryStatus = {
   DECREASED: 'DECREASED',
   DISAPPEARED: 'DISAPPEARED',
   DESTROYED: 'DESTROYED',
+  MISTAKEN: 'MISTAKEN',
 };
 
 @Service({

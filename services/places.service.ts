@@ -36,6 +36,7 @@ const PlaceStatus = {
   DECREASED: 'DECREASED',
   DISAPPEARED: 'DISAPPEARED',
   DESTROYED: 'DESTROYED',
+  MISTAKEN: 'MISTAKEN',
 };
 
 export interface Place extends BaseModelInterface {
