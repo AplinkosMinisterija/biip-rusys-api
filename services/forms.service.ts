@@ -1271,20 +1271,24 @@ export default class FormsService extends moleculer.Service {
 
     const error = 'Invalid quantity';
 
+    function validQuantity(quantity?: number) {
+      return quantity >= 0;
+    }
+
+    const quantityIsValid =
+      validQuantity(value) || validQuantity(entity?.quantity);
+
     if (formType === FormType.INVASIVE_PLANT) {
-      const hasQuantity = !!value || !!entity?.quantity;
       const hasMethod = !!params.method || !!entity?.method;
 
-      if (!hasQuantity && !hasMethod) return error;
+      if (!quantityIsValid && !hasMethod) return error;
       else if (hasMethod) return true;
     }
 
-    const validate = !entity?.id || !!value;
+    const validate = !entity?.id || typeof value !== 'undefined';
 
-    if (validate) {
-      if (entity?.quantity && !value) return true;
-
-      return value >= 1 || error;
+    if (validate && !validQuantity(value)) {
+      return error;
     }
 
     return true;
