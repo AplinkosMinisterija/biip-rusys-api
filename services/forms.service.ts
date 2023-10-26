@@ -1285,9 +1285,9 @@ export default class FormsService extends moleculer.Service {
       else if (hasMethod) return true;
     }
 
-    const validate = !entity?.id || validQuantity(value);
+    const validate = !entity?.id || typeof value !== 'undefined';
 
-    if (validate && !quantityIsValid) {
+    if (validate && !validQuantity(value)) {
       return error;
     }
 
