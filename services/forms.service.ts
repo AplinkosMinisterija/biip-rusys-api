@@ -1126,7 +1126,7 @@ export default class FormsService extends moleculer.Service {
 
     if (!!id) {
       const doNotChangeStatus = Object.keys(ctx.params).every((key) =>
-        ['id', 'isRelevant', 'assignee'].includes(key)
+        ['id', 'isRelevant', 'assignee', 'comment'].includes(key)
       );
 
       ctx.meta.statusChanged = !doNotChangeStatus;
