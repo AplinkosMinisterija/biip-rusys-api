@@ -4,8 +4,10 @@
  */
 exports.up = function (knex) {
   return knex.schema
+    .raw(`DROP INDEX IF EXISTS hexagon_stat_species_places_geom_idx`)
     .raw(`DROP INDEX approved_forms_geom_idx`)
     .raw(`DROP INDEX places_with_taxonomies_geom_idx`)
+    .dropMaterializedViewIfExists('hexagonStatSpeciesPlaces')
     .dropMaterializedView('approvedForms')
     .dropMaterializedView('placesWithTaxonomies')
     .dropMaterializedView('taxonomiesAll')
@@ -109,6 +111,31 @@ exports.up = function (knex) {
     })
     .raw(
       `CREATE INDEX approved_forms_geom_idx ON approved_forms USING GIST (geom)`
+    )
+    .createMaterializedView('hexagonStatSpeciesPlaces', (view) => {
+      view.as(
+        knex.raw(`
+          SELECT DISTINCT gl.id,
+              string_agg(DISTINCT gl.rusis_sk, ';'::text || '
+'::text) AS rusiu_radvieciu_sk,
+              sum(gl.radv_sk) AS bendras_radvieciu_skaicius,
+              gl.geom
+            FROM ( SELECT DISTINCT a.id,
+                      b.species_name,
+                      b.species_name_latin,
+                      count(b.species_name) AS radv_sk,
+                      (((b.species_name::text || ' ('::text) || b.species_name_latin::text) || ') - '::text) || count(b.species_name) AS rusis_sk,
+                      a.geom
+                    FROM maps_hexagon_grid a
+                      LEFT JOIN approved_forms b ON st_intersects(a.geom, st_pointonsurface(b.geom)) AND b.species_name IS NOT NULL
+                    GROUP BY a.id, b.species_name, b.species_name_latin, a.geom
+                    ORDER BY b.species_name) gl
+            GROUP BY gl.id, gl.geom
+        `)
+      );
+    })
+    .raw(
+      `CREATE INDEX hexagon_stat_species_places_geom_idx ON hexagon_stat_species_places USING GIST (geom)`
     );
 };
 
