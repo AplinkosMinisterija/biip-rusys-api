@@ -72,10 +72,13 @@ export default class MapsService extends moleculer.Service {
     }
 
     const hostUrl = process.env.QGIS_SERVER_HOST || 'https://gis.biip.lt';
-    const url = `${hostUrl}/qgisserver/sris`;
+    const url = `${hostUrl}/qgisserver`;
+
+    ctx.params.MAP = '/project/sris.qgs';
 
     const response = await fetch(url, {
       method: 'POST',
+      mode: 'no-cors',
       body: new URLSearchParams(ctx.params).toString(),
       headers: {
         'x-auth-key': process.env.QGIS_SERVER_AUTH_KEY,
