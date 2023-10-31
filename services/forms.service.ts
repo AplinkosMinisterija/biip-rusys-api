@@ -1126,7 +1126,7 @@ export default class FormsService extends moleculer.Service {
 
     if (!!id) {
       const doNotChangeStatus = Object.keys(ctx.params).every((key) =>
-        ['id', 'isRelevant', 'assignee'].includes(key)
+        ['id', 'isRelevant', 'assignee', 'comment'].includes(key)
       );
 
       ctx.meta.statusChanged = !doNotChangeStatus;
@@ -1425,6 +1425,16 @@ export default class FormsService extends moleculer.Service {
       );
 
       await this.sendNotificationOnStatusChange(form);
+    }
+
+    if (form.isInformational && prevForm.isRelevant !== form.isRelevant) {
+      const { comment } = ctx.options?.parentCtx?.params as any;
+      await this.createFormHistory(
+        form.id,
+        ctx.meta,
+        FormHistoryTypes.RELEVANCY_CHANGED,
+        comment
+      );
     }
 
     if (prevForm?.place !== form.place) {

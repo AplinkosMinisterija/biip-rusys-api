@@ -7,7 +7,7 @@ import DbConnection from '../mixins/database.mixin';
 import {
   COMMON_DEFAULT_SCOPES,
   COMMON_FIELDS_WITH_HIDDEN,
-  COMMON_SCOPES
+  COMMON_SCOPES,
 } from '../types';
 
 export const FormHistoryTypes = {
@@ -19,6 +19,7 @@ export const FormHistoryTypes = {
   PLACE_CHANGED: 'PLACE_CHANGED',
   PLACE_ASSIGNED: 'PLACE_ASSIGNED',
   PLACE_CREATED: 'PLACE_CREATED',
+  RELEVANCY_CHANGED: 'RELEVANCY_CHANGED',
 };
 
 @Service({
