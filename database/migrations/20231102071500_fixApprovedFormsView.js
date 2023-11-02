@@ -28,7 +28,8 @@ exports.up = function (knex) {
             'f.isRelevant',
             'f.isInformational',
             knex.raw(`
-              ST_Transform(CASE
+              ST_Transform(ST_Multi(
+                CASE
                   WHEN ST_GeometryType(f.geom) IN (
                     'ST_Point',
                     'ST_LineString',
@@ -36,7 +37,8 @@ exports.up = function (knex) {
                     'ST_MultiLineString'
                   ) THEN ST_Buffer(f.geom, f.geom_buffer_size)
                   WHEN ST_GeometryType(f.geom) IN ('ST_Polygon', 'ST_MultiPolygon') THEN f.geom
-                END, 3346)::geometry(multipolygon, 3346) AS geom
+                END
+              ), 3346)::geometry(multipolygon, 3346) AS geom
             `),
             't.*'
           )
