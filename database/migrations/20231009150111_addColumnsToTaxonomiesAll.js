@@ -35,7 +35,7 @@ exports.up = function (knex) {
             'tp.nameLatin as phylumNameLatin',
             'tk.id as kingdomId',
             'tk.name as kingdomName',
-            'tk.nameLatin as kingdomNameLatin'
+            'tk.nameLatin as kingdomNameLatin',
           )
           .from('taxonomySpecies as ts')
           .join('taxonomyClasses as tc', 'ts.classId', 'tc.id')
@@ -46,7 +46,7 @@ exports.up = function (knex) {
           .whereNull('tp.deletedAt')
           .whereNull('tc.deletedAt')
           .groupBy('ts.id', 'tc.id', 'tp.id', 'tk.id')
-          .orderBy('ts.name')
+          .orderBy('ts.name'),
       );
     })
     .createMaterializedView('placesWithTaxonomies', (view) => {
@@ -63,15 +63,13 @@ exports.up = function (knex) {
             'p.updatedBy',
             'p.deletedAt',
             'p.deletedBy',
-            't.*'
+            't.*',
           )
           .from('places as p')
-          .leftJoin('taxonomiesAll as t', 't.speciesId', 'p.speciesId')
+          .leftJoin('taxonomiesAll as t', 't.speciesId', 'p.speciesId'),
       );
     })
-    .raw(
-      `CREATE INDEX places_with_taxonomies_geom_idx ON places_with_taxonomies USING GIST (geom)`
-    )
+    .raw(`CREATE INDEX places_with_taxonomies_geom_idx ON places_with_taxonomies USING GIST (geom)`)
     .createMaterializedView('approvedForms', (view) => {
       view.as(
         knex
@@ -102,16 +100,14 @@ exports.up = function (knex) {
                   WHEN ST_GeometryType(f.geom) IN ('ST_Polygon', 'ST_MultiPolygon') THEN f.geom
                 END AS geom
             `),
-            't.*'
+            't.*',
           )
           .from('forms as f')
           .leftJoin('taxonomiesAll as t', 't.speciesId', 'f.speciesId')
-          .where('f.status', 'APPROVED')
+          .where('f.status', 'APPROVED'),
       );
     })
-    .raw(
-      `CREATE INDEX approved_forms_geom_idx ON approved_forms USING GIST (geom)`
-    )
+    .raw(`CREATE INDEX approved_forms_geom_idx ON approved_forms USING GIST (geom)`)
     .createMaterializedView('hexagonStatSpeciesPlaces', (view) => {
       view.as(
         knex.raw(`
@@ -131,11 +127,11 @@ exports.up = function (knex) {
                     GROUP BY a.id, b.species_name, b.species_name_latin, a.geom
                     ORDER BY b.species_name) gl
             GROUP BY gl.id, gl.geom
-        `)
+        `),
       );
     })
     .raw(
-      `CREATE INDEX hexagon_stat_species_places_geom_idx ON hexagon_stat_species_places USING GIST (geom)`
+      `CREATE INDEX hexagon_stat_species_places_geom_idx ON hexagon_stat_species_places USING GIST (geom)`,
     );
 };
 
@@ -172,7 +168,7 @@ exports.down = function (knex) {
             'tp.nameLatin as phylumNameLatin',
             'tk.id as kingdomId',
             'tk.name as kingdomName',
-            'tk.nameLatin as kingdomNameLatin'
+            'tk.nameLatin as kingdomNameLatin',
           )
           .from('taxonomySpecies as ts')
           .join('taxonomyClasses as tc', 'ts.classId', 'tc.id')
@@ -183,7 +179,7 @@ exports.down = function (knex) {
           .whereNull('tp.deletedAt')
           .whereNull('tc.deletedAt')
           .groupBy('ts.id', 'tc.id', 'tp.id', 'tk.id')
-          .orderBy('ts.name')
+          .orderBy('ts.name'),
       );
     })
     .createMaterializedView('placesWithTaxonomies', (view) => {
@@ -200,15 +196,13 @@ exports.down = function (knex) {
             'p.updatedBy',
             'p.deletedAt',
             'p.deletedBy',
-            't.*'
+            't.*',
           )
           .from('places as p')
-          .leftJoin('taxonomiesAll as t', 't.speciesId', 'p.speciesId')
+          .leftJoin('taxonomiesAll as t', 't.speciesId', 'p.speciesId'),
       );
     })
-    .raw(
-      `CREATE INDEX places_with_taxonomies_geom_idx ON places_with_taxonomies USING GIST (geom)`
-    )
+    .raw(`CREATE INDEX places_with_taxonomies_geom_idx ON places_with_taxonomies USING GIST (geom)`)
     .createMaterializedView('approvedForms', (view) => {
       view.as(
         knex
@@ -239,14 +233,12 @@ exports.down = function (knex) {
                   WHEN ST_GeometryType(f.geom) IN ('ST_Polygon', 'ST_MultiPolygon') THEN f.geom
                 END AS geom
             `),
-            't.*'
+            't.*',
           )
           .from('forms as f')
           .leftJoin('taxonomiesAll as t', 't.speciesId', 'f.speciesId')
-          .where('f.status', 'APPROVED')
+          .where('f.status', 'APPROVED'),
       );
     })
-    .raw(
-      `CREATE INDEX approved_forms_geom_idx ON approved_forms USING GIST (geom)`
-    );
+    .raw(`CREATE INDEX approved_forms_geom_idx ON approved_forms USING GIST (geom)`);
 };

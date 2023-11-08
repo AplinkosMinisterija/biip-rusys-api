@@ -3,9 +3,7 @@
  * @returns { Promise<void> }
  */
 exports.up = function (knex) {
-  return knex.schema.raw(
-    `ALTER TABLE requests ADD COLUMN geom geometry(geometry, 3346)`
-  );
+  return knex.schema.raw(`ALTER TABLE requests ADD COLUMN geom geometry(geometry, 3346)`);
 };
 
 /**

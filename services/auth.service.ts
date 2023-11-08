@@ -6,11 +6,7 @@ import { Action, Event, Method, Service } from 'moleculer-decorators';
 import authMixin from 'biip-auth-nodejs/mixin';
 import { UserAuthMeta } from './api.service';
 import { User, USERS_DEFAULT_SCOPES, UserType } from './users.service';
-import {
-  AUTH_FREELANCERS_GROUP_ID,
-  EndpointType,
-  throwNotFoundError,
-} from '../types';
+import { AUTH_FREELANCERS_GROUP_ID, EndpointType, throwNotFoundError } from '../types';
 import { TenantUserRole } from './tenantUsers.service';
 import { Tenant } from './tenants.service';
 
@@ -141,9 +137,7 @@ export default class AuthService extends moleculer.Service {
       authUserGroups: 'array',
     },
   })
-  async createUserWithTenantsIfNeeded(
-    ctx: Context<{ authUser: any; authUserGroups: any[] }>
-  ) {
+  async createUserWithTenantsIfNeeded(ctx: Context<{ authUser: any; authUserGroups: any[] }>) {
     const { authUser, authUserGroups } = ctx.params;
     const user: User = await ctx.call('users.findOrCreate', {
       authUser: authUser,
@@ -151,9 +145,7 @@ export default class AuthService extends moleculer.Service {
     });
 
     if (authUserGroups && authUserGroups.length && user?.id) {
-      const authGroups = authUserGroups.filter(
-        (g) => g.id != AUTH_FREELANCERS_GROUP_ID
-      );
+      const authGroups = authUserGroups.filter((g) => g.id != AUTH_FREELANCERS_GROUP_ID);
 
       for (const group of authGroups) {
         await ctx.call('tenantUsers.createRelationshipsIfNeeded', {
@@ -215,18 +207,14 @@ export default class AuthService extends moleculer.Service {
 
     const meta = { authToken: data.token };
 
-    const authUser: any = await this.broker.call(
-      'auth.users.resolveToken',
-      null,
-      { meta }
-    );
+    const authUser: any = await this.broker.call('auth.users.resolveToken', null, { meta });
     const authUserGroups: any = await this.broker.call(
       'auth.users.get',
       {
         id: authUser?.id,
         populate: 'groups',
       },
-      { meta }
+      { meta },
     );
     const authGroups: any[] = authUserGroups?.groups || [];
 
@@ -236,7 +224,7 @@ export default class AuthService extends moleculer.Service {
         authUser: authUser,
         authUserGroups: authGroups,
       },
-      { meta }
+      { meta },
     );
 
     if (user.type === UserType.ADMIN && process.env.NODE_ENV !== 'local') {

@@ -62,7 +62,7 @@ export default class SeedService extends moleculer.Service {
   async seedConventions(ctx: Context) {
     try {
       const conventions = JSON.parse(
-        fs.readFileSync(process.cwd() + '/seed/conventions.json', 'utf8')
+        fs.readFileSync(process.cwd() + '/seed/conventions.json', 'utf8'),
       );
 
       const createConvention = (convention: any, parent?: any) => {
@@ -83,7 +83,7 @@ export default class SeedService extends moleculer.Service {
             }
 
             return newItem;
-          })
+          }),
         );
       };
 
@@ -97,18 +97,10 @@ export default class SeedService extends moleculer.Service {
   async seedTaxonomies(ctx: Context) {
     const parseTaxonomiesFromFiles = () => {
       try {
-        const kingdoms = JSON.parse(
-          fs.readFileSync(process.cwd() + '/seed/kingdoms.json', 'utf8')
-        );
-        const phylums = JSON.parse(
-          fs.readFileSync(process.cwd() + '/seed/phylums.json', 'utf8')
-        );
-        const species = JSON.parse(
-          fs.readFileSync(process.cwd() + '/seed/species.json', 'utf8')
-        );
-        const classes = JSON.parse(
-          fs.readFileSync(process.cwd() + '/seed/classes.json', 'utf8')
-        );
+        const kingdoms = JSON.parse(fs.readFileSync(process.cwd() + '/seed/kingdoms.json', 'utf8'));
+        const phylums = JSON.parse(fs.readFileSync(process.cwd() + '/seed/phylums.json', 'utf8'));
+        const species = JSON.parse(fs.readFileSync(process.cwd() + '/seed/species.json', 'utf8'));
+        const classes = JSON.parse(fs.readFileSync(process.cwd() + '/seed/classes.json', 'utf8'));
 
         const getNewItem = (item: any, innerItems: any = {}) => {
           const newItem: any = {
@@ -118,18 +110,13 @@ export default class SeedService extends moleculer.Service {
 
           if (item.properties.SPC_DESCRIPTION)
             newItem.description = item.properties.SPC_DESCRIPTION;
-          if (item.properties.ID_SPECIES)
-            newItem.globalId = item.properties.ID_SPECIES;
+          if (item.properties.ID_SPECIES) newItem.globalId = item.properties.ID_SPECIES;
           if (innerItems && innerItems[item.properties.ORIGINAL_ID])
             newItem.items = innerItems[item.properties.ORIGINAL_ID] || [];
           return newItem;
         };
 
-        const convertToKeyData = (
-          data: object[],
-          name: string,
-          innerItems: any = {}
-        ) => {
+        const convertToKeyData = (data: object[], name: string, innerItems: any = {}) => {
           return data.reduce((acc: any, item: any) => {
             const key: string = item.properties[name];
             acc[key] = acc[key] || [];
@@ -139,19 +126,16 @@ export default class SeedService extends moleculer.Service {
           }, {});
         };
 
-        const speciesByClassId = convertToKeyData(
-          species.features,
-          'SPC_CLASSES_ID'
-        );
+        const speciesByClassId = convertToKeyData(species.features, 'SPC_CLASSES_ID');
         const classesByPhylumId = convertToKeyData(
           classes.features,
           'SPC_TYPES_ID',
-          speciesByClassId
+          speciesByClassId,
         );
         const phylumsByKingdomId = convertToKeyData(
           phylums.features,
           'SPC_KINGDOMS_ID',
-          classesByPhylumId
+          classesByPhylumId,
         );
 
         let result: any = [];
@@ -185,28 +169,22 @@ export default class SeedService extends moleculer.Service {
 
     const kingdoms = parseTaxonomiesFromFiles() || [];
     kingdoms.forEach(async (kingdom: any) => {
-      const taxonomyKingdom = await createNew(
-        'taxonomies.kingdoms',
-        getData(kingdom)
-      );
+      const taxonomyKingdom = await createNew('taxonomies.kingdoms', getData(kingdom));
 
       hasItems(kingdom, async (phylum: any) => {
         const taxonomyPhylum = await createNew(
           'taxonomies.phylums',
-          getData(phylum, 'kingdom', taxonomyKingdom)
+          getData(phylum, 'kingdom', taxonomyKingdom),
         );
 
         hasItems(phylum, async (oneClass: any) => {
           const taxonomyClass = await createNew(
             'taxonomies.classes',
-            getData(oneClass, 'phylum', taxonomyPhylum)
+            getData(oneClass, 'phylum', taxonomyPhylum),
           );
 
           hasItems(oneClass, async (species: any) => {
-            await createNew(
-              'taxonomies.species',
-              getData(species, 'class', taxonomyClass)
-            );
+            await createNew('taxonomies.species', getData(species, 'class', taxonomyClass));
           });
         });
       });
@@ -373,7 +351,7 @@ export default class SeedService extends moleculer.Service {
           name: value.name,
           code: value.code,
         });
-      })
+      }),
     );
   }
 
@@ -394,7 +372,7 @@ export default class SeedService extends moleculer.Service {
         this.broker.call('forms.settings.sources.create', {
           name: value,
         });
-      })
+      }),
     );
   }
 
@@ -644,22 +622,19 @@ export default class SeedService extends moleculer.Service {
       },
       {
         name: 'VALUE_1',
-        value:
-          '1 - pasitaiko tik pavienių individų, jie užima 0,1% buveinės ploto.',
+        value: '1 - pasitaiko tik pavienių individų, jie užima 0,1% buveinės ploto.',
         group: 'METHOD',
         formType: FormType.INVASIVE_PLANT,
       },
       {
         name: 'VALUE_2',
-        value:
-          '2 - augalai pasklidę nedideliame plote ir užima ne daugiau kaip 1% buveinės ploto.',
+        value: '2 - augalai pasklidę nedideliame plote ir užima ne daugiau kaip 1% buveinės ploto.',
         group: 'METHOD',
         formType: FormType.INVASIVE_PLANT,
       },
       {
         name: 'VALUE_3',
-        value:
-          '3 - augalai pasklidę visame kontūre, bet užima ne daugiau kaip 1% buveinės ploto.',
+        value: '3 - augalai pasklidę visame kontūre, bet užima ne daugiau kaip 1% buveinės ploto.',
         group: 'METHOD',
         formType: FormType.INVASIVE_PLANT,
       },
@@ -700,8 +675,7 @@ export default class SeedService extends moleculer.Service {
       },
       {
         name: 'VALUE_9',
-        value:
-          '9 - augalai sudaro didelius sąžalynus ir užima nuo 60% iki 80% buveinės ploto.',
+        value: '9 - augalai sudaro didelius sąžalynus ir užima nuo 60% iki 80% buveinės ploto.',
         group: 'METHOD',
         formType: FormType.INVASIVE_PLANT,
       },
@@ -717,7 +691,7 @@ export default class SeedService extends moleculer.Service {
     return Promise.all(
       values.map((value) => {
         this.broker.call('forms.settings.options.create', value);
-      })
+      }),
     );
   }
 

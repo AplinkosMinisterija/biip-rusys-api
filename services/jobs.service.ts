@@ -43,7 +43,7 @@ export default class JobsService extends moleculer.Service {
       hash: string;
       waitFor: string;
       data: { [key: string]: any };
-    }>
+    }>,
   ) {
     const { url, hash, data, waitFor } = ctx.params;
     const { job } = ctx.locals;
@@ -60,10 +60,7 @@ export default class JobsService extends moleculer.Service {
 
       if (!fileData?.exists) return;
 
-      const uploadedBeforeDays = moment().diff(
-        moment(fileData.lastModified),
-        'days'
-      );
+      const uploadedBeforeDays = moment().diff(moment(fileData.lastModified), 'days');
 
       if (uploadedBeforeDays > 5) return;
 
@@ -94,7 +91,7 @@ export default class JobsService extends moleculer.Service {
             mimetype: 'image/jpeg',
             filename: 'screenshot.jpeg',
           },
-        }
+        },
       );
 
       screenshotUrl = await getHashedFileUrl();

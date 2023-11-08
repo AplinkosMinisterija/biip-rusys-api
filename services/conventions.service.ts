@@ -12,7 +12,7 @@ import {
   COMMON_FIELDS_WITH_PERMISSIONS,
   COMMON_SCOPES,
   EndpointType,
-  FieldHookCallback
+  FieldHookCallback,
 } from '../types';
 
 export interface Convention extends BaseModelInterface {
@@ -103,10 +103,7 @@ function conventionToText(convention: Convention, append: string = ''): string {
         },
       },
 
-      ...COMMON_FIELDS_WITH_PERMISSIONS(
-        EndpointType.ADMIN,
-        ALL_COMMON_FIELDS_NAMES
-      ),
+      ...COMMON_FIELDS_WITH_PERMISSIONS(EndpointType.ADMIN, ALL_COMMON_FIELDS_NAMES),
     },
 
     scopes: {
@@ -149,13 +146,10 @@ export default class ConventionsService extends moleculer.Service {
 
   @Method
   async getChildrenIds(id: number) {
-    const convention: Convention = await this.broker.call(
-      'conventions.resolve',
-      {
-        id,
-        populate: 'children',
-      }
-    );
+    const convention: Convention = await this.broker.call('conventions.resolve', {
+      id,
+      populate: 'children',
+    });
 
     const mapIdRecursively = (items: Convention[]) => {
       return items.reduce((acc: number[], i: any) => {

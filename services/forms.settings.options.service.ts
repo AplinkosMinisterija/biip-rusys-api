@@ -28,8 +28,7 @@ export const FormSettingsGroupType = {
 export type FormSettingsOptionTranslate = string;
 export type FormSettingsOptionValues = GenericObject<string>;
 export type FormSettingsOptionByType = GenericObject<FormSettingsOptionValues>;
-export type FormSettingsOptionByFormType =
-  GenericObject<FormSettingsOptionByType>;
+export type FormSettingsOptionByFormType = GenericObject<FormSettingsOptionByType>;
 
 @Service({
   name: 'forms.settings.options',
@@ -75,15 +74,12 @@ export default class FormSettingsOptionsService extends moleculer.Service {
   })
   async getTranslates(ctx: Context<{ formType: string; group?: string }>) {
     const { formType, group } = ctx.params;
-    const results: FormSettingsOptions[] = await ctx.call(
-      'forms.settings.options.find',
-      {
-        query: {
-          formType,
-          group,
-        },
-      }
-    );
+    const results: FormSettingsOptions[] = await ctx.call('forms.settings.options.find', {
+      query: {
+        formType,
+        group,
+      },
+    });
 
     return results?.reduce((acc: FormSettingsOptionValues, item) => {
       acc[item.name] = item.value;

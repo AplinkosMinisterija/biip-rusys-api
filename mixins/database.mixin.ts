@@ -18,7 +18,7 @@ export function PopulateHandlerFn(action: string) {
     ctx: Context<{ populate: string | string[] }>,
     values: any[],
     docs: any[],
-    field: any
+    field: any,
   ) {
     if (!values.length) return null;
     const rule = field.populate;
@@ -55,7 +55,7 @@ function makeMapping(
   options?: {
     mappingMulti?: boolean;
     mappingField?: string;
-  }
+  },
 ) {
   if (!mapping) return data;
 
@@ -129,14 +129,11 @@ export default function (opts: any = {}) {
           mapping?: boolean;
           mappingMulti?: boolean;
           mappingField: string;
-        }>
+        }>,
       ): Promise<any> {
-        const { queryKey, query, mapping, mappingMulti, mappingField } =
-          ctx.params;
+        const { queryKey, query, mapping, mappingMulti, mappingField } = ctx.params;
 
-        const ids = Array.isArray(ctx.params.id)
-          ? ctx.params.id
-          : [ctx.params.id];
+        const ids = Array.isArray(ctx.params.id) ? ctx.params.id : [ctx.params.id];
 
         delete ctx.params.queryKey;
         delete ctx.params.id;
@@ -162,7 +159,7 @@ export default function (opts: any = {}) {
             ...acc,
             [`${id}`]: resultById[id] || (mappingMulti ? [] : ''),
           }),
-          {}
+          {},
         );
       },
     },
@@ -171,9 +168,7 @@ export default function (opts: any = {}) {
       filterQueryIds(ids: number[], queryIds?: any) {
         if (!queryIds) return ids;
 
-        queryIds = (Array.isArray(queryIds) ? queryIds : [queryIds]).map(
-          (id: any) => parseInt(id)
-        );
+        queryIds = (Array.isArray(queryIds) ? queryIds : [queryIds]).map((id: any) => parseInt(id));
 
         return ids.filter((id) => queryIds.indexOf(id) >= 0);
       },
@@ -182,7 +177,7 @@ export default function (opts: any = {}) {
         ctx: Context<{}, UserAuthMeta>,
         permissions: string | string[],
         _params: any,
-        _field: any
+        _field: any,
       ) {
         if (!ctx?.meta?.user?.id) return false;
 
@@ -218,7 +213,7 @@ export default function (opts: any = {}) {
               mappingMulti: boolean;
               mappingField: string;
             }>,
-            data: any[]
+            data: any[],
           ) {
             const { mapping, mappingMulti, mappingField } = ctx.params;
             return makeMapping(data, mapping, {

@@ -1,10 +1,5 @@
 'use strict';
-import {
-  BrokerOptions,
-  Errors,
-  MetricRegistry,
-  ServiceBroker,
-} from 'moleculer';
+import { BrokerOptions, Errors, MetricRegistry, ServiceBroker } from 'moleculer';
 
 import { knex } from 'knex';
 import config from './knexfile';

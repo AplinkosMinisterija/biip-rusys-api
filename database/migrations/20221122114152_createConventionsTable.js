@@ -1,4 +1,4 @@
-const { commonFields } = require("./20220620162050_setup");
+const { commonFields } = require('./20220620162050_setup');
 
 /**
  * @param { import("knex").Knex } knex

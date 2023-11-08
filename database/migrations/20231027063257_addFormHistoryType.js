@@ -3,9 +3,7 @@
  * @returns { Promise<void> }
  */
 exports.up = function (knex) {
-  return knex.schema.raw(
-    `ALTER TYPE "form_history_type" ADD VALUE 'RELEVANCY_CHANGED'`
-  );
+  return knex.schema.raw(`ALTER TYPE "form_history_type" ADD VALUE 'RELEVANCY_CHANGED'`);
 };
 
 /**

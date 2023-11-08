@@ -28,10 +28,10 @@ exports.up = function (knex) {
           't.phylumNameLatin',
           't.kingdomId',
           't.kingdomName',
-          't.kingdomNameLatin'
+          't.kingdomNameLatin',
         )
         .from('places as p')
-        .join('taxonomiesAll as t', 't.speciesId', 'p.speciesId')
+        .join('taxonomiesAll as t', 't.speciesId', 'p.speciesId'),
     );
   });
 };

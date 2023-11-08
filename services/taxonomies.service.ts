@@ -8,11 +8,7 @@ import { TaxonomySpeciesType } from './taxonomies.species.service';
 import { FormType } from './forms.types.service';
 import { Convention } from './conventions.service';
 import { AuthType, UserAuthMeta } from './api.service';
-import {
-  ADDITIONAL_CACHE_KEYS,
-  queryBoolean,
-  throwNotFoundError,
-} from '../types';
+import { ADDITIONAL_CACHE_KEYS, queryBoolean, throwNotFoundError } from '../types';
 import { UserType } from './users.service';
 import { parseToObject } from '../utils/functions';
 
@@ -271,16 +267,9 @@ export default class TaxonomiesService extends moleculer.Service {
       kingdomId: number;
       phylumId: number;
       classId: number;
-    }>
+    }>,
   ) {
-    const {
-      search,
-      types,
-      pageSize,
-      page,
-      searchFields: fields,
-      populate,
-    } = ctx.params;
+    const { search, types, pageSize, page, searchFields: fields, populate } = ctx.params;
 
     const query: any = parseToObject(ctx.params.query || {});
 
@@ -304,10 +293,7 @@ export default class TaxonomiesService extends moleculer.Service {
       populate,
     });
 
-    const regex = new RegExp(
-      search.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'),
-      'i'
-    );
+    const regex = new RegExp(search.replace(/[-[\]{}()*+?.,\\^$|#\s]/g, '\\$&'), 'i');
 
     const testValue = (value: string | string[]) => {
       if (!value) return false;
@@ -380,7 +366,7 @@ export default class TaxonomiesService extends moleculer.Service {
       showHidden: boolean;
       mapping?: boolean;
       populate?: any;
-    }>
+    }>,
   ) {
     const { id, showHidden, mapping, populate } = ctx.params;
     const multi = Array.isArray(id);

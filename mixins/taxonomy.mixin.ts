@@ -1,6 +1,6 @@
 'use strict';
 
-import { parseToObject } from "../utils/functions";
+import { parseToObject } from '../utils/functions';
 
 export default function (opts: { taxonomies: string[] }) {
   const taxonomiesToFilter: any = {
@@ -31,11 +31,11 @@ export default function (opts: { taxonomies: string[] }) {
 
         ctx.params.query = ctx.params.query || {};
         const queryKeys = Object.keys(taxonomiesToFilter).filter(
-          (i: string) => taxonomiesToFilter[i].filter
+          (i: string) => taxonomiesToFilter[i].filter,
         );
 
         const hasAnyQuery = queryKeys.some(
-          (key) => !!ctx.params.query[taxonomiesToFilter[key].queryKey]
+          (key) => !!ctx.params.query[taxonomiesToFilter[key].queryKey],
         );
         if (!hasAnyQuery) return ctx;
 

@@ -43,29 +43,19 @@ export default {
             parentSpan,
           });
         },
-        _.merge(this.settings.bullmq.worker, { connection: this.$connection })
+        _.merge(this.settings.bullmq.worker, { connection: this.$connection }),
       );
       this.$events = new QueueEvents(this.$queueWithPrefix(), {
         connection: this.$connection,
       });
-      this.$events.on('active', ({ jobId }: any) =>
-        this.$transformEvent(jobId, 'active')
-      );
-      this.$events.on('removed', ({ jobId }: any) =>
-        this.$transformEvent(jobId, 'removed')
-      );
+      this.$events.on('active', ({ jobId }: any) => this.$transformEvent(jobId, 'active'));
+      this.$events.on('removed', ({ jobId }: any) => this.$transformEvent(jobId, 'removed'));
       this.$events.on('progress', ({ jobId, data }: any) =>
-        this.$transformEvent(jobId, 'progress', { progress: data })
+        this.$transformEvent(jobId, 'progress', { progress: data }),
       );
-      this.$events.on('failed', ({ jobId }: any) =>
-        this.$transformEvent(jobId, 'failed')
-      );
-      this.$events.on('error', ({ jobId }: any) =>
-        this.$transformEvent(jobId, 'error')
-      );
-      this.$events.on('completed', ({ jobId }: any) =>
-        this.$transformEvent(jobId, 'completed')
-      );
+      this.$events.on('failed', ({ jobId }: any) => this.$transformEvent(jobId, 'failed'));
+      this.$events.on('error', ({ jobId }: any) => this.$transformEvent(jobId, 'error'));
+      this.$events.on('completed', ({ jobId }: any) => this.$transformEvent(jobId, 'completed'));
       this.$events.on('drained', () => this.$transformEvent('drained'));
       this.$events.on('paused', () => this.$transformEvent('paused'));
       this.$events.on('resumed', () => this.$transformEvent('resumed'));
@@ -73,7 +63,7 @@ export default {
         this.$transformEvent(null, 'cleaned', {
           jobs: jobs.map(({ id }) => id),
           type,
-        })
+        }),
       );
     }
   },
@@ -84,9 +74,7 @@ export default {
     if (this.$events) {
       await this.$events.close();
     }
-    await Promise.all(
-      Object.values(this.$queueResolved).map((queue: any) => queue.close())
-    );
+    await Promise.all(Object.values(this.$queueResolved).map((queue: any) => queue.close()));
   },
   methods: {
     $queueWithPrefix(name?: string) {
@@ -94,9 +82,7 @@ export default {
     },
     $queuePrefix() {
       const prefix =
-        this.settings.bullmq?.client?.prefix ||
-        this.broker.options?.cacher?.options?.prefix ||
-        '';
+        this.settings.bullmq?.client?.prefix || this.broker.options?.cacher?.options?.prefix || '';
 
       if (!prefix) return '';
       return `${prefix}.`;
@@ -140,17 +126,11 @@ export default {
         return this.$worker.resume();
       }
     },
-    queue(
-      ctx: Context,
-      name: string,
-      action: string,
-      params: any,
-      options: any = {}
-    ) {
+    queue(ctx: Context, name: string, action: string, params: any, options: any = {}) {
       return this.$resolve(name).add(
         action,
         this.$getQueueData(ctx, params),
-        _.merge(this.settings.bullmq.job || {}, options)
+        _.merge(this.settings.bullmq.job || {}, options),
       );
     },
     localQueue(ctx: Context, action: string, params: any, options?: any) {
@@ -165,9 +145,7 @@ export default {
     },
     async $populateJob(ctx: Context<{}, { job: any }>) {
       ctx.locals.job =
-        ctx.meta && ctx.meta.job
-          ? await this.job(ctx.meta.job.queue, ctx.meta.job.id)
-          : undefined;
+        ctx.meta && ctx.meta.job ? await this.job(ctx.meta.job.queue, ctx.meta.job.id) : undefined;
     },
     flow(
       ctx: Context,
@@ -175,7 +153,7 @@ export default {
       action: string,
       params: any,
       children: any[],
-      options: any = {}
+      options: any = {},
     ) {
       const convertItemToQueueItem = (item: any) => {
         return {
@@ -191,9 +169,7 @@ export default {
         connection: this.$connection,
       });
 
-      return flowProducer.add(
-        convertItemToQueueItem({ params, name, action, children, options })
-      );
+      return flowProducer.add(convertItemToQueueItem({ params, name, action, children, options }));
     },
     async $transformEvent(id: string, type: string, params: any) {
       const event = arguments.length === 1 ? [id] : [type];

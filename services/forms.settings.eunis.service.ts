@@ -9,7 +9,7 @@ import {
   COMMON_DEFAULT_SCOPES,
   COMMON_FIELDS,
   COMMON_SCOPES,
-  EndpointType
+  EndpointType,
 } from '../types';
 
 export interface FormSettingEunis extends BaseModelInterface {
@@ -35,7 +35,7 @@ export interface FormSettingEunis extends BaseModelInterface {
       },
 
       name: 'string|required',
-      
+
       code: 'string',
 
       ...COMMON_FIELDS,

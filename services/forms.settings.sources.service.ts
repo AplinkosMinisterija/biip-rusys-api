@@ -9,7 +9,7 @@ import {
   COMMON_DEFAULT_SCOPES,
   COMMON_FIELDS,
   COMMON_SCOPES,
-  EndpointType
+  EndpointType,
 } from '../types';
 
 export interface FormSettingSource extends BaseModelInterface {

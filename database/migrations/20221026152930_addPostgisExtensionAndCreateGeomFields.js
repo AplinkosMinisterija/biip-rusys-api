@@ -7,9 +7,7 @@ exports.up = function (knex) {
     .raw(`CREATE EXTENSION IF NOT EXISTS postgis;`)
     .raw(`ALTER TABLE forms ADD COLUMN geom geometry(geometry, 3346)`)
     .raw(`ALTER TABLE places ADD COLUMN geom geometry(multipolygon, 3346)`)
-    .raw(
-      `ALTER TABLE place_histories ADD COLUMN geom geometry(multipolygon, 3346)`
-    );
+    .raw(`ALTER TABLE place_histories ADD COLUMN geom geometry(multipolygon, 3346)`);
 };
 
 /**

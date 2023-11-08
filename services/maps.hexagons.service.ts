@@ -106,7 +106,7 @@ export default class MapsHexagonService extends moleculer.Service {
       },
       UserAuthMeta
     >,
-    speciesType?: string
+    speciesType?: string,
   ) {
     const adapter = await this.getAdapter(ctx);
 
@@ -158,9 +158,7 @@ export default class MapsHexagonService extends moleculer.Service {
       formsIds = mapData.forms;
 
       if (!formsIds?.length) {
-        layers.sris =
-          layers.sris?.filter((i) => i != mapsSrisInformationalFormsLayerId) ||
-          [];
+        layers.sris = layers.sris?.filter((i) => i != mapsSrisInformationalFormsLayerId) || [];
       }
     }
 
@@ -194,11 +192,7 @@ export default class MapsHexagonService extends moleculer.Service {
   }
 
   @Method
-  async getDataByLayers(
-    adapter: any,
-    layers: { [key: string]: string[] },
-    options: any
-  ) {
+  async getDataByLayers(adapter: any, layers: { [key: string]: string[] }, options: any) {
     const response: any = {};
 
     const makeCount = (items: any[], key: string) => {
@@ -225,9 +219,7 @@ export default class MapsHexagonService extends moleculer.Service {
       // KEEP IN MIND: whereIn with bindings has limitations. So in our case if we have more than 100K of items - limitations are meet and query throws error
       if (id?.$in) {
         return query.where(
-          adapter.client.raw(
-            `${snakeCase(table)}.id in ('${id.$in.join("','")}')`
-          )
+          adapter.client.raw(`${snakeCase(table)}.id in ('${id.$in.join("','")}')`),
         );
       } else if (!!id) {
         return query.where(`${snakeCase(table)}.id`, id);
@@ -241,7 +233,7 @@ export default class MapsHexagonService extends moleculer.Service {
       const placesQuery = this.getStatsQuery(
         adapter,
         table,
-        _.merge(options, { speciesType: TaxonomySpeciesType.ENDANGERED })
+        _.merge(options, { speciesType: TaxonomySpeciesType.ENDANGERED }),
       ).whereNull(`${table}.deletedAt`);
 
       if (options.places?.id) {
@@ -257,7 +249,7 @@ export default class MapsHexagonService extends moleculer.Service {
       const placesQuery = this.getStatsQuery(
         adapter,
         table,
-        _.merge(options, { speciesType: TaxonomySpeciesType.INVASIVE })
+        _.merge(options, { speciesType: TaxonomySpeciesType.INVASIVE }),
       ).whereNull(`${table}.deletedAt`);
 
       if (options.places?.id) {
@@ -273,7 +265,7 @@ export default class MapsHexagonService extends moleculer.Service {
       const placesQuery = this.getStatsQuery(
         adapter,
         table,
-        _.merge(options, { speciesType: TaxonomySpeciesType.INTRODUCED })
+        _.merge(options, { speciesType: TaxonomySpeciesType.INTRODUCED }),
       ).whereNull(`${table}.deletedAt`);
 
       if (options.places?.id) {
@@ -290,17 +282,11 @@ export default class MapsHexagonService extends moleculer.Service {
       const formsQuery = this.getStatsQuery(
         adapter,
         table,
-        _.merge(options, { speciesType: TaxonomySpeciesType.ENDANGERED })
+        _.merge(options, { speciesType: TaxonomySpeciesType.ENDANGERED }),
       )
+        .where(adapter.client.raw(`${snakeCase(table)}.${queryBooleanPlain('isRelevant', true)}`))
         .where(
-          adapter.client.raw(
-            `${snakeCase(table)}.${queryBooleanPlain('isRelevant', true)}`
-          )
-        )
-        .where(
-          adapter.client.raw(
-            `${snakeCase(table)}.${queryBooleanPlain('isInformational', true)}`
-          )
+          adapter.client.raw(`${snakeCase(table)}.${queryBooleanPlain('isInformational', true)}`),
         );
 
       if (options.forms?.id) {
@@ -325,7 +311,7 @@ export default class MapsHexagonService extends moleculer.Service {
       classId?: number | object;
       speciesId?: number | object;
       speciesType?: string;
-    }
+    },
   ) {
     const query = getMapsGridStatsQuery(itemsTable);
     const taxonomiesQuery: any = {};
@@ -339,14 +325,11 @@ export default class MapsHexagonService extends moleculer.Service {
       taxonomiesQuery[`${table}.${field}`] = value;
     };
 
-    if (options?.kingdomId)
-      addToQuery(itemsTable, 'kingdomId', options.kingdomId);
+    if (options?.kingdomId) addToQuery(itemsTable, 'kingdomId', options.kingdomId);
     if (options?.phylumId) addToQuery(itemsTable, 'phylumId', options.phylumId);
     if (options?.classId) addToQuery(itemsTable, 'classId', options.classId);
-    if (options?.speciesId)
-      addToQuery(itemsTable, 'speciesId', options.speciesId);
-    if (options?.speciesType)
-      addToQuery(itemsTable, 'speciesType', options.speciesType);
+    if (options?.speciesId) addToQuery(itemsTable, 'speciesId', options.speciesId);
+    if (options?.speciesType) addToQuery(itemsTable, 'speciesType', options.speciesType);
     if (options?.id) addToQuery(itemsTable, 'id', options.id);
 
     return adapter.computeQuery(query, taxonomiesQuery);

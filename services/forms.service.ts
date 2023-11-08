@@ -31,11 +31,7 @@ import { FormHistoryTypes } from './forms.histories.service';
 import { Place } from './places.service';
 import { Tenant } from './tenants.service';
 import { User, USERS_DEFAULT_SCOPES, UserType } from './users.service';
-import {
-  emailCanBeSent,
-  notifyFormAssignee,
-  notifyOnFormUpdate,
-} from '../utils/mails';
+import { emailCanBeSent, notifyFormAssignee, notifyOnFormUpdate } from '../utils/mails';
 import { Taxonomy } from './taxonomies.service';
 import _ from 'lodash';
 import { FormType } from './forms.types.service';
@@ -78,12 +74,7 @@ const populatePermissions = (field: string) => {
   };
 };
 
-async function validateActivity({
-  ctx,
-  params,
-  entity,
-  value,
-}: FieldHookCallback) {
+async function validateActivity({ ctx, params, entity, value }: FieldHookCallback) {
   const speciesId = entity?.speciesId || params?.species;
 
   const formType = await this.getFormType(ctx, speciesId);
@@ -103,12 +94,7 @@ async function validateActivity({
   return value;
 }
 
-async function validateEvolution({
-  ctx,
-  params,
-  entity,
-  value,
-}: FieldHookCallback) {
+async function validateEvolution({ ctx, params, entity, value }: FieldHookCallback) {
   const speciesId = entity?.speciesId || params?.species;
 
   const formType = await this.getFormType(ctx, speciesId);
@@ -129,12 +115,7 @@ async function validateEvolution({
   return value;
 }
 
-async function validateMethod({
-  ctx,
-  params,
-  entity,
-  value,
-}: FieldHookCallback) {
+async function validateMethod({ ctx, params, entity, value }: FieldHookCallback) {
   const speciesId = entity?.speciesId || params?.species;
 
   const formType = await this.getFormType(ctx, speciesId);
@@ -234,16 +215,11 @@ export interface Form extends BaseModelInterface {
         type: 'string',
         enum: Object.values(FormStatus),
         validate: 'validateStatus',
-        onCreate: function ({
-          ctx,
-        }: FieldHookCallback & ContextMeta<FormAutoApprove>) {
+        onCreate: function ({ ctx }: FieldHookCallback & ContextMeta<FormAutoApprove>) {
           const { autoApprove } = ctx?.meta;
           return autoApprove ? FormStatus.APPROVED : FormStatus.CREATED;
         },
-        onUpdate: function ({
-          ctx,
-          value,
-        }: FieldHookCallback & ContextMeta<FormStatusChanged>) {
+        onUpdate: function ({ ctx, value }: FieldHookCallback & ContextMeta<FormStatusChanged>) {
           const { user } = ctx?.meta;
           if (!ctx?.meta?.statusChanged) return;
           else if (!user?.id) return value;
@@ -265,10 +241,7 @@ export interface Form extends BaseModelInterface {
       geomBufferSize: {
         type: 'number',
         set({ params }: any) {
-          const bufferSizes = this._getPropertiesFromFeatureCollection(
-            params.geom,
-            'bufferSize'
-          );
+          const bufferSizes = this._getPropertiesFromFeatureCollection(params.geom, 'bufferSize');
           if (!bufferSizes || !bufferSizes?.length) return;
           return bufferSizes[0] || 1;
         },
@@ -298,10 +271,7 @@ export interface Form extends BaseModelInterface {
         populate: USER_PUBLIC_POPULATE,
         validate: 'validateAssignee',
         get: USER_PUBLIC_GET,
-        async onCreate({
-          ctx,
-          params,
-        }: FieldHookCallback & ContextMeta<FormAutoApprove>) {
+        async onCreate({ ctx, params }: FieldHookCallback & ContextMeta<FormAutoApprove>) {
           if (ctx?.meta?.autoApprove) return;
 
           return ctx.call('forms.getAssigneeForForm', {
@@ -326,12 +296,10 @@ export interface Form extends BaseModelInterface {
           ContextMeta<FormPlaceChanged> &
           ContextMeta<FormAutoApprove>) {
           const { statusChanged, autoApprove, placeChanged } = ctx?.meta;
-          const isInformational =
-            params?.isInformational || entity?.isInformational;
+          const isInformational = params?.isInformational || entity?.isInformational;
 
           const assignPlace =
-            (statusChanged && params?.status === FormStatus.APPROVED) ||
-            placeChanged;
+            (statusChanged && params?.status === FormStatus.APPROVED) || placeChanged;
 
           if (isInformational || !assignPlace || autoApprove) return;
 
@@ -462,9 +430,7 @@ export interface Form extends BaseModelInterface {
         set: function ({
           ctx,
           entity,
-        }: FieldHookCallback &
-          ContextMeta<FormAutoApprove> &
-          ContextMeta<FormStatusChanged>) {
+        }: FieldHookCallback & ContextMeta<FormAutoApprove> & ContextMeta<FormStatusChanged>) {
           const { user, profile, autoApprove, statusChanged } = ctx?.meta;
           if (autoApprove || (!!entity?.id && !statusChanged)) return;
           else if (entity?.id) {
@@ -583,7 +549,7 @@ export default class FormsService extends moleculer.Service {
       type?: string;
       page?: number;
       pageSize?: number;
-    }>
+    }>,
   ) {
     return ctx.call(`forms.histories.${ctx.params.type || 'list'}`, {
       sort: '-createdAt',
@@ -612,7 +578,7 @@ export default class FormsService extends moleculer.Service {
     ctx: Context<{
       ids: number[];
       changes: object;
-    }>
+    }>,
   ) {
     const { changes, ids } = ctx.params;
 
@@ -692,19 +658,12 @@ export default class FormsService extends moleculer.Service {
       },
     },
   })
-  async getAssigneeForForm(
-    ctx: Context<{ species: number; createdBy?: number }>
-  ) {
-    const userIdsAll: number[] = await ctx.call(
-      'requests.getExpertsIdsBySpecies',
-      {
-        speciesId: ctx.params.species,
-      }
-    );
+  async getAssigneeForForm(ctx: Context<{ species: number; createdBy?: number }>) {
+    const userIdsAll: number[] = await ctx.call('requests.getExpertsIdsBySpecies', {
+      speciesId: ctx.params.species,
+    });
 
-    const userIds = (userIdsAll || []).filter(
-      (i) => i !== ctx.params.createdBy
-    );
+    const userIds = (userIdsAll || []).filter((i) => i !== ctx.params.createdBy);
 
     if (!userIds.length) return;
 
@@ -718,12 +677,10 @@ export default class FormsService extends moleculer.Service {
           userId: id,
           tasksCount,
         };
-      })
+      }),
     );
 
-    const minTasksCount = Math.min(
-      ...tasksCountByUser.map((item) => Number(item.tasksCount))
-    );
+    const minTasksCount = Math.min(...tasksCountByUser.map((item) => Number(item.tasksCount)));
 
     const selectFromUserIds = tasksCountByUser
       .filter((item: any) => item.tasksCount <= minTasksCount)
@@ -751,9 +708,7 @@ export default class FormsService extends moleculer.Service {
     },
     types: [EndpointType.ADMIN, EndpointType.EXPERT],
   })
-  async setAssignee(
-    ctx: Context<{ id: number; assignee: number }, UserAuthMeta>
-  ) {
+  async setAssignee(ctx: Context<{ id: number; assignee: number }, UserAuthMeta>) {
     await this.updateEntity(ctx, {
       id: ctx.params.id,
       assignee: ctx.params.assignee || null,
@@ -777,12 +732,7 @@ export default class FormsService extends moleculer.Service {
     },
     types: [EndpointType.EXPERT],
   })
-  async setPlace(
-    ctx: Context<
-      { id: number; place?: number },
-      UserAuthMeta & FormPlaceChanged
-    >
-  ) {
+  async setPlace(ctx: Context<{ id: number; place?: number }, UserAuthMeta & FormPlaceChanged>) {
     ctx.meta.placeChanged = true;
 
     await this.updateEntity(ctx, {
@@ -827,7 +777,7 @@ export default class FormsService extends moleculer.Service {
         isInformational: boolean;
       },
       FormAutoApprove
-    >
+    >,
   ) {
     const { evolution, activity, species, isInformational } = ctx.params;
 
@@ -846,14 +796,11 @@ export default class FormsService extends moleculer.Service {
         activity,
       });
 
-      valid.evolution = await this.broker.call(
-        'forms.types.validateEvolution',
-        {
-          type: formType,
-          evolution,
-          activity,
-        }
-      );
+      valid.evolution = await this.broker.call('forms.types.validateEvolution', {
+        type: formType,
+        evolution,
+        activity,
+      });
     }
 
     return valid;
@@ -910,20 +857,11 @@ export default class FormsService extends moleculer.Service {
         `${placesTable}.id`,
         `${placesTable}.code`,
         adapter.client.raw(
-          `${distanceQuery(
-            `${formsTable}.geom`,
-            `${placesTable}.geom`,
-            'distance',
-            3346
-          )}`
+          `${distanceQuery(`${formsTable}.geom`, `${placesTable}.geom`, 'distance', 3346)}`,
         ),
-        adapter.client.raw(`${areaQuery(`${placesTable}.geom`, 'area', 3346)}`)
+        adapter.client.raw(`${areaQuery(`${placesTable}.geom`, 'area', 3346)}`),
       )
-      .leftJoin(
-        placesTable,
-        `${placesTable}.speciesId`,
-        `${formsTable}.speciesId`
-      )
+      .leftJoin(placesTable, `${placesTable}.speciesId`, `${formsTable}.speciesId`)
       .where(`${formsTable}.id`, ctx.params.id)
       .whereNotNull(`${placesTable}.id`)
       .whereNull(`${placesTable}.deletedAt`);
@@ -956,9 +894,7 @@ export default class FormsService extends moleculer.Service {
       },
     },
   })
-  async relevantFormsCount(
-    ctx: Context<{ id?: number | number[]; place?: number }>
-  ) {
+  async relevantFormsCount(ctx: Context<{ id?: number | number[]; place?: number }>) {
     const { place, id } = ctx.params;
     let ids = id || [];
     if (!Array.isArray(ids)) {
@@ -979,8 +915,7 @@ export default class FormsService extends moleculer.Service {
       query.place = place;
     }
 
-    if (ctx.params.place)
-      return await this.broker.call('forms.count', { query });
+    if (ctx.params.place) return await this.broker.call('forms.count', { query });
   }
 
   @Action({
@@ -1015,7 +950,7 @@ export default class FormsService extends moleculer.Service {
       },
       {
         raw: true,
-      }
+      },
     );
   }
 
@@ -1023,7 +958,7 @@ export default class FormsService extends moleculer.Service {
   hasPermissionToEdit(
     form: any,
     user?: User,
-    profile?: Tenant
+    profile?: Tenant,
   ): {
     edit: boolean;
     validate: boolean;
@@ -1088,24 +1023,20 @@ export default class FormsService extends moleculer.Service {
         isInformational: boolean;
       },
       UserAuthMeta
-    >
+    >,
   ) {
     const { species, activity } = ctx.params;
     ctx.params.isInformational = false;
 
-    const taxonomy: Taxonomy = await this.broker.call(
-      'taxonomies.findBySpeciesId',
-      { id: species }
-    );
+    const taxonomy: Taxonomy = await this.broker.call('taxonomies.findBySpeciesId', {
+      id: species,
+    });
 
     if (activity) {
-      const isInformational: boolean = await this.broker.call(
-        'forms.types.isInformational',
-        {
-          type: taxonomy.formType,
-          activity,
-        }
-      );
+      const isInformational: boolean = await this.broker.call('forms.types.isInformational', {
+        type: taxonomy.formType,
+        activity,
+      });
 
       if (isInformational) {
         ctx.params.isInformational = isInformational;
@@ -1120,34 +1051,27 @@ export default class FormsService extends moleculer.Service {
     ctx: Context<
       { id: number; species: number; isInformational?: boolean },
       UserAuthMeta & FormAutoApprove & FormStatusChanged
-    >
+    >,
   ) {
     const { id, species, isInformational } = ctx.params;
 
     if (!!id) {
       const doNotChangeStatus = Object.keys(ctx.params).every((key) =>
-        ['id', 'isRelevant', 'assignee', 'comment'].includes(key)
+        ['id', 'isRelevant', 'assignee', 'comment'].includes(key),
       );
 
       ctx.meta.statusChanged = !doNotChangeStatus;
     } else if (isInformational) {
       ctx.meta.autoApprove = true;
     } else if (!id && ctx?.meta?.user?.isExpert) {
-      ctx.meta.autoApprove = ctx.meta.user.expertSpecies.includes(
-        Number(species)
-      );
+      ctx.meta.autoApprove = ctx.meta.user.expertSpecies.includes(Number(species));
     }
 
     return ctx;
   }
 
   @Method
-  createFormHistory(
-    form: number,
-    meta: any,
-    type: string,
-    comment: string = ''
-  ) {
+  createFormHistory(form: number, meta: any, type: string, comment: string = '') {
     return this.broker.call(
       'forms.histories.create',
       {
@@ -1155,7 +1079,7 @@ export default class FormsService extends moleculer.Service {
         comment,
         type,
       },
-      { meta, parentCtx: null }
+      { meta, parentCtx: null },
     );
   }
 
@@ -1173,7 +1097,7 @@ export default class FormsService extends moleculer.Service {
   @Method
   async getNotificationData(
     userId?: number,
-    species?: number
+    species?: number,
   ): Promise<{ user?: User; taxonomy?: Taxonomy }> {
     if (!userId) return {};
 
@@ -1184,10 +1108,9 @@ export default class FormsService extends moleculer.Service {
 
     if (!user?.email) return {};
 
-    const taxonomy: Taxonomy = await this.broker.call(
-      'taxonomies.findBySpeciesId',
-      { id: species }
-    );
+    const taxonomy: Taxonomy = await this.broker.call('taxonomies.findBySpeciesId', {
+      id: species,
+    });
 
     if (!taxonomy?.speciesId) return {};
 
@@ -1205,7 +1128,7 @@ export default class FormsService extends moleculer.Service {
 
     const { user, taxonomy } = await this.getNotificationData(
       notifyExpert ? (form.assignee as number) : form.createdBy,
-      form.species as number
+      form.species as number,
     );
 
     if (!user?.id) return;
@@ -1216,7 +1139,7 @@ export default class FormsService extends moleculer.Service {
       form.id,
       taxonomy,
       notifyExpert,
-      user.type === UserType.ADMIN
+      user.type === UserType.ADMIN,
     );
   }
 
@@ -1226,7 +1149,7 @@ export default class FormsService extends moleculer.Service {
 
     const { user, taxonomy } = await this.getNotificationData(
       form.assignee as number,
-      form.species as number
+      form.species as number,
     );
 
     if (!user?.id) return;
@@ -1239,11 +1162,7 @@ export default class FormsService extends moleculer.Service {
     const { user, profile } = ctx.meta;
     if (!value || !user?.id) return true;
 
-    const expertStatuses = [
-      FormStatus.REJECTED,
-      FormStatus.RETURNED,
-      FormStatus.APPROVED,
-    ];
+    const expertStatuses = [FormStatus.REJECTED, FormStatus.RETURNED, FormStatus.APPROVED];
 
     const newStatuses = [FormStatus.CREATED, FormStatus.APPROVED];
 
@@ -1275,8 +1194,7 @@ export default class FormsService extends moleculer.Service {
       return quantity >= 0;
     }
 
-    const quantityIsValid =
-      validQuantity(value) || validQuantity(entity?.quantity);
+    const quantityIsValid = validQuantity(value) || validQuantity(entity?.quantity);
 
     if (formType === FormType.INVASIVE_PLANT) {
       const hasMethod = !!params.method || !!entity?.method;
@@ -1300,13 +1218,10 @@ export default class FormsService extends moleculer.Service {
 
     if (!entity?.id || !placeId || !!value) return true;
 
-    const relevantFormsCount: number = await this.broker.call(
-      'forms.relevantFormsCount',
-      {
-        place: placeId,
-        id: entity.id,
-      }
-    );
+    const relevantFormsCount: number = await this.broker.call('forms.relevantFormsCount', {
+      place: placeId,
+      id: entity.id,
+    });
 
     return !!relevantFormsCount || 'Cannot make all forms irrelevant';
   }
@@ -1362,10 +1277,9 @@ export default class FormsService extends moleculer.Service {
     } else if (user.type === UserType.USER) {
       return error;
     } else if (newAssignee && user.type === UserType.ADMIN) {
-      const expertSpecies: number[] = await this.broker.call(
-        'requests.getExpertSpecies',
-        { userId: newAssignee }
-      );
+      const expertSpecies: number[] = await this.broker.call('requests.getExpertSpecies', {
+        userId: newAssignee,
+      });
       if (!expertSpecies.includes(Number(species))) {
         return error;
       }
@@ -1379,15 +1293,10 @@ export default class FormsService extends moleculer.Service {
   }
 
   @Method
-  async refreshApprovedFormsViewIfNeeded(
-    ctx: Context,
-    form: Form,
-    prevForm?: Form
-  ) {
+  async refreshApprovedFormsViewIfNeeded(ctx: Context, form: Form, prevForm?: Form) {
     if (!form.id || form.status !== FormStatus.APPROVED) return;
 
-    const notInformationalStatusChanged =
-      !form.isInformational && form.status !== prevForm?.status;
+    const notInformationalStatusChanged = !form.isInformational && form.status !== prevForm?.status;
 
     const relevancyChanged = prevForm?.isRelevant !== form?.isRelevant;
 
@@ -1417,24 +1326,14 @@ export default class FormsService extends moleculer.Service {
         [FormStatus.APPROVED]: FormHistoryTypes.APPROVED,
       };
 
-      await this.createFormHistory(
-        form.id,
-        ctx.meta,
-        typesByStatus[form.status],
-        comment
-      );
+      await this.createFormHistory(form.id, ctx.meta, typesByStatus[form.status], comment);
 
       await this.sendNotificationOnStatusChange(form);
     }
 
     if (form.isInformational && prevForm.isRelevant !== form.isRelevant) {
       const { comment } = ctx.options?.parentCtx?.params as any;
-      await this.createFormHistory(
-        form.id,
-        ctx.meta,
-        FormHistoryTypes.RELEVANCY_CHANGED,
-        comment
-      );
+      await this.createFormHistory(form.id, ctx.meta, FormHistoryTypes.RELEVANCY_CHANGED, comment);
     }
 
     if (prevForm?.place !== form.place) {
@@ -1464,7 +1363,7 @@ export default class FormsService extends moleculer.Service {
         form.id,
         null,
         FormHistoryTypes.APPROVED,
-        'Automatiškai patvirtinta stebėjimo anketa.'
+        'Automatiškai patvirtinta stebėjimo anketa.',
       );
 
       this.assignPlaceIfNeeded(ctx, form);

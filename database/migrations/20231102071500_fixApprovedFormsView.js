@@ -40,16 +40,14 @@ exports.up = function (knex) {
                 END
               ), 3346)::geometry(multipolygon, 3346) AS geom
             `),
-            't.*'
+            't.*',
           )
           .from('forms as f')
           .leftJoin('taxonomiesAll as t', 't.speciesId', 'f.speciesId')
-          .where('f.status', 'APPROVED')
+          .where('f.status', 'APPROVED'),
       );
     })
-    .raw(
-      `CREATE INDEX approved_forms_geom_idx ON approved_forms USING GIST (geom)`
-    )
+    .raw(`CREATE INDEX approved_forms_geom_idx ON approved_forms USING GIST (geom)`)
     .createMaterializedView('hexagonStatSpeciesPlaces', (view) => {
       view.as(
         knex.raw(`
@@ -69,11 +67,11 @@ exports.up = function (knex) {
                     GROUP BY a.id, b.species_name, b.species_name_latin, a.geom
                     ORDER BY b.species_name) gl
             GROUP BY gl.id, gl.geom
-        `)
+        `),
       );
     })
     .raw(
-      `CREATE INDEX hexagon_stat_species_places_geom_idx ON hexagon_stat_species_places USING GIST (geom)`
+      `CREATE INDEX hexagon_stat_species_places_geom_idx ON hexagon_stat_species_places USING GIST (geom)`,
     );
 };
 
@@ -82,7 +80,6 @@ exports.up = function (knex) {
  * @returns { Promise<void> }
  */
 exports.down = function (knex) {
-  
   return knex.schema
     .raw(`DROP INDEX IF EXISTS hexagon_stat_species_places_geom_idx`)
     .raw(`DROP INDEX approved_forms_geom_idx`)
@@ -118,16 +115,14 @@ exports.down = function (knex) {
                   WHEN ST_GeometryType(f.geom) IN ('ST_Polygon', 'ST_MultiPolygon') THEN f.geom
                 END AS geom
             `),
-            't.*'
+            't.*',
           )
           .from('forms as f')
           .leftJoin('taxonomiesAll as t', 't.speciesId', 'f.speciesId')
-          .where('f.status', 'APPROVED')
+          .where('f.status', 'APPROVED'),
       );
     })
-    .raw(
-      `CREATE INDEX approved_forms_geom_idx ON approved_forms USING GIST (geom)`
-    )
+    .raw(`CREATE INDEX approved_forms_geom_idx ON approved_forms USING GIST (geom)`)
     .createMaterializedView('hexagonStatSpeciesPlaces', (view) => {
       view.as(
         knex.raw(`
@@ -147,10 +142,10 @@ exports.down = function (knex) {
                     GROUP BY a.id, b.species_name, b.species_name_latin, a.geom
                     ORDER BY b.species_name) gl
             GROUP BY gl.id, gl.geom
-        `)
+        `),
       );
     })
     .raw(
-      `CREATE INDEX hexagon_stat_species_places_geom_idx ON hexagon_stat_species_places USING GIST (geom)`
+      `CREATE INDEX hexagon_stat_species_places_geom_idx ON hexagon_stat_species_places USING GIST (geom)`,
     );
 };

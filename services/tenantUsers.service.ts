@@ -119,9 +119,7 @@ export default class TenantUsersService extends moleculer.Service {
     },
     types: [EndpointType.ADMIN, EndpointType.EXPERT, EndpointType.TENANT_ADMIN],
   })
-  async findByTenant(
-    ctx: Context<{ id: number; query?: any; filter?: any }, UserAuthMeta>
-  ) {
+  async findByTenant(ctx: Context<{ id: number; query?: any; filter?: any }, UserAuthMeta>) {
     const { id, query, filter } = ctx.params;
     const tenant: Tenant = await ctx.call('tenants.get', { id });
     if (!tenant || !tenant.id) {
@@ -139,7 +137,7 @@ export default class TenantUsersService extends moleculer.Service {
         meta: {
           profile: ctx.meta.profile || tenant,
         },
-      }
+      },
     );
   }
 
@@ -157,10 +155,7 @@ export default class TenantUsersService extends moleculer.Service {
     types: [EndpointType.ADMIN, EndpointType.TENANT_ADMIN],
   })
   async getByTenant(
-    ctx: Context<
-      { id: number; userId: number; query?: any; filter?: any },
-      UserAuthMeta
-    >
+    ctx: Context<{ id: number; userId: number; query?: any; filter?: any }, UserAuthMeta>,
   ) {
     const { id, query, filter, userId } = ctx.params;
     const tenant: Tenant = await ctx.call('tenants.get', { id });
@@ -180,7 +175,7 @@ export default class TenantUsersService extends moleculer.Service {
         meta: {
           profile: ctx.meta.profile || tenant,
         },
-      }
+      },
     );
   }
 
@@ -304,10 +299,9 @@ export default class TenantUsersService extends moleculer.Service {
       companyEmail?: string;
       companyPhone?: string;
       companyName?: string;
-    }>
+    }>,
   ) {
-    const { authGroup, userId, companyEmail, companyPhone, companyName } =
-      ctx.params;
+    const { authGroup, userId, companyEmail, companyPhone, companyName } = ctx.params;
 
     if (!authGroup?.id) return;
 
@@ -322,7 +316,7 @@ export default class TenantUsersService extends moleculer.Service {
       throw new moleculer.Errors.MoleculerClientError(
         'Cannot create or update tenant.',
         401,
-        'UNAUTHORIZED'
+        'UNAUTHORIZED',
       );
     }
 
@@ -335,8 +329,7 @@ export default class TenantUsersService extends moleculer.Service {
       query,
     });
 
-    if (tenantUser && !!authGroup?.role && authGroup.role === tenantUser.role)
-      return tenantUser;
+    if (tenantUser && !!authGroup?.role && authGroup.role === tenantUser.role) return tenantUser;
 
     if (tenantUser?.id) {
       return ctx.call('tenantUsers.update', {
@@ -364,16 +357,14 @@ export default class TenantUsersService extends moleculer.Service {
     },
     types: [EndpointType.ADMIN, EndpointType.TENANT_ADMIN],
   })
-  async removeUser(
-    ctx: Context<{ userId: number; tenantId: number }, UserAuthMeta>
-  ) {
+  async removeUser(ctx: Context<{ userId: number; tenantId: number }, UserAuthMeta>) {
     const { tenantId, userId } = ctx.params;
     const { profile } = ctx.meta;
     if (profile?.id && Number(profile?.id) !== tenantId) {
       throw new moleculer.Errors.MoleculerClientError(
         'Tenant is not accessable.',
         401,
-        'UNAUTHORIZED'
+        'UNAUTHORIZED',
       );
     }
 
@@ -391,7 +382,7 @@ export default class TenantUsersService extends moleculer.Service {
           user: user.id,
         },
       },
-      { meta: ctx.meta }
+      { meta: ctx.meta },
     );
 
     await ctx.call('auth.users.unassignFromGroup', {
@@ -417,7 +408,7 @@ export default class TenantUsersService extends moleculer.Service {
       throw new moleculer.Errors.MoleculerClientError(
         'Tenant is not accessable.',
         401,
-        'UNAUTHORIZED'
+        'UNAUTHORIZED',
       );
     }
 
@@ -438,8 +429,8 @@ export default class TenantUsersService extends moleculer.Service {
         ctx.call('auth.users.unassignFromGroup', {
           id: (tu.user as User).authUser,
           groupId: tenant.authGroup,
-        })
-      )
+        }),
+      ),
     );
 
     await this.removeEntities(
@@ -449,7 +440,7 @@ export default class TenantUsersService extends moleculer.Service {
           tenant: tenant.id,
         },
       },
-      { meta: ctx.meta }
+      { meta: ctx.meta },
     );
 
     return { success: true };
@@ -483,8 +474,8 @@ export default class TenantUsersService extends moleculer.Service {
         ctx.call('auth.users.unassignFromGroup', {
           id: user.authUser,
           groupId: (tu.tenant as Tenant).authGroup,
-        })
-      )
+        }),
+      ),
     );
 
     await this.removeEntities(
@@ -494,7 +485,7 @@ export default class TenantUsersService extends moleculer.Service {
           user: user.id,
         },
       },
-      { meta: ctx.meta }
+      { meta: ctx.meta },
     );
 
     return { success: true };
@@ -514,23 +505,17 @@ export default class TenantUsersService extends moleculer.Service {
     },
     types: [EndpointType.ADMIN, EndpointType.TENANT_ADMIN],
   })
-  async updateUser(
-    ctx: Context<
-      { userId: number; tenantId: number; role: string },
-      UserAuthMeta
-    >
-  ) {
+  async updateUser(ctx: Context<{ userId: number; tenantId: number; role: string }, UserAuthMeta>) {
     const { profile } = ctx.meta;
     const { userId, tenantId, role } = ctx.params;
     if (
       profile?.id &&
-      (Number(profile?.id) !== tenantId ||
-        profile?.role !== TenantUserRole.ADMIN)
+      (Number(profile?.id) !== tenantId || profile?.role !== TenantUserRole.ADMIN)
     ) {
       throw new moleculer.Errors.MoleculerClientError(
         'Tenant is not accessable.',
         401,
-        'UNAUTHORIZED'
+        'UNAUTHORIZED',
       );
     }
 
@@ -583,18 +568,12 @@ export default class TenantUsersService extends moleculer.Service {
     },
     types: [EndpointType.ADMIN, EndpointType.TENANT_ADMIN],
   })
-  async addUser(
-    ctx: Context<
-      { userId: number; tenantId: number; role: string },
-      UserAuthMeta
-    >
-  ) {
+  async addUser(ctx: Context<{ userId: number; tenantId: number; role: string }, UserAuthMeta>) {
     const { profile } = ctx.meta;
     const { userId, tenantId, role } = ctx.params;
     if (
       profile?.id &&
-      (Number(profile?.id) !== tenantId ||
-        profile?.role !== TenantUserRole.ADMIN)
+      (Number(profile?.id) !== tenantId || profile?.role !== TenantUserRole.ADMIN)
     ) {
       return throwUnauthorizedError('Tenant is not accessable.');
     }
@@ -616,7 +595,7 @@ export default class TenantUsersService extends moleculer.Service {
       throw new moleculer.Errors.MoleculerClientError(
         'Tenant user already exists.',
         400,
-        'BAD_REQUEST'
+        'BAD_REQUEST',
       );
     }
 
@@ -705,8 +684,7 @@ export default class TenantUsersService extends moleculer.Service {
     const { oldData: prevRequest, data: request } = ctx.params;
 
     const isApproved = request?.status === RequestStatus.APPROVED;
-    const changed =
-      prevRequest?.status && prevRequest.status !== request.status;
+    const changed = prevRequest?.status && prevRequest.status !== request.status;
     if (isApproved && changed) {
       this.broker.emit(`cache.clean.${this.fullName}`);
       this.broker.emit('cache.clean.auth');

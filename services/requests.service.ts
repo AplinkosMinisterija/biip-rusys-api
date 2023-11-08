@@ -29,16 +29,9 @@ import { USERS_DEFAULT_SCOPES, User, UserType } from './users.service';
 import { getFeatureCollection } from 'geojsonjs';
 import PostgisMixin, { GeometryType } from 'moleculer-postgis';
 import moment from 'moment';
-import {
-  getInformationalFormsByRequestIds,
-  getPlacesByRequestIds,
-} from '../utils/db.queries';
+import { getInformationalFormsByRequestIds, getPlacesByRequestIds } from '../utils/db.queries';
 import { parseToObject } from '../utils/functions';
-import {
-  emailCanBeSent,
-  notifyOnFileGenerated,
-  notifyOnRequestUpdate,
-} from '../utils/mails';
+import { emailCanBeSent, notifyOnFileGenerated, notifyOnRequestUpdate } from '../utils/mails';
 import { Taxonomy } from './taxonomies.service';
 import { TaxonomySpeciesType } from './taxonomies.species.service';
 
@@ -87,11 +80,7 @@ export interface Request extends BaseModelInterface {
 }
 
 const populatePermissions = (field: string) => {
-  return function (
-    ctx: Context<{}, UserAuthMeta>,
-    _values: any,
-    requests: any[]
-  ) {
+  return function (ctx: Context<{}, UserAuthMeta>, _values: any, requests: any[]) {
     const { user, profile } = ctx?.meta;
     return requests.map((r: any) => {
       const editingPermissions = this.hasPermissionToEdit(r, user, profile);
@@ -133,8 +122,7 @@ const populatePermissions = (field: string) => {
         for (const request of expiredRequests) {
           await this.call('requests.remove', {
             id: request.id,
-            comment:
-              'Automatiškai panaikintas pasibaigusio galiojimo prieigos prašymas.',
+            comment: 'Automatiškai panaikintas pasibaigusio galiojimo prieigos prašymas.',
           });
         }
       },
@@ -164,16 +152,11 @@ const populatePermissions = (field: string) => {
         enum: Object.values(RequestStatus),
         default: RequestStatus.CREATED,
         validate: 'validateStatus',
-        onCreate: function ({
-          ctx,
-        }: FieldHookCallback & ContextMeta<RequestAutoApprove>) {
+        onCreate: function ({ ctx }: FieldHookCallback & ContextMeta<RequestAutoApprove>) {
           const { autoApprove } = ctx?.meta;
           return autoApprove ? RequestStatus.APPROVED : RequestStatus.CREATED;
         },
-        onUpdate: function ({
-          ctx,
-          value,
-        }: FieldHookCallback & ContextMeta<RequestStatusChanged>) {
+        onUpdate: function ({ ctx, value }: FieldHookCallback & ContextMeta<RequestStatusChanged>) {
           const { user, statusChanged } = ctx?.meta;
           if (!statusChanged) return;
           else if (!user?.id) return value;
@@ -204,7 +187,7 @@ const populatePermissions = (field: string) => {
           return Promise.all(
             requests.map((request: any) => {
               return this.getTaxonomiesByRequest(request);
-            })
+            }),
           );
         },
       },
@@ -245,8 +228,8 @@ const populatePermissions = (field: string) => {
         populate(ctx: any, _values: any, requests: Request[]) {
           return Promise.all(
             requests.map((request) =>
-              this.populateTaxonomies(request.taxonomies, request.speciesTypes)
-            )
+              this.populateTaxonomies(request.taxonomies, request.speciesTypes),
+            ),
           );
         },
       },
@@ -255,9 +238,7 @@ const populatePermissions = (field: string) => {
         type: 'date',
         columnType: 'datetime',
         readonly: true,
-        set: ({
-          ctx,
-        }: FieldHookCallback & ContextMeta<RequestStatusChanged>) => {
+        set: ({ ctx }: FieldHookCallback & ContextMeta<RequestStatusChanged>) => {
           const { user, statusChanged } = ctx?.meta;
           if (user?.type !== UserType.ADMIN || !statusChanged) return;
           return new Date();
@@ -354,7 +335,7 @@ export default class RequestsService extends moleculer.Service {
       type?: string;
       page?: number;
       pageSize?: number;
-    }>
+    }>,
   ) {
     return ctx.call(`requests.histories.${ctx.params.type || 'list'}`, {
       sort: '-createdAt',
@@ -519,7 +500,7 @@ export default class RequestsService extends moleculer.Service {
           acc[r.createdBy] = true;
         }
         return acc;
-      }, {})
+      }, {}),
     ).map((i: string) => Number(i));
   }
 
@@ -574,7 +555,7 @@ export default class RequestsService extends moleculer.Service {
       approvedRequests.reduce((acc: any, r) => {
         acc[r.createdBy] = true;
         return acc;
-      }, {})
+      }, {}),
     ).map((i: any) => Number(i));
   }
 
@@ -602,9 +583,7 @@ export default class RequestsService extends moleculer.Service {
     //   keys: ['id', 'date'],
     // },
   })
-  async getPlacesByRequest(
-    ctx: Context<{ id: number | number[]; date: string }>
-  ) {
+  async getPlacesByRequest(ctx: Context<{ id: number | number[]; date: string }>) {
     const { id, date } = ctx.params;
     const ids = Array.isArray(id) ? id : [id];
 
@@ -615,8 +594,8 @@ export default class RequestsService extends moleculer.Service {
 
     const result = await Promise.all(
       requests.map((request) =>
-        getPlacesByRequestIds([request.id], request.inheritedSpecies, date)
-      )
+        getPlacesByRequestIds([request.id], request.inheritedSpecies, date),
+      ),
     );
 
     if (!result || !result?.length) return [];
@@ -633,7 +612,7 @@ export default class RequestsService extends moleculer.Service {
           geom: getFeatureCollection(mapByPlace[key]),
         },
       ],
-      []
+      [],
     );
   }
 
@@ -661,9 +640,7 @@ export default class RequestsService extends moleculer.Service {
     //   keys: ['id', 'date'],
     // },
   })
-  async getInfomationalFormsByRequest(
-    ctx: Context<{ id: number | number[]; date: string }>
-  ) {
+  async getInfomationalFormsByRequest(ctx: Context<{ id: number | number[]; date: string }>) {
     const { id, date } = ctx.params;
     const ids = Array.isArray(id) ? id : [id];
 
@@ -674,12 +651,8 @@ export default class RequestsService extends moleculer.Service {
 
     const result = await Promise.all(
       requests.map((request) =>
-        getInformationalFormsByRequestIds(
-          [request.id],
-          request.inheritedSpecies,
-          date
-        )
-      )
+        getInformationalFormsByRequestIds([request.id], request.inheritedSpecies, date),
+      ),
     );
 
     if (!result || !result?.length) return [];
@@ -696,7 +669,7 @@ export default class RequestsService extends moleculer.Service {
           geom: getFeatureCollection(mapByForm[key]),
         },
       ],
-      []
+      [],
     );
   }
 
@@ -706,7 +679,7 @@ export default class RequestsService extends moleculer.Service {
       'auth.permissions.getUsersByAccess',
       {
         access: 'SPECIES_REQUESTS_EMAILS',
-      }
+      },
     );
 
     return authUsers?.rows?.map((u) => u.email) || [];
@@ -740,7 +713,7 @@ export default class RequestsService extends moleculer.Service {
           const populate = taxonomyServiceType.up;
           const taxonomyItem: any = await this.broker.call(
             `${taxonomyServiceType.service}.resolve`,
-            { id: taxonomy.id, populate }
+            { id: taxonomy.id, populate },
           );
 
           return {
@@ -750,7 +723,7 @@ export default class RequestsService extends moleculer.Service {
         }
 
         return taxonomy;
-      })
+      }),
     );
   }
 
@@ -759,7 +732,7 @@ export default class RequestsService extends moleculer.Service {
     ctx: Context<
       { id: number; type: string },
       UserAuthMeta & RequestAutoApprove & RequestStatusChanged
-    >
+    >,
   ) {
     const { id, type } = ctx.params;
 
@@ -792,7 +765,7 @@ export default class RequestsService extends moleculer.Service {
   hasPermissionToEdit(
     request: any,
     user?: User,
-    profile?: Tenant
+    profile?: Tenant,
   ): {
     edit: boolean;
     validate: boolean;
@@ -826,9 +799,7 @@ export default class RequestsService extends moleculer.Service {
     } else if (user.type === UserType.ADMIN) {
       return {
         edit: false,
-        validate: [RequestStatus.CREATED, RequestStatus.SUBMITTED].includes(
-          request.status
-        ),
+        validate: [RequestStatus.CREATED, RequestStatus.SUBMITTED].includes(request.status),
       };
     }
 
@@ -839,10 +810,7 @@ export default class RequestsService extends moleculer.Service {
   async generatePdfIfNeeded(request: Request) {
     if (!request || !request.id) return;
 
-    if (
-      request.status !== RequestStatus.APPROVED ||
-      request.type !== RequestType.GET_ONCE
-    ) {
+    if (request.status !== RequestStatus.APPROVED || request.type !== RequestType.GET_ONCE) {
       return;
     }
 
@@ -853,12 +821,7 @@ export default class RequestsService extends moleculer.Service {
   }
 
   @Method
-  createRequestHistory(
-    request: number | string,
-    meta: any,
-    type: string,
-    comment: string = ''
-  ) {
+  createRequestHistory(request: number | string, meta: any, type: string, comment: string = '') {
     return this.broker.call(
       'requests.histories.create',
       {
@@ -866,15 +829,12 @@ export default class RequestsService extends moleculer.Service {
         comment,
         type,
       },
-      { meta }
+      { meta },
     );
   }
 
   @Method
-  async populateTaxonomies(
-    taxonomies: Request['taxonomies'],
-    speciesTypes?: string[]
-  ) {
+  async populateTaxonomies(taxonomies: Request['taxonomies'], speciesTypes?: string[]) {
     const taxonomyMap: any = {
       [TaxonomyTypes.KINGDOM]: 'kingdomId',
       [TaxonomyTypes.PHYLUM]: 'phylumId',
@@ -907,21 +867,12 @@ export default class RequestsService extends moleculer.Service {
   async sendNotificationOnStatusChange(request: Request) {
     if (!emailCanBeSent()) return;
 
-    if (
-      [RequestStatus.SUBMITTED, RequestStatus.CREATED].includes(request.status)
-    ) {
+    if ([RequestStatus.SUBMITTED, RequestStatus.CREATED].includes(request.status)) {
       const emails = await this.getAdminEmails();
       if (!emails?.length) return;
 
       return emails.map((email) => {
-        notifyOnRequestUpdate(
-          email,
-          request.status,
-          request.id,
-          request.type,
-          false,
-          true
-        );
+        notifyOnRequestUpdate(email, request.status, request.id, request.type, false, true);
       });
     }
 
@@ -930,16 +881,12 @@ export default class RequestsService extends moleculer.Service {
       scope: USERS_DEFAULT_SCOPES,
     });
 
-    const expertSpecies: any[] = await this.broker.call(
-      'requests.getExpertSpecies',
-      {
-        userId: user.id,
-      }
-    );
+    const expertSpecies: any[] = await this.broker.call('requests.getExpertSpecies', {
+      userId: user.id,
+    });
 
     const approvedGetOnceRequest =
-      request.status === RequestStatus.APPROVED &&
-      request.type === RequestType.GET_ONCE;
+      request.status === RequestStatus.APPROVED && request.type === RequestType.GET_ONCE;
 
     if (!user?.email || approvedGetOnceRequest) return;
 
@@ -949,7 +896,7 @@ export default class RequestsService extends moleculer.Service {
       request.id,
       request.type,
       !!expertSpecies?.length,
-      user.type === UserType.ADMIN
+      user.type === UserType.ADMIN,
     );
   }
 
@@ -968,9 +915,7 @@ export default class RequestsService extends moleculer.Service {
 
     const error = `Cannot set status with value ${value}`;
     if (!entity?.id) {
-      return (
-        [RequestStatus.CREATED, RequestStatus.APPROVED].includes(value) || error
-      );
+      return [RequestStatus.CREATED, RequestStatus.APPROVED].includes(value) || error;
     }
 
     const editingPermissions = this.hasPermissionToEdit(entity, user, profile);
@@ -979,11 +924,8 @@ export default class RequestsService extends moleculer.Service {
       return value === RequestStatus.SUBMITTED || error;
     } else if (editingPermissions.validate) {
       return (
-        [
-          RequestStatus.REJECTED,
-          RequestStatus.RETURNED,
-          RequestStatus.APPROVED,
-        ].includes(value) || error
+        [RequestStatus.REJECTED, RequestStatus.RETURNED, RequestStatus.APPROVED].includes(value) ||
+        error
       );
     }
 
@@ -1071,26 +1013,14 @@ export default class RequestsService extends moleculer.Service {
         [RequestStatus.APPROVED]: RequestHistoryTypes.APPROVED,
       };
 
-      await this.createRequestHistory(
-        request.id,
-        ctx.meta,
-        typesByStatus[request.status],
-        comment
-      );
+      await this.createRequestHistory(request.id, ctx.meta, typesByStatus[request.status], comment);
 
       await this.generatePdfIfNeeded(request);
       this.sendNotificationOnStatusChange(request);
     }
 
-    if (
-      prevRequest?.generatedFile !== request.generatedFile &&
-      !!request.generatedFile
-    ) {
-      await this.createRequestHistory(
-        request.id,
-        null,
-        RequestHistoryTypes.FILE_GENERATED
-      );
+    if (prevRequest?.generatedFile !== request.generatedFile && !!request.generatedFile) {
+      await this.createRequestHistory(request.id, null, RequestHistoryTypes.FILE_GENERATED);
 
       if (emailCanBeSent()) {
         const user: User = await ctx.call('users.resolve', {
@@ -1106,7 +1036,7 @@ export default class RequestsService extends moleculer.Service {
           user.email,
           request.id,
           !!(!request.tenant && isExpert),
-          user.type === UserType.ADMIN
+          user.type === UserType.ADMIN,
         );
       }
     }
@@ -1116,17 +1046,13 @@ export default class RequestsService extends moleculer.Service {
   async 'requests.created'(ctx: Context<EntityChangedParams<Request>>) {
     const { data: request } = ctx.params;
 
-    await this.createRequestHistory(
-      request.id,
-      ctx.meta,
-      RequestHistoryTypes.CREATED
-    );
+    await this.createRequestHistory(request.id, ctx.meta, RequestHistoryTypes.CREATED);
     if (request.status === RequestStatus.APPROVED) {
       await this.createRequestHistory(
         request.id,
         null,
         RequestHistoryTypes.APPROVED,
-        'Automatiškai patvirtintas prašymas.'
+        'Automatiškai patvirtintas prašymas.',
       );
       await this.generatePdfIfNeeded(request);
     } else {
@@ -1150,7 +1076,7 @@ export default class RequestsService extends moleculer.Service {
       request.id,
       ctx.meta,
       RequestHistoryTypes.DELETED,
-      comment || ''
+      comment || '',
     );
   }
 }

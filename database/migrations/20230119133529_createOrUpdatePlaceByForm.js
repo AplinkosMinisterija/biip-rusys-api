@@ -79,7 +79,7 @@ exports.up = function (knex) {
       RETURN place.id;
     END;
     $$
-    LANGUAGE plpgsql;`
+    LANGUAGE plpgsql;`,
   );
 };
 

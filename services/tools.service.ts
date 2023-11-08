@@ -33,7 +33,7 @@ export default class ToolsService extends moleculer.Service {
       stream: boolean;
       encoding: string;
       waitFor: string;
-    }>
+    }>,
   ) {
     const { url, stream, encoding, waitFor } = ctx.params;
     const searchParams = new URLSearchParams({
@@ -77,9 +77,7 @@ export default class ToolsService extends moleculer.Service {
     },
     timeout: 0,
   })
-  async makePdf(
-    ctx: Context<{ url: string; header?: string; footer?: string }>
-  ) {
+  async makePdf(ctx: Context<{ url: string; header?: string; footer?: string }>) {
     const { url, footer, header } = ctx.params;
 
     const pdfEndpoint = `${this.toolsHost()}/pdf`;

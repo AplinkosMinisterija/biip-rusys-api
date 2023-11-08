@@ -219,9 +219,7 @@ export default class TaxonomiesSpeciesService extends moleculer.Service {
 
     return {
       ...species,
-      rows: species.rows.map((s: TaxonomySpecies) =>
-        this.convertSpeciesToPublicData(s)
-      ),
+      rows: species.rows.map((s: TaxonomySpecies) => this.convertSpeciesToPublicData(s)),
     };
   }
 
@@ -284,8 +282,7 @@ export default class TaxonomiesSpeciesService extends moleculer.Service {
         id: convention.id,
         name: convention.name,
         code: convention.code,
-        parent:
-          convention.parent && mapConvention(convention.parent as Convention),
+        parent: convention.parent && mapConvention(convention.parent as Convention),
       };
     };
 

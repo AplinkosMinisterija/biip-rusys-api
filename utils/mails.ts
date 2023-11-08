@@ -14,11 +14,7 @@ function hostUrl(isAdmin: boolean = false) {
   return isAdmin ? process.env.ADMIN_HOST : process.env.APP_HOST;
 }
 
-export function notifyFormAssignee(
-  email: string,
-  formId: number | string,
-  species: Taxonomy
-) {
+export function notifyFormAssignee(email: string, formId: number | string, species: Taxonomy) {
   return client.sendEmailWithTemplate({
     From: sender,
     To: email.toLowerCase(),
@@ -37,7 +33,7 @@ export function notifyOnFormUpdate(
   formId: number | string,
   taxonomy: Taxonomy,
   isExpert: boolean = false,
-  isAdmin: boolean = false
+  isAdmin: boolean = false,
 ) {
   const updateTypes: any = {
     [FormStatus.APPROVED]: 'Patvirtinta',
@@ -49,8 +45,7 @@ export function notifyOnFormUpdate(
 
   if (!updateType) return;
 
-  const path =
-    isExpert || isAdmin ? 'rusys/stebejimo-anketos' : 'stebejimo-anketos';
+  const path = isExpert || isAdmin ? 'rusys/stebejimo-anketos' : 'stebejimo-anketos';
 
   return client.sendEmailWithTemplate({
     From: sender,
@@ -72,7 +67,7 @@ export function notifyOnRequestUpdate(
   requestId: number | string,
   requestType: string,
   isExpert: boolean = false,
-  isAdmin: boolean = false
+  isAdmin: boolean = false,
 ) {
   const updateTypes: any = {
     [RequestStatus.CREATED]: 'Pateiktas',
@@ -110,7 +105,7 @@ export function notifyOnFileGenerated(
   email: string,
   requestId: number | string,
   isExpert: boolean = false,
-  isAdmin: boolean = false
+  isAdmin: boolean = false,
 ) {
   const path = isExpert || isAdmin ? 'rusys/prasymai' : 'prasymai';
 

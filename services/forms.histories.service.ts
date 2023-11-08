@@ -4,11 +4,7 @@ import moleculer from 'moleculer';
 import { Service } from 'moleculer-decorators';
 
 import DbConnection from '../mixins/database.mixin';
-import {
-  COMMON_DEFAULT_SCOPES,
-  COMMON_FIELDS_WITH_HIDDEN,
-  COMMON_SCOPES,
-} from '../types';
+import { COMMON_DEFAULT_SCOPES, COMMON_FIELDS_WITH_HIDDEN, COMMON_SCOPES } from '../types';
 
 export const FormHistoryTypes = {
   CREATED: 'CREATED',
