@@ -1,21 +1,12 @@
 import { Context } from 'moleculer';
-import {
-  TaxonomySpecies,
-  TaxonomySpeciesType,
-} from '../../services/taxonomies.species.service';
+import { TaxonomySpecies, TaxonomySpeciesType } from '../../services/taxonomies.species.service';
 import { Request } from '../../services/requests.service';
 import { Moment } from 'moment';
 import moment from 'moment-timezone';
 import { Place } from '../../services/places.service';
 import { Form } from '../../services/forms.service';
 import { toMD5Hash } from '../functions';
-import {
-  FeatureCollection,
-  Feature,
-  Geometry,
-  getGeometries,
-  GeometryType,
-} from 'geojsonjs';
+import { FeatureCollection, Feature, Geometry, getGeometries, GeometryType } from 'geojsonjs';
 
 const dateFormat = 'YYYY-MM-DD';
 const dateFormatFull = `${dateFormat} HH:mm`;
@@ -73,9 +64,7 @@ async function getTranslates(ctx: Context, speciesIds: number[]) {
   }, {});
 }
 
-export async function getMapsSearchParams(
-  ctx: Context
-): Promise<URLSearchParams> {
+export async function getMapsSearchParams(ctx: Context): Promise<URLSearchParams> {
   const mapsToken: any = await ctx.call('maps.generateToken', {
     server: true,
   });
@@ -121,15 +110,17 @@ function getGeometryWithTranslates(geom: FeatureCollection | Feature) {
 }
 
 async function getPlaces(ctx: Context, requestId: number, date: string) {
-  const placesData: Array<{ placeId: number; geom: FeatureCollection }> =
-    await ctx.call('requests.getPlacesByRequest', {
+  const placesData: Array<{ placeId: number; geom: FeatureCollection }> = await ctx.call(
+    'requests.getPlacesByRequest',
+    {
       id: requestId,
       date: formatDate(date),
-    });
+    },
+  );
 
   const placesGeomByPlaceId: any = placesData.reduce(
     (acc, item) => ({ ...acc, [item.placeId]: item.geom }),
-    {}
+    {},
   );
 
   const places: Place[] = await ctx.call('places.find', {
@@ -148,9 +139,7 @@ async function getPlaces(ctx: Context, requestId: number, date: string) {
         id: p.id,
         species: p.species,
         placeCode: p.code,
-        placeLastObservedAt: formatDate(
-          moment.max(placeForms.map((f) => moment(f.observedAt)))
-        ),
+        placeLastObservedAt: formatDate(moment.max(placeForms.map((f) => moment(f.observedAt)))),
         screenshot: '',
         hash: toMD5Hash(`place=${p.id}`),
         hasEvolution: placeForms.some((f) => !!f.evolution),
@@ -165,19 +154,13 @@ async function getPlaces(ctx: Context, requestId: number, date: string) {
       };
     })
     .sort((p1: any, p2: any) => {
-      return moment(p2.placeLastObservedAt).diff(
-        moment(p1.placeLastObservedAt)
-      );
+      return moment(p2.placeLastObservedAt).diff(moment(p1.placeLastObservedAt));
     });
 
   return mappedPlaces;
 }
 
-async function getInformationalForms(
-  ctx: Context,
-  requestId: number,
-  date: string
-) {
+async function getInformationalForms(ctx: Context, requestId: number, date: string) {
   const informationalForms: Array<{
     formId: number;
     geom: FeatureCollection;
@@ -188,7 +171,7 @@ async function getInformationalForms(
 
   const formsGeomByFormId: any = informationalForms.reduce(
     (acc, item) => ({ ...acc, [item.formId]: item.geom }),
-    {}
+    {},
   );
 
   const forms: Form[] = await ctx.call('forms.find', {
@@ -228,19 +211,15 @@ async function getInformationalForms(
       'informationalForm',
       JSON.stringify({
         $in: mappedForms[speciesId].forms.map((item: any) => item.id),
-      })
+      }),
     );
 
     const formsIds = mappedForms[speciesId].forms.map((f: any) => f.id).sort();
-    mappedForms[speciesId].hash = toMD5Hash(
-      `informationalForms=${formsIds.sort().join(',')}`
-    );
+    mappedForms[speciesId].hash = toMD5Hash(`informationalForms=${formsIds.sort().join(',')}`);
 
-    mappedForms[speciesId].forms = mappedForms[speciesId].forms.sort(
-      (f1: any, f2: any) => {
-        return moment(f2.observedAt).diff(moment(f1.observedAt));
-      }
-    );
+    mappedForms[speciesId].forms = mappedForms[speciesId].forms.sort((f1: any, f2: any) => {
+      return moment(f2.observedAt).diff(moment(f1.observedAt));
+    });
   }
 
   return mappedForms;
@@ -262,7 +241,7 @@ export async function getRequestData(ctx: Context, id: number) {
       id: speciesIds,
       populate: 'conventionsText',
       mapping: true,
-    }
+    },
   );
 
   const places = await getPlaces(ctx, id, requestDate);

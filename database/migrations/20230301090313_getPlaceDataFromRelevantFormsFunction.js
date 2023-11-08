@@ -66,7 +66,7 @@ exports.up = function (knex) {
           ) AS combined_place_data;
     END;
     $$
-    LANGUAGE plpgsql;`
+    LANGUAGE plpgsql;`,
   );
 };
 

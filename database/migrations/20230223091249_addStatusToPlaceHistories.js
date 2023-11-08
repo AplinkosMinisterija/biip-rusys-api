@@ -5,18 +5,10 @@
 exports.up = function (knex) {
   return knex.schema.alterTable('placeHistories', (table) => {
     table
-      .enu(
-        'status',
-        [
-          'INITIAL',
-          'STABLE',
-          'INCREASED',
-          'DECREASED',
-          'DISAPPEARED',
-          'DESTROYED',
-        ],
-        { useNative: true, enumName: 'place_history_status' }
-      )
+      .enu('status', ['INITIAL', 'STABLE', 'INCREASED', 'DECREASED', 'DISAPPEARED', 'DESTROYED'], {
+        useNative: true,
+        enumName: 'place_history_status',
+      })
       .defaultTo('INITIAL');
   });
 };

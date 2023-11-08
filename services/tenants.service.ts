@@ -56,11 +56,7 @@ export interface Tenant extends BaseModelInterface {
         columnName: 'authGroupId',
         populate: 'auth.groups.get',
         async onRemove({ ctx, entity }: FieldHookCallback) {
-          await ctx.call(
-            'auth.groups.remove',
-            { id: entity.authGroupId },
-            { meta: ctx?.meta }
-          );
+          await ctx.call('auth.groups.remove', { id: entity.authGroupId }, { meta: ctx?.meta });
         },
       },
 
@@ -72,7 +68,7 @@ export interface Tenant extends BaseModelInterface {
           return Promise.all(
             items.map((item: any) => {
               return ctx.call('tenantUsers.findByTenant', { id: item.id });
-            })
+            }),
           );
         },
       },
@@ -88,7 +84,7 @@ export interface Tenant extends BaseModelInterface {
                   tenant: item.id,
                 },
               });
-            })
+            }),
           );
         },
       },
@@ -100,17 +96,14 @@ export interface Tenant extends BaseModelInterface {
           return Promise.all(
             tenants.map(async (tenant: any) => {
               if (!ctx.meta.user?.id) return;
-              const tenantUser: TenantUser = await ctx.call(
-                'tenantUsers.findOne',
-                {
-                  query: {
-                    tenant: tenant.id,
-                    user: ctx.meta.user.id,
-                  },
-                }
-              );
+              const tenantUser: TenantUser = await ctx.call('tenantUsers.findOne', {
+                query: {
+                  tenant: tenant.id,
+                  user: ctx.meta.user.id,
+                },
+              });
               return tenantUser?.role;
-            })
+            }),
           );
         },
       },
@@ -121,30 +114,20 @@ export interface Tenant extends BaseModelInterface {
     scopes: {
       ...COMMON_SCOPES,
       async user(query: any, ctx: Context<null, UserAuthMeta>, params: any) {
-        if (
-          ctx?.meta?.user?.type === UserType.USER &&
-          !ctx.meta?.user?.isExpert
-        ) {
-          const tenantsIds: number[] = await ctx.call(
-            'tenantUsers.findIdsByUser',
-            {
-              id: ctx.meta.user.id,
-            }
-          );
+        if (ctx?.meta?.user?.type === UserType.USER && !ctx.meta?.user?.isExpert) {
+          const tenantsIds: number[] = await ctx.call('tenantUsers.findIdsByUser', {
+            id: ctx.meta.user.id,
+          });
 
           if (params?.id) {
             let hasPermissions = false;
             if (Array.isArray(params.id)) {
-              hasPermissions = params.id.every((id: number) =>
-                tenantsIds.includes(Number(id))
-              );
+              hasPermissions = params.id.every((id: number) => tenantsIds.includes(Number(id)));
             } else {
               hasPermissions = tenantsIds.includes(Number(params.id));
             }
             if (!hasPermissions) {
-              throwUnauthorizedError(
-                `Cannot access this tenant with ID: ${params.id}`
-              );
+              throwUnauthorizedError(`Cannot access this tenant with ID: ${params.id}`);
             }
           } else {
             query.id = { $in: tenantsIds };
@@ -202,7 +185,7 @@ export default class TenantsService extends moleculer.Service {
       name?: string;
       phone?: string;
       email?: string;
-    }>
+    }>,
   ) {
     const { authGroup, update, name, phone, email } = ctx.params;
     if (!authGroup || !authGroup.id) return;
@@ -264,7 +247,7 @@ export default class TenantsService extends moleculer.Service {
         companyPhone: string;
       },
       UserAuthMeta
-    >
+    >,
   ) {
     const {
       personalCode,
@@ -294,16 +277,13 @@ export default class TenantsService extends moleculer.Service {
       phone,
     });
 
-    const tenantUser: TenantUser = await ctx.call(
-      'tenantUsers.createRelationshipsIfNeeded',
-      {
-        companyName,
-        authGroup,
-        companyEmail,
-        companyPhone,
-        userId: user.id,
-      }
-    );
+    const tenantUser: TenantUser = await ctx.call('tenantUsers.createRelationshipsIfNeeded', {
+      companyName,
+      authGroup,
+      companyEmail,
+      companyPhone,
+      userId: user.id,
+    });
 
     return ctx.call('tenants.resolve', { id: tenantUser.tenant });
   }
@@ -321,7 +301,7 @@ export default class TenantsService extends moleculer.Service {
         id: number;
       },
       UserAuthMeta
-    >
+    >,
   ) {
     const { id } = ctx.params;
 

@@ -14,11 +14,7 @@ import { Tenant } from './tenants.service';
 import { User } from './users.service';
 
 function getSecret(request: Request) {
-  return toMD5Hash(
-    `id=${request.id}&date=${moment(request.createdAt).format(
-      'YYYYMMDDHHmmss'
-    )}`
-  );
+  return toMD5Hash(`id=${request.id}&date=${moment(request.createdAt).format('YYYYMMDDHHmmss')}`);
 }
 @Service({
   name: 'jobs.requests',
@@ -58,12 +54,10 @@ export default class JobsRequestsService extends moleculer.Service {
         ...acc,
         [item.hash]: item.url,
       }),
-      {}
+      {},
     );
 
-    const screenshotsHash = toMD5Hash(
-      `id=${id}&date=${moment().format('YYYYMMDDHHmmsss')}`
-    );
+    const screenshotsHash = toMD5Hash(`id=${id}&date=${moment().format('YYYYMMDDHHmmsss')}`);
 
     const redisKey = `screenshots.${screenshotsHash}`;
 
@@ -83,10 +77,7 @@ export default class JobsRequestsService extends moleculer.Service {
       footer: footerHtml,
     });
 
-    const folder = this.getFolderName(
-      request.createdBy as any as User,
-      request.tenant as Tenant
-    );
+    const folder = this.getFolderName(request.createdBy as any as User, request.tenant as Tenant);
 
     const result: any = await ctx.call(
       'minio.uploadFile',
@@ -101,7 +92,7 @@ export default class JobsRequestsService extends moleculer.Service {
           mimetype: 'application/pdf',
           filename: `israsas-${request.id}.pdf`,
         },
-      }
+      },
     );
 
     await ctx.call('requests.saveGeneratedPdf', {
@@ -133,10 +124,7 @@ export default class JobsRequestsService extends moleculer.Service {
 
     // add preview screenshot
     if (requestData?.places?.length) {
-      params.set(
-        'place',
-        JSON.stringify({ $in: requestData.places.map((p) => p.id) })
-      );
+      params.set('place', JSON.stringify({ $in: requestData.places.map((p) => p.id) }));
       data.push({
         url: getUrl(params),
         hash: requestData.previewScreenshotHash,
@@ -161,7 +149,7 @@ export default class JobsRequestsService extends moleculer.Service {
         'informationalForm',
         JSON.stringify({
           $in: formsIds,
-        })
+        }),
       );
       data.push({
         url: getUrl(params),
@@ -182,7 +170,7 @@ export default class JobsRequestsService extends moleculer.Service {
       {
         id,
       },
-      childrenJobs
+      childrenJobs,
     );
   }
 
@@ -203,7 +191,7 @@ export default class JobsRequestsService extends moleculer.Service {
     ctx: Context<
       { id: number; secret: string; skey: string },
       { $responseType: string; $responseHeaders: any }
-    >
+    >,
   ) {
     ctx.meta.$responseType = 'text/html';
 
@@ -218,9 +206,7 @@ export default class JobsRequestsService extends moleculer.Service {
 
     const requestData = await getRequestData(ctx, id);
 
-    const screenshotsByHash = await this.broker.cacher.get(
-      `screenshots.${screenshotsRedisKey}`
-    );
+    const screenshotsByHash = await this.broker.cacher.get(`screenshots.${screenshotsRedisKey}`);
 
     // set screenshots for places
     requestData?.places.forEach((p) => {
@@ -229,12 +215,10 @@ export default class JobsRequestsService extends moleculer.Service {
 
     // set screenshots for informational forms
     Object.entries(requestData?.informationalForms).forEach(([key, value]) => {
-      requestData.informationalForms[key].screenshot =
-        screenshotsByHash[value.hash] || '';
+      requestData.informationalForms[key].screenshot = screenshotsByHash[value.hash] || '';
     });
 
-    requestData.previewScreenshot =
-      screenshotsByHash[requestData.previewScreenshotHash] || '';
+    requestData.previewScreenshot = screenshotsByHash[requestData.previewScreenshotHash] || '';
 
     const html = getTemplateHtml('request-pdf.ejs', requestData);
 

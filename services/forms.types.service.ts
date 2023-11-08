@@ -2,10 +2,7 @@
 
 import moleculer, { Context } from 'moleculer';
 import { Action, Method, Service } from 'moleculer-decorators';
-import {
-  FormSettingsGroupType,
-  FormSettingsOptionValues,
-} from './forms.settings.options.service';
+import { FormSettingsGroupType, FormSettingsOptionValues } from './forms.settings.options.service';
 
 export enum FormType {
   ENDANGERED_ANIMAL = 'ENDANGERED_ANIMAL',
@@ -36,7 +33,7 @@ export default class FormTypesService extends moleculer.Service {
 
     const options: FormSettingsOptionValues = await ctx.call(
       'forms.settings.options.getTranslates',
-      { formType: type, group: FormSettingsGroupType.ACTIVITY }
+      { formType: type, group: FormSettingsGroupType.ACTIVITY },
     );
 
     if (!!Object.keys(options).length) {
@@ -51,15 +48,13 @@ export default class FormTypesService extends moleculer.Service {
       type: 'string',
     },
   })
-  async validateEvolution(
-    ctx: Context<{ type: string; activity?: string; evolution?: string }>
-  ) {
+  async validateEvolution(ctx: Context<{ type: string; activity?: string; evolution?: string }>) {
     const { type, activity, evolution } = ctx.params;
     let valid = !evolution;
 
     const options: FormSettingsOptionValues = await ctx.call(
       'forms.settings.options.getTranslates',
-      { formType: type, group: FormSettingsGroupType.EVOLUTION }
+      { formType: type, group: FormSettingsGroupType.EVOLUTION },
     );
 
     if (!!Object.keys(options).length) {
@@ -67,9 +62,7 @@ export default class FormTypesService extends moleculer.Service {
       if (type === FormType.ENDANGERED_ANIMAL) {
         if (this.isValid(activity, ['OBSERVED_ALIVE', 'OTHER'])) {
           valid = this.isValid(evolution, ['IMMATURE', 'MATURE']);
-        } else if (
-          this.isValid(activity, EndangeredFormActivitiesNonInformational)
-        ) {
+        } else if (this.isValid(activity, EndangeredFormActivitiesNonInformational)) {
           valid = Object.keys(options).includes(evolution);
         }
         // in other cases for endangered animals - evolution should be null
@@ -92,7 +85,7 @@ export default class FormTypesService extends moleculer.Service {
 
     const options: FormSettingsOptionValues = await ctx.call(
       'forms.settings.options.getTranslates',
-      { formType: type, group: FormSettingsGroupType.METHOD }
+      { formType: type, group: FormSettingsGroupType.METHOD },
     );
 
     if (!!Object.keys(options).length) {
@@ -113,8 +106,7 @@ export default class FormTypesService extends moleculer.Service {
 
     let isInformational = false;
     if (type === FormType.ENDANGERED_ANIMAL) {
-      isInformational =
-        !EndangeredFormActivitiesNonInformational.includes(activity);
+      isInformational = !EndangeredFormActivitiesNonInformational.includes(activity);
     }
 
     return isInformational;

@@ -26,7 +26,7 @@ exports.up = function (knex) {
             'tp.nameLatin as phylumNameLatin',
             'tk.id as kingdomId',
             'tk.name as kingdomName',
-            'tk.nameLatin as kingdomNameLatin'
+            'tk.nameLatin as kingdomNameLatin',
           )
           .from('taxonomySpecies as ts')
           .join('taxonomyClasses as tc', 'ts.classId', 'tc.id')
@@ -37,7 +37,7 @@ exports.up = function (knex) {
           .whereNull('tp.deletedAt')
           .whereNull('tc.deletedAt')
           .groupBy('ts.id', 'tc.id', 'tp.id', 'tk.id')
-          .orderBy('ts.name')
+          .orderBy('ts.name'),
       );
     });
 };
@@ -82,7 +82,7 @@ exports.down = function (knex) {
             'tp.nameLatin as phylumNameLatin',
             'tk.id as kingdomId',
             'tk.name as kingdomName',
-            'tk.nameLatin as kingdomNameLatin'
+            'tk.nameLatin as kingdomNameLatin',
           )
           .from('taxonomySpecies as ts')
           .join('taxonomyClasses as tc', 'ts.classId', 'tc.id')
@@ -93,7 +93,7 @@ exports.down = function (knex) {
           .whereNull('tp.deletedAt')
           .whereNull('tc.deletedAt')
           .groupBy('ts.id', 'tc.id', 'tp.id', 'tk.id')
-          .orderBy('ts.name')
+          .orderBy('ts.name'),
       );
     });
 };

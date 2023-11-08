@@ -57,7 +57,7 @@ exports.up = function (knex) {
       RETURN query select status, form_ids, quantity, geom, area_change_percentage, quantity_change_percentage;
     END;
     $$
-    LANGUAGE plpgsql;`
+    LANGUAGE plpgsql;`,
   );
 };
 

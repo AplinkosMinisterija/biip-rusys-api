@@ -6,10 +6,7 @@ import { DBPagination, throwNotFoundError } from '../types';
 import { AuthType } from './api.service';
 import { Convention } from './conventions.service';
 import { Taxonomy } from './taxonomies.service';
-import {
-  TaxonomySpecies,
-  TaxonomySpeciesType,
-} from './taxonomies.species.service';
+import { TaxonomySpecies, TaxonomySpeciesType } from './taxonomies.species.service';
 
 @Service({
   name: 'public',
@@ -56,10 +53,7 @@ export default class PublicService extends moleculer.Service {
     auth: AuthType.PUBLIC,
   })
   async getEndangeredSpecies(ctx: Context<{ id: number }>) {
-    return this.getTaxonomySpecies(
-      ctx.params.id,
-      TaxonomySpeciesType.ENDANGERED
-    );
+    return this.getTaxonomySpecies(ctx.params.id, TaxonomySpeciesType.ENDANGERED);
   }
 
   @Action({
@@ -92,39 +86,30 @@ export default class PublicService extends moleculer.Service {
 
   @Method
   async getTaxonomySpecies(id: number, type: string) {
-    const taxonomySpecies: TaxonomySpecies = await this.broker.call(
-      'taxonomies.species.resolve',
-      {
-        id,
-        throwIfNotExist: true,
-      }
-    );
+    const taxonomySpecies: TaxonomySpecies = await this.broker.call('taxonomies.species.resolve', {
+      id,
+      throwIfNotExist: true,
+    });
 
     if (!taxonomySpecies?.id || taxonomySpecies.type !== type) {
       return throwNotFoundError('Species not found');
     }
 
-    const taxonomy: Taxonomy = await this.broker.call(
-      'taxonomies.findBySpeciesId',
-      {
-        id,
-        populate: ['speciesConventions', 'speciesConventionsText'],
-      }
-    );
+    const taxonomy: Taxonomy = await this.broker.call('taxonomies.findBySpeciesId', {
+      id,
+      populate: ['speciesConventions', 'speciesConventionsText'],
+    });
 
     return this.mapSpeciesItem(taxonomy, taxonomySpecies);
   }
 
   @Method
   async listTaxonomySpecies(params: any, type: string) {
-    const taxonomies: DBPagination<Taxonomy> = await this.broker.call(
-      'taxonomies.search',
-      {
-        ...params,
-        types: [type],
-        populate: ['speciesConventions', 'speciesConventionsText'],
-      }
-    );
+    const taxonomies: DBPagination<Taxonomy> = await this.broker.call('taxonomies.search', {
+      ...params,
+      types: [type],
+      populate: ['speciesConventions', 'speciesConventionsText'],
+    });
 
     return {
       ...taxonomies,
@@ -141,8 +126,7 @@ export default class PublicService extends moleculer.Service {
         id: convention.id,
         name: convention.name,
         code: convention.code,
-        parent:
-          convention.parent && mapConvention(convention.parent as Convention),
+        parent: convention.parent && mapConvention(convention.parent as Convention),
       };
     };
 
@@ -160,8 +144,7 @@ export default class PublicService extends moleculer.Service {
       phylumNameLatin: taxonomy.phylumNameLatin,
       kingdomName: taxonomy.kingdomName,
       kingdomNameLatin: taxonomy.kingdomNameLatin,
-      conventions:
-        (taxonomy.speciesConventions as Convention[])?.map(mapConvention) || [],
+      conventions: (taxonomy.speciesConventions as Convention[])?.map(mapConvention) || [],
       conventionsText: taxonomy.speciesConventionsText || null,
     };
 

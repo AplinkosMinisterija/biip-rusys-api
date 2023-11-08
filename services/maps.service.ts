@@ -47,14 +47,14 @@ export default class MapsService extends moleculer.Service {
         $statusMessage: string;
         $responseType: string;
       }
-    >
+    >,
   ) {
     const queryParamsMap = Object.keys(ctx.params)?.reduce(
       (acc: any, key: string) => ({
         ...acc,
         [camelCase(key.toLowerCase())]: key,
       }),
-      {}
+      {},
     );
 
     queryParamsMap.filter = queryParamsMap.filter || 'FILTER';
@@ -64,7 +64,7 @@ export default class MapsService extends moleculer.Service {
       const result: any = await this.computeFilterValue(
         ctx,
         ctx.params[queryParamsMap.filter],
-        ctx.params[queryParamsMap.layers]
+        ctx.params[queryParamsMap.layers],
       );
 
       ctx.params[queryParamsMap.filter] = result.filter;
@@ -223,17 +223,13 @@ export default class MapsService extends moleculer.Service {
     const { token } = ctx.params;
 
     return new Promise<any | undefined>((resolve, reject) => {
-      jwt.verify(
-        token,
-        process.env.JWT_MAPS_SECRET,
-        (err: VerifyErrors | null, decoded?: any) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(decoded);
-          }
+      jwt.verify(token, process.env.JWT_MAPS_SECRET, (err: VerifyErrors | null, decoded?: any) => {
+        if (err) {
+          reject(err);
+        } else {
+          resolve(decoded);
         }
-      );
+      });
     });
   }
 
@@ -256,38 +252,29 @@ export default class MapsService extends moleculer.Service {
   async computeFilterValue(
     ctx: Context<{}, UserAuthMeta>,
     filterValue: string = '',
-    layersValue: string = ''
+    layersValue: string = '',
   ) {
     const items = filterValue.split(';');
     let allLayers = layersValue.split(',');
 
     const userIsExpert = !!ctx?.meta?.user?.isExpert;
-    const userIsAdmin =
-      !ctx?.meta?.user?.id || ctx?.meta?.user?.type === UserType.ADMIN;
+    const userIsAdmin = !ctx?.meta?.user?.id || ctx?.meta?.user?.type === UserType.ADMIN;
 
     if (!userIsAdmin && !userIsExpert) {
-      const { places: placesIds, forms: formsIds }: any = await ctx.call(
-        'maps.getMapsData'
-      );
+      const { places: placesIds, forms: formsIds }: any = await ctx.call('maps.getMapsData');
 
       if (!placesIds?.length) {
         return throwUnauthorizedError('Cannot access places');
       }
 
-      items.push(
-        `${mapsSrisPlacesLayerId}:( ${`"id" in ( ${placesIds.join(' , ')} )`} )`
-      );
+      items.push(`${mapsSrisPlacesLayerId}:( ${`"id" in ( ${placesIds.join(' , ')} )`} )`);
 
       if (formsIds?.length) {
         items.push(
-          `${mapsSrisInformationalFormsLayerId}:( ${`"id" in ( ${formsIds.join(
-            ' , '
-          )} )`} )`
+          `${mapsSrisInformationalFormsLayerId}:( ${`"id" in ( ${formsIds.join(' , ')} )`} )`,
         );
       } else {
-        allLayers = allLayers.filter(
-          (l) => l !== mapsSrisInformationalFormsLayerId
-        );
+        allLayers = allLayers.filter((l) => l !== mapsSrisInformationalFormsLayerId);
       }
     }
 
@@ -311,9 +298,7 @@ export default class MapsService extends moleculer.Service {
 
     if (!requests?.length) return { places: [], forms: [] };
 
-    const data = await getEndangeredPlacesAndFromsByRequestsIds(
-      requests.map((r) => r.id)
-    );
+    const data = await getEndangeredPlacesAndFromsByRequestsIds(requests.map((r) => r.id));
 
     return data.reduce(
       (acc, item) => {
@@ -330,7 +315,7 @@ export default class MapsService extends moleculer.Service {
       {
         places: [],
         forms: [],
-      }
+      },
     );
   }
 
@@ -364,7 +349,7 @@ export default class MapsService extends moleculer.Service {
   created() {
     if (!process.env.JWT_MAPS_SECRET || !process.env.QGIS_SERVER_AUTH_KEY) {
       this.broker.fatal(
-        "Environment variable 'JWT_MAPS_SECRET' and 'QGIS_SERVER_AUTH_KEY' must be configured!"
+        "Environment variable 'JWT_MAPS_SECRET' and 'QGIS_SERVER_AUTH_KEY' must be configured!",
       );
     }
   }

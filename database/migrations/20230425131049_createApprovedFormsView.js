@@ -34,15 +34,13 @@ exports.up = function (knex) {
                   ) THEN ST_Buffer(f.geom, f.geom_buffer_size)
                   WHEN ST_GeometryType(f.geom) IN ('ST_Polygon', 'ST_MultiPolygon') THEN f.geom
                 END AS geom
-            `)
+            `),
           )
           .from('forms as f')
-          .where('f.status', 'APPROVED')
+          .where('f.status', 'APPROVED'),
       );
     })
-    .raw(
-      `CREATE INDEX approved_forms_geom_idx ON approved_forms USING GIST (geom)`
-    );
+    .raw(`CREATE INDEX approved_forms_geom_idx ON approved_forms USING GIST (geom)`);
 };
 
 /**

@@ -81,12 +81,7 @@ export const AuthType = {
         path: '/auth',
         authorization: false,
         authentication: false,
-        whitelist: [
-          'auth.login',
-          'auth.evartai.sign',
-          'auth.evartai.login',
-          'auth.refreshToken',
-        ],
+        whitelist: ['auth.login', 'auth.evartai.sign', 'auth.evartai.login', 'auth.refreshToken'],
         aliases: {
           'POST /login': 'auth.login',
           'POST /evartai/sign': 'auth.evartai.sign',
@@ -270,7 +265,7 @@ export default class ApiService extends moleculer.Service {
   @Method
   async rejectAuth(
     ctx: Context<Record<string, unknown>, UserAuthMeta>,
-    error: Errors.MoleculerError
+    error: Errors.MoleculerError,
   ): Promise<unknown> {
     if (ctx.meta.user) {
       const context = pick(
@@ -286,7 +281,7 @@ export default class ApiService extends moleculer.Service {
         'caller',
         'params',
         'meta',
-        'locals'
+        'locals',
       );
       const action = pick(ctx.action, 'rawName', 'name', 'params', 'rest');
       const logInfo = {
@@ -307,7 +302,7 @@ export default class ApiService extends moleculer.Service {
   async authenticate(
     ctx: Context<Record<string, unknown>, UserAuthMeta>,
     route: any,
-    req: RequestMessage
+    req: RequestMessage,
   ): Promise<unknown> {
     const actionAuthType = req.$action.auth;
     const auth = req.headers.authorization;
@@ -315,36 +310,25 @@ export default class ApiService extends moleculer.Service {
 
     if (actionAuthType === AuthType.PUBLIC && !auth) {
       return Promise.resolve(null);
-    } else if (
-      [AuthType.MAPS_PUBLIC, AuthType.MAPS_PRIVATE].includes(actionAuthType)
-    ) {
+    } else if ([AuthType.MAPS_PUBLIC, AuthType.MAPS_PRIVATE].includes(actionAuthType)) {
       const mapsAuthToken = req.headers['x-maps-auth'];
       const isPrivate = AuthType.MAPS_PRIVATE === actionAuthType;
       if (isPrivate && !mapsAuthToken) {
-        return this.rejectAuth(
-          ctx,
-          throwUnauthorizedError(ApiGateway.Errors.ERR_NO_TOKEN)
-        );
+        return this.rejectAuth(ctx, throwUnauthorizedError(ApiGateway.Errors.ERR_NO_TOKEN));
       } else if (!mapsAuthToken && !isPrivate) {
         return Promise.resolve(null);
       }
 
-      const { tenant, user, server }: any = await ctx.call(
-        'auth.resolveMapsToken',
-        {
-          token: mapsAuthToken,
-        }
-      );
+      const { tenant, user, server }: any = await ctx.call('auth.resolveMapsToken', {
+        token: mapsAuthToken,
+      });
 
       if (server) {
         return Promise.resolve({ isServer: true });
       }
 
       if (!!mapsAuthToken && !user?.id) {
-        return this.rejectAuth(
-          ctx,
-          throwUnauthorizedError(ApiGateway.Errors.ERR_INVALID_TOKEN)
-        );
+        return this.rejectAuth(ctx, throwUnauthorizedError(ApiGateway.Errors.ERR_INVALID_TOKEN));
       }
 
       ctx.meta.profile = tenant;
@@ -361,11 +345,9 @@ export default class ApiService extends moleculer.Service {
 
       if (token) {
         try {
-          const authUser: any = await ctx.call(
-            'auth.users.resolveToken',
-            null,
-            { meta: { authToken: token } }
-          );
+          const authUser: any = await ctx.call('auth.users.resolveToken', null, {
+            meta: { authToken: token },
+          });
 
           const user: User = await ctx.call('users.resolveByAuthUser', {
             authUser: authUser,
@@ -379,13 +361,10 @@ export default class ApiService extends moleculer.Service {
             ctx.meta.app = app;
 
             if (profile) {
-              const tenantWithRole: Tenant = await ctx.call(
-                'tenantUsers.getProfile',
-                {
-                  id: user.id,
-                  profile,
-                }
-              );
+              const tenantWithRole: Tenant = await ctx.call('tenantUsers.getProfile', {
+                id: user.id,
+                profile,
+              });
 
               if (!tenantWithRole) {
                 throw new Error();
@@ -402,23 +381,14 @@ export default class ApiService extends moleculer.Service {
             return Promise.resolve(user);
           }
         } catch (e) {
-          return this.rejectAuth(
-            ctx,
-            throwUnauthorizedError(ApiGateway.Errors.ERR_INVALID_TOKEN)
-          );
+          return this.rejectAuth(ctx, throwUnauthorizedError(ApiGateway.Errors.ERR_INVALID_TOKEN));
         }
       }
 
-      return this.rejectAuth(
-        ctx,
-        throwUnauthorizedError(ApiGateway.Errors.ERR_INVALID_TOKEN)
-      );
+      return this.rejectAuth(ctx, throwUnauthorizedError(ApiGateway.Errors.ERR_INVALID_TOKEN));
     }
 
-    return this.rejectAuth(
-      ctx,
-      throwUnauthorizedError(ApiGateway.Errors.ERR_NO_TOKEN)
-    );
+    return this.rejectAuth(ctx, throwUnauthorizedError(ApiGateway.Errors.ERR_NO_TOKEN));
   }
 
   /**
@@ -433,43 +403,31 @@ export default class ApiService extends moleculer.Service {
   async authorize(
     ctx: Context<Record<string, unknown>, UserAuthMeta>,
     route: any,
-    req: RequestMessage
+    req: RequestMessage,
   ): Promise<unknown> {
     const user = ctx.meta.user;
 
-    if (
-      [AuthType.PUBLIC, AuthType.MAPS_PUBLIC].includes(req.$action.auth) ||
-      user?.isServer
-    ) {
+    if ([AuthType.PUBLIC, AuthType.MAPS_PUBLIC].includes(req.$action.auth) || user?.isServer) {
       return Promise.resolve(ctx);
     }
 
     if (!user) {
-      return this.rejectAuth(
-        ctx,
-        throwUnauthorizedError(ApiGateway.Errors.ERR_NO_TOKEN)
-      );
+      return this.rejectAuth(ctx, throwUnauthorizedError(ApiGateway.Errors.ERR_NO_TOKEN));
     }
 
-    const atypes = Array.isArray(req.$action.types)
-      ? req.$action.types
-      : [req.$action.types];
+    const atypes = Array.isArray(req.$action.types) ? req.$action.types : [req.$action.types];
     const otypes = Array.isArray(req.$route.opts.types)
       ? req.$route.opts.types
       : [req.$route.opts.types];
 
     const alltypes = [...atypes, ...otypes].filter(Boolean);
     const types = [...new Set(alltypes)];
-    const valid = await ctx.call<boolean, { types: EndpointType[] }>(
-      'auth.validateType',
-      { types }
-    );
+    const valid = await ctx.call<boolean, { types: EndpointType[] }>('auth.validateType', {
+      types,
+    });
 
     if (!valid) {
-      return this.rejectAuth(
-        ctx,
-        throwUnauthorizedError(ApiGateway.Errors.ERR_INVALID_TOKEN)
-      );
+      return this.rejectAuth(ctx, throwUnauthorizedError(ApiGateway.Errors.ERR_INVALID_TOKEN));
     }
 
     return Promise.resolve(ctx);
@@ -491,10 +449,7 @@ export default class ApiService extends moleculer.Service {
       // 'uetk_szns.qgs',
       // 'zuvinimas_barai.qgs',
       // 'zuvinimas.qgs',
-    ].map(
-      (i) =>
-        `${host}/qgisserver?SERVICE=WMS&REQUEST=GetCapabilities&map=/project/${i}`
-    );
+    ].map((i) => `${host}/qgisserver?SERVICE=WMS&REQUEST=GetCapabilities&map=/project/${i}`);
 
     // urls.push(
     //   `${host}/qgisserver?map=/project/inva.qgs&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetFeatureInfo&QUERY_LAYERS=radavietes_invazines%2Cradavietes_svetimzemes&LAYERS=radavietes_invazines%2Cradavietes_svetimzemes&FILTER=radavietes_invazines%3A%22id%22%20%3D%20184920%3Bradavietes_svetimzemes%3A%22id%22%20%3D%20184920&INFO_FORMAT=application%2Fjson&SRS=EPSG%3A3346&WIDTH=10000&HEIGHT=10000&WITH_GEOMETRY=true&FEATURE_COUNT=100`
@@ -513,22 +468,17 @@ export default class ApiService extends moleculer.Service {
       const coord1 = Math.random() * (680000 - 306000) + 306000;
       const coord2 = Math.random() * (6258000 - 5975000) + 5975000;
 
-      const bbox = [
-        coord1 - 2000,
-        coord2 - 2000,
-        coord1 + 2000,
-        coord2 + 2000,
-      ].join(',');
+      const bbox = [coord1 - 2000, coord2 - 2000, coord1 + 2000, coord2 + 2000].join(',');
 
       urls.push(
         `${host}/qgisserver/?map=/project/uetk_public.qgs&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetFeatureInfo&FORMAT=image%2Fpng&TRANSPARENT=true&QUERY_LAYERS=upes%2Cezerai_tvenkiniai%2Cvandens_matavimo_stotys%2Cvandens_tyrimu_vietos%2Czemiu_uztvanka%2Cvandens_pertekliaus_pralaida%2Czuvu_pralaida%2Chidroelektrines&LAYERS=upes%2Cezerai_tvenkiniai%2Cvandens_matavimo_stotys%2Cvandens_tyrimu_vietos%2Czemiu_uztvanka%2Cvandens_pertekliaus_pralaida%2Czuvu_pralaida%2Chidroelektrines&FILTER=&INFO_FORMAT=application%2Fjson&FEATURE_COUNT=1000&FI_POINT_TOLERANCE=10&FI_LINE_TOLERANCE=10&FI_POLYGON_TOLERANCE=10&WITH_GEOMETRY=true&X=50&Y=50&SRS=EPSG%3A3346&STYLES=&WIDTH=101&HEIGHT=101&BBOX=${encodeURIComponent(
-          bbox
-        )}`
+          bbox,
+        )}`,
       );
       urls.push(
         `${host}/qgisserver/?map=/project/inva.qgs&SERVICE=WMS&VERSION=1.1.1&REQUEST=GetFeatureInfo&FORMAT=image%2Fpng&TRANSPARENT=true&QUERY_LAYERS=radavietes_invazines&LAYERS=radavietes_invazines&FILTER=&INFO_FORMAT=application%2Fjson&FEATURE_COUNT=1000&FI_POINT_TOLERANCE=10&FI_LINE_TOLERANCE=10&FI_POLYGON_TOLERANCE=10&WITH_GEOMETRY=true&X=50&Y=50&SRS=EPSG%3A3346&STYLES=&WIDTH=101&HEIGHT=101&BBOX=${encodeURIComponent(
-          bbox
-        )}`
+          bbox,
+        )}`,
       );
     }
 
@@ -540,7 +490,7 @@ export default class ApiService extends moleculer.Service {
       })
         .then(async (res) => {
           // console.log(res.status);
-          
+
           if (res.status < 200 || res.status >= 300) {
             const text = await res.text();
             console.log(text, '???');
@@ -550,9 +500,9 @@ export default class ApiService extends moleculer.Service {
           }
         })
         .catch((err) => {
-          console.log(i)
+          console.log(i);
           console.error(err);
-        })
+        }),
     );
   }
 }

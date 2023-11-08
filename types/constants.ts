@@ -17,39 +17,21 @@ export enum EndpointType {
 
 export const ADDITIONAL_CACHE_KEYS = ['#user.type', '#user.isExpert'];
 
-export function throwUnauthorizedError(
-  message?: string,
-  data?: any
-): Errors.MoleculerError {
+export function throwUnauthorizedError(message?: string, data?: any): Errors.MoleculerError {
   throw new Moleculer.Errors.MoleculerClientError(
     message || `Unauthorized.`,
     401,
     'UNAUTHORIZED',
-    data
+    data,
   );
 }
 
-export function throwValidationError(
-  message?: string,
-  data?: any
-): Errors.MoleculerError {
-  throw new Moleculer.Errors.ValidationError(
-    message || `Not valid.`,
-    'VALIDATION_ERROR',
-    data
-  );
+export function throwValidationError(message?: string, data?: any): Errors.MoleculerError {
+  throw new Moleculer.Errors.ValidationError(message || `Not valid.`, 'VALIDATION_ERROR', data);
 }
 
-export function throwNotFoundError(
-  message?: string,
-  data?: any
-): Errors.MoleculerError {
-  throw new Moleculer.Errors.MoleculerClientError(
-    message || `Not found.`,
-    404,
-    'NOT_FOUND',
-    data
-  );
+export function throwNotFoundError(message?: string, data?: any): Errors.MoleculerError {
+  throw new Moleculer.Errors.MoleculerClientError(message || `Not found.`, 404, 'NOT_FOUND', data);
 }
 
 export function queryBooleanPlain(field: string, value: boolean = false) {
@@ -90,13 +72,7 @@ async function validateUserId(ctx: Context<{}, UserAuthMeta>, id: number) {
   return id === user.id;
 }
 
-export const USER_PUBLIC_FIELDS = [
-  'id',
-  'firstName',
-  'lastName',
-  'email',
-  'phone',
-];
+export const USER_PUBLIC_FIELDS = ['id', 'firstName', 'lastName', 'email', 'phone'];
 
 export const USER_PUBLIC_GET = async ({ value, ctx }: any) => {
   if (!ctx.meta.user?.id || !value || !value?.id) return value;
@@ -112,12 +88,7 @@ export const USER_PUBLIC_GET = async ({ value, ctx }: any) => {
   };
 };
 
-export function USER_PUBLIC_POPULATE(
-  ctx: any,
-  _values: any,
-  items: any[],
-  field: any
-) {
+export function USER_PUBLIC_POPULATE(ctx: any, _values: any, items: any[], field: any) {
   return Promise.all(
     items.map(async (item) => {
       const value = item[field.columnName || field.name];
@@ -140,7 +111,7 @@ export function USER_PUBLIC_POPULATE(
         fields: USER_PUBLIC_FIELDS,
         scope,
       });
-    })
+    }),
   );
 }
 
@@ -192,12 +163,7 @@ export const COMMON_FIELDS = {
   },
 };
 
-export const UPDATED_DELETED_FIELDS_NAMES = [
-  'updatedAt',
-  'updatedBy',
-  'deletedAt',
-  'deletedBy',
-];
+export const UPDATED_DELETED_FIELDS_NAMES = ['updatedAt', 'updatedBy', 'deletedAt', 'deletedBy'];
 
 export const ALL_COMMON_FIELDS_NAMES = [
   'createdAt',
@@ -208,10 +174,7 @@ export const ALL_COMMON_FIELDS_NAMES = [
   'deletedBy',
 ];
 
-export function COMMON_FIELDS_WITH_PERMISSIONS(
-  permissions: string | string[],
-  fields?: string[]
-) {
+export function COMMON_FIELDS_WITH_PERMISSIONS(permissions: string | string[], fields?: string[]) {
   fields = fields || UPDATED_DELETED_FIELDS_NAMES;
   return _.merge(
     {},
@@ -221,13 +184,11 @@ export function COMMON_FIELDS_WITH_PERMISSIONS(
         permission: permissions,
       };
       return acc;
-    }, {})
+    }, {}),
   );
 }
 
-export function COMMON_FIELDS_WITH_HIDDEN(
-  fields: string[] = UPDATED_DELETED_FIELDS_NAMES
-) {
+export function COMMON_FIELDS_WITH_HIDDEN(fields: string[] = UPDATED_DELETED_FIELDS_NAMES) {
   return _.merge(
     {},
     COMMON_FIELDS,
@@ -236,7 +197,7 @@ export function COMMON_FIELDS_WITH_HIDDEN(
         hidden: 'byDefault',
       };
       return acc;
-    }, {})
+    }, {}),
   );
 }
 

@@ -39,11 +39,7 @@ export interface User extends BaseModelInterface {
 const VISIBLE_TO_USER_SCOPE = 'tenant';
 const NOT_ADMINS_SCOPE = 'notAdmins';
 
-const AUTH_PROTECTED_SCOPES = [
-  ...COMMON_DEFAULT_SCOPES,
-  VISIBLE_TO_USER_SCOPE,
-  NOT_ADMINS_SCOPE,
-];
+const AUTH_PROTECTED_SCOPES = [...COMMON_DEFAULT_SCOPES, VISIBLE_TO_USER_SCOPE, NOT_ADMINS_SCOPE];
 
 export const USERS_WITHOUT_AUTH_SCOPES = [`-${VISIBLE_TO_USER_SCOPE}`];
 const USERS_WITHOUT_NOT_ADMINS_SCOPE = [`-${NOT_ADMINS_SCOPE}`];
@@ -90,11 +86,7 @@ export const USERS_DEFAULT_SCOPES = [
         columnName: 'authUserId',
         populate: 'auth.users.get',
         async onRemove({ ctx, entity }: FieldHookCallback) {
-          await ctx.call(
-            'auth.users.remove',
-            { id: entity.authUserId },
-            { meta: ctx?.meta }
-          );
+          await ctx.call('auth.users.remove', { id: entity.authUserId }, { meta: ctx?.meta });
         },
       },
 
@@ -112,9 +104,9 @@ export const USERS_DEFAULT_SCOPES = [
                   meta: {
                     user,
                   },
-                }
+                },
               );
-            })
+            }),
           );
         },
       },
@@ -130,7 +122,7 @@ export const USERS_DEFAULT_SCOPES = [
                 tenant: ctx.meta.profile.id,
                 user: user.id,
               });
-            })
+            }),
           );
         },
       },
@@ -160,12 +152,8 @@ export const USERS_DEFAULT_SCOPES = [
           };
           if (!value?.length || !Array.isArray(value)) return response;
 
-          response.approvedForms = value.filter(
-            (i) => i.status === FormStatus.APPROVED
-          ).length;
-          response.rejectedForms = value.filter(
-            (i) => i.status === FormStatus.REJECTED
-          ).length;
+          response.approvedForms = value.filter((i) => i.status === FormStatus.APPROVED).length;
+          response.rejectedForms = value.filter((i) => i.status === FormStatus.REJECTED).length;
 
           return response;
         },
@@ -193,29 +181,22 @@ export const USERS_DEFAULT_SCOPES = [
         }
 
         if (tenantId) {
-          const userIds: number[] = await ctx.call(
-            'tenantUsers.findIdsByTenant',
-            {
-              id: tenantId,
-              role: query.role,
-            }
-          );
+          const userIds: number[] = await ctx.call('tenantUsers.findIdsByTenant', {
+            id: tenantId,
+            role: query.role,
+          });
           delete query.role;
 
           if (params?.id) {
             let hasPermissions = false;
             if (Array.isArray(params.id)) {
-              hasPermissions = params.id.every((id: number) =>
-                userIds.includes(Number(id))
-              );
+              hasPermissions = params.id.every((id: number) => userIds.includes(Number(id)));
             } else {
               hasPermissions = userIds.includes(Number(params.id));
             }
 
             if (!hasPermissions) {
-              throwUnauthorizedError(
-                `Cannot access user with ID: ${params.id}`
-              );
+              throwUnauthorizedError(`Cannot access user with ID: ${params.id}`);
             }
           } else {
             query.id = { $in: userIds };
@@ -239,11 +220,7 @@ export const USERS_DEFAULT_SCOPES = [
     },
 
     list: {
-      types: [
-        EndpointType.ADMIN,
-        EndpointType.EXPERT,
-        EndpointType.TENANT_USER,
-      ],
+      types: [EndpointType.ADMIN, EndpointType.EXPERT, EndpointType.TENANT_USER],
     },
 
     remove: {
@@ -285,7 +262,7 @@ export default class UsersService extends moleculer.Service {
         tenantId?: number;
       },
       UserAuthMeta
-    >
+    >,
   ) {
     const { personalCode, email, role, tenantId } = ctx.params;
     const { profile, user: authenticatedUser } = ctx.meta;
@@ -311,7 +288,7 @@ export default class UsersService extends moleculer.Service {
         throw new moleculer.Errors.MoleculerClientError(
           'Cannot assign user to tenant.',
           401,
-          'UNAUTHORIZED'
+          'UNAUTHORIZED',
         );
       }
 
@@ -408,16 +385,14 @@ export default class UsersService extends moleculer.Service {
       email?: string;
       phone?: string;
       update?: boolean;
-    }>
+    }>,
   ) {
     const { authUser, update, firstName, lastName, email, phone } = ctx.params;
     if (!authUser || !authUser.id) return;
 
     const scope = [...USERS_WITHOUT_AUTH_SCOPES];
 
-    const authUserIsAdmin = ['SUPER_ADMIN', UserType.ADMIN].includes(
-      authUser.type
-    );
+    const authUserIsAdmin = ['SUPER_ADMIN', UserType.ADMIN].includes(authUser.type);
 
     if (authUserIsAdmin) {
       scope.push(...USERS_WITHOUT_NOT_ADMINS_SCOPE);
@@ -527,7 +502,7 @@ export default class UsersService extends moleculer.Service {
         tenantId: number;
       },
       UserAuthMeta
-    >
+    >,
   ) {
     const { profile, user } = ctx.meta;
     const { id, email, phone, role, tenantId } = ctx.params;

@@ -3,10 +3,7 @@
 import moleculer, { Context } from 'moleculer';
 import { Action, Event, Method, Service } from 'moleculer-decorators';
 
-import DbConnection, {
-  MaterializedView,
-  PopulateHandlerFn,
-} from '../mixins/database.mixin';
+import DbConnection, { MaterializedView, PopulateHandlerFn } from '../mixins/database.mixin';
 
 import { FeatureCollection, Geometry } from 'geojsonjs';
 import {
@@ -207,7 +204,7 @@ export default class PlacesService extends moleculer.Service {
       forms?: number[];
       isRelevant: boolean;
       comment: string;
-    }>
+    }>,
   ) {
     const { id, isRelevant, forms: formsIds, comment } = ctx.params;
 
@@ -221,13 +218,10 @@ export default class PlacesService extends moleculer.Service {
     }
 
     if (!isRelevant) {
-      const relevantFormsCount: number = await this.broker.call(
-        'forms.relevantFormsCount',
-        {
-          place: place.id,
-          id: formsIds,
-        }
-      );
+      const relevantFormsCount: number = await this.broker.call('forms.relevantFormsCount', {
+        place: place.id,
+        id: formsIds,
+      });
 
       if (!relevantFormsCount) {
         throwUnauthorizedError('Cannot make all forms irrelevant');
@@ -270,7 +264,7 @@ export default class PlacesService extends moleculer.Service {
   @Method
   hasPermissionToEdit(
     place: any,
-    user?: User
+    user?: User,
   ): {
     edit: boolean;
   } {
@@ -281,8 +275,7 @@ export default class PlacesService extends moleculer.Service {
 
     const species = place.species || place.speciesId;
     const userIsAdmin = user.type === UserType.ADMIN;
-    const expertWithSpecies =
-      user.isExpert && user.expertSpecies.includes(species);
+    const expertWithSpecies = user.isExpert && user.expertSpecies.includes(species);
 
     if (userIsAdmin || expertWithSpecies) {
       return valid;
@@ -293,10 +286,7 @@ export default class PlacesService extends moleculer.Service {
 
   @Method
   async refreshPlacesMaterializedView(ctx: Context) {
-    await this.refreshMaterializedView(
-      ctx,
-      MaterializedView.PLACES_WITH_TAXONOMIES
-    );
+    await this.refreshMaterializedView(ctx, MaterializedView.PLACES_WITH_TAXONOMIES);
   }
 
   @Event()
@@ -318,8 +308,8 @@ export default class PlacesService extends moleculer.Service {
           asGeoJsonQuery('geom', 'geom', 3346, {
             options: 0,
             digits: 0,
-          })
-        )
+          }),
+        ),
       )
       .from(adapter.client.raw(`rusys_get_place_change_data(${id})`))
       .first();
@@ -363,7 +353,7 @@ export default class PlacesService extends moleculer.Service {
         comment: comment || '',
         status: place.status,
       },
-      { meta: ctx.meta }
+      { meta: ctx.meta },
     );
 
     await this.refreshPlacesMaterializedView(ctx);
