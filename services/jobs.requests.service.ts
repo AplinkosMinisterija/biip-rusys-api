@@ -23,7 +23,7 @@ function getSecret(request: Request) {
     bullmq: {
       worker: { concurrency: 5 },
       job: {
-        attempts: 1,
+        attempts: 5,
         backoff: 500,
       },
     },
