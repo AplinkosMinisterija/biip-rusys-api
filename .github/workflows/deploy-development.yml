@@ -15,3 +15,4 @@ jobs:
       environment: Development
       enable-sentry: true
       docker-image: ghcr.io/AplinkosMinisterija/biip-rusys-api
+      runs-on: biip-workflows
