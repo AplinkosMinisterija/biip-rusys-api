@@ -15,7 +15,6 @@ import { toReadableStream } from '../utils/functions';
       job: {
         attempts: 10,
         backoff: 1000,
-        failParentOnFailure: true,
       },
     },
   },

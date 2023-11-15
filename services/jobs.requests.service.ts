@@ -4,7 +4,7 @@ import moleculer, { Context } from 'moleculer';
 import { Action, Method, Service } from 'moleculer-decorators';
 import moment from 'moment';
 import BullMqMixin from '../mixins/bullmq.mixin';
-import { FILE_TYPES, throwNotFoundError } from '../types';
+import { FILE_TYPES, throwNotFoundError, throwValidationError } from '../types';
 import { toMD5Hash, toReadableStream } from '../utils/functions';
 import { getTemplateHtml } from '../utils/html';
 import { getMapsSearchParams, getRequestData } from '../utils/pdf/requests';
@@ -24,8 +24,7 @@ function getSecret(request: Request) {
       worker: { concurrency: 5 },
       job: {
         attempts: 5,
-        failParentOnFailure: true,
-        backoff: 1000,
+        backoff: 500,
       },
     },
   },
@@ -57,6 +56,35 @@ export default class JobsRequestsService extends moleculer.Service {
       {},
     );
 
+    const requestData = await getRequestData(ctx, id);
+
+    const emptyScreenshots: any = {};
+
+    if (!screenshotsByHash[requestData.previewScreenshotHash]) {
+      emptyScreenshots.request = id;
+    }
+
+    requestData?.places.forEach((p) => {
+      if (!screenshotsByHash[p.hash]) {
+        emptyScreenshots.places = emptyScreenshots.places || [];
+        emptyScreenshots.places.push(p.id);
+      }
+    });
+
+    Object.entries(requestData?.informationalForms).forEach(([key, value]) => {
+      if (!screenshotsByHash[value.hash]) {
+        emptyScreenshots.informationalForms = emptyScreenshots.informationalForms || [];
+        emptyScreenshots.informationalForms.push(value.forms?.map((f: any) => f.id));
+      }
+    });
+
+    if (Object.keys(emptyScreenshots).length) {
+      throwValidationError('Empty screenshots', {
+        request: id,
+        emptyScreenshots,
+      });
+    }
+
     const screenshotsHash = toMD5Hash(`id=${id}&date=${moment().format('YYYYMMDDHHmmsss')}`);
 
     const redisKey = `screenshots.${screenshotsHash}`;
@@ -64,8 +92,6 @@ export default class JobsRequestsService extends moleculer.Service {
     await this.broker.cacher.set(redisKey, screenshotsByHash);
 
     const secret = getSecret(request);
-
-    const requestData = await getRequestData(ctx, id);
 
     const footerHtml = getTemplateHtml('footer.ejs', {
       id,
@@ -171,6 +197,7 @@ export default class JobsRequestsService extends moleculer.Service {
         id,
       },
       childrenJobs,
+      { removeDependencyOnFailure: true },
     );
   }
 
