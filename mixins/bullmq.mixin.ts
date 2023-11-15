@@ -43,7 +43,7 @@ export default {
             parentSpan,
           });
         },
-        _.merge(this.settings.bullmq.worker, { connection: this.$connection }),
+        _.merge({}, this.settings.bullmq.worker, { connection: this.$connection }),
       );
       this.$events = new QueueEvents(this.$queueWithPrefix(), {
         connection: this.$connection,
@@ -130,7 +130,7 @@ export default {
       return this.$resolve(name).add(
         action,
         this.$getQueueData(ctx, params),
-        _.merge(this.settings.bullmq.job || {}, options),
+        _.merge({}, this.settings.bullmq.job || {}, options),
       );
     },
     localQueue(ctx: Context, action: string, params: any, options?: any) {
@@ -161,7 +161,7 @@ export default {
           queueName: this.$queueWithPrefix(item.name || name),
           data: this.$getQueueData(ctx, item.params),
           children: item?.children?.map?.(convertItemToQueueItem),
-          opts: _.merge(this.settings.bullmq.job || {}, item.options || {}),
+          opts: _.merge({}, this.settings.bullmq.job || {}, item.options || {}),
         };
       };
 
