@@ -141,7 +141,7 @@ export default class AuthService extends moleculer.Service {
     const { authUser, authUserGroups } = ctx.params;
     const user: User = await ctx.call('users.findOrCreate', {
       authUser: authUser,
-      update: false,
+      update: true,
     });
 
     if (authUserGroups && authUserGroups.length && user?.id) {
