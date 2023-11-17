@@ -415,20 +415,20 @@ export default class UsersService extends moleculer.Service {
       phone: phone || authUser.phone,
     };
 
-    if (user?.id) {
-      return ctx.call('users.update', {
-        id: user.id,
-        ...dataToSave,
-        scope,
-      });
-    }
-
     // let user to customize his phone and email
     if (user?.email) {
       delete dataToSave.email;
     }
     if (user?.phone) {
       delete dataToSave.phone;
+    }
+
+    if (user?.id) {
+      return ctx.call('users.update', {
+        id: user.id,
+        ...dataToSave,
+        scope,
+      });
     }
 
     return ctx.call('users.create', {
