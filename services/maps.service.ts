@@ -190,7 +190,7 @@ export default class MapsService extends moleculer.Service {
   async getUserData(ctx: Context<{}, UserAuthMeta>) {
     const { user, profile } = ctx.meta;
     const data: any = {
-      id: user.id,
+      id: user.id || user.isServer ? 'server' : '',
       firstName: user.firstName,
       lastName: user.lastName,
       type: user.type,
