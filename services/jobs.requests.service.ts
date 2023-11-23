@@ -60,11 +60,11 @@ export default class JobsRequestsService extends moleculer.Service {
 
     const emptyScreenshots: any = {};
 
-    const screenshotsCount =
-      (requestData?.places?.length || 0) +
-      (Object.entries(requestData?.informationalForms)?.length || 0);
+    const placesCount = requestData?.places?.length || 0;
+    const informationalFormsCount = Object.keys(requestData?.informationalForms)?.length || 0;
 
-    if (!!screenshotsCount && !screenshotsByHash[requestData.previewScreenshotHash]) {
+    // general preview screenshot should be in place when there are places
+    if (!!placesCount && !screenshotsByHash[requestData.previewScreenshotHash]) {
       emptyScreenshots.request = id;
     }
 
@@ -75,7 +75,7 @@ export default class JobsRequestsService extends moleculer.Service {
       }
     });
 
-    Object.entries(requestData?.informationalForms).forEach(([key, value]) => {
+    Object.values(requestData?.informationalForms).forEach((value) => {
       if (!screenshotsByHash[value.hash]) {
         emptyScreenshots.informationalForms = emptyScreenshots.informationalForms || [];
         emptyScreenshots.informationalForms.push(value.forms?.map((f: any) => f.id));
@@ -86,7 +86,7 @@ export default class JobsRequestsService extends moleculer.Service {
       throwValidationError('Empty screenshots', {
         request: id,
         emptyScreenshots,
-        screenshotsCount,
+        screenshotsCount: placesCount + informationalFormsCount + placesCount ? 1 : 0,
       });
     }
 
