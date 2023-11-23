@@ -184,13 +184,13 @@ export default class MapsService extends moleculer.Service {
     rest: 'GET /auth/me',
     auth: AuthType.MAPS_PRIVATE,
     cache: {
-      keys: ['#user.id', '#profile.id'],
+      keys: ['#user.id', '#profile.id', '#user.isServer'],
     },
   })
   async getUserData(ctx: Context<{}, UserAuthMeta>) {
     const { user, profile } = ctx.meta;
     const data: any = {
-      id: user.id,
+      id: user.id || user.isServer ? 'server' : '',
       firstName: user.firstName,
       lastName: user.lastName,
       type: user.type,
