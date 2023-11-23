@@ -60,7 +60,11 @@ export default class JobsRequestsService extends moleculer.Service {
 
     const emptyScreenshots: any = {};
 
-    if (!screenshotsByHash[requestData.previewScreenshotHash]) {
+    const screenshotsCount =
+      (requestData?.places?.length || 0) +
+      (Object.entries(requestData?.informationalForms)?.length || 0);
+
+    if (!!screenshotsCount && !screenshotsByHash[requestData.previewScreenshotHash]) {
       emptyScreenshots.request = id;
     }
 
@@ -82,6 +86,7 @@ export default class JobsRequestsService extends moleculer.Service {
       throwValidationError('Empty screenshots', {
         request: id,
         emptyScreenshots,
+        screenshotsCount,
       });
     }
 
