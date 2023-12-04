@@ -1,0 +1,1281 @@
+{
+  "type": "FeatureCollection",
+  "name": "Spc_Classes",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 1,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 1000,
+        "NAME_LATIN": "Rhodophyta",
+        "NAME_LT": "Raudondumbliai",
+        "ORIGINAL_ID": 1000,
+        "SPC_TYPES_ID": 10,
+        "GLOBALID": "{664C4E21-072F-4B3A-8D55-E2318EF9ECFB}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 2,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 1001,
+        "NAME_LATIN": "Phaeophyta",
+        "NAME_LT": "Rudadumbliai",
+        "ORIGINAL_ID": 1001,
+        "SPC_TYPES_ID": 10,
+        "GLOBALID": "{BA7A006A-2EAB-41C8-AA24-58F6D2AEB206}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 3,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 1002,
+        "NAME_LATIN": "Charophyta",
+        "NAME_LT": "Menturdumbliai",
+        "ORIGINAL_ID": 1002,
+        "SPC_TYPES_ID": 10,
+        "GLOBALID": "{BC98CFBD-911B-4B42-B3D2-CE3992BCFFE3}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 4,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 1100,
+        "NAME_LATIN": "Bryopsida",
+        "NAME_LT": "Lapsamanės",
+        "ORIGINAL_ID": 1100,
+        "SPC_TYPES_ID": 11,
+        "GLOBALID": "{10B595E7-CB97-4F64-8972-81261BF93184}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 5,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 1101,
+        "NAME_LATIN": "Marchantiopsida",
+        "NAME_LT": "Kerpsamanės",
+        "ORIGINAL_ID": 1101,
+        "SPC_TYPES_ID": 11,
+        "GLOBALID": "{CE98385C-9488-48D7-8192-33A4D0575F4D}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 6,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 1200,
+        "NAME_LATIN": "Equisetopsida",
+        "NAME_LT": "Asiūklainiai",
+        "ORIGINAL_ID": 1200,
+        "SPC_TYPES_ID": 12,
+        "GLOBALID": "{F40D4052-F977-4F1A-B8DD-FAD7558D23C2}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 7,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 1300,
+        "NAME_LATIN": "Lycopodiopsida",
+        "NAME_LT": "Pataisainiai",
+        "ORIGINAL_ID": 1300,
+        "SPC_TYPES_ID": 13,
+        "GLOBALID": "{32EF2AA0-C176-4DF7-81AB-910D38FDDB76}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 8,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 1301,
+        "NAME_LATIN": "Isoetopsida",
+        "NAME_LT": "Slepišerainiai",
+        "ORIGINAL_ID": 1301,
+        "SPC_TYPES_ID": 13,
+        "GLOBALID": "{82C96348-10BD-4D4A-A5D8-14530D1428F1}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 9,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 1400,
+        "NAME_LATIN": "Ophioglossopsida",
+        "NAME_LT": "Driežlielainiai",
+        "ORIGINAL_ID": 1400,
+        "SPC_TYPES_ID": 14,
+        "GLOBALID": "{D3DBF3D3-E506-4887-961F-EC9EEBB10A5D}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 10,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 1401,
+        "NAME_LATIN": "Polypodiopsida",
+        "NAME_LT": "Šertvainiai",
+        "ORIGINAL_ID": 1401,
+        "SPC_TYPES_ID": 14,
+        "GLOBALID": "{C247C3C9-B1D7-4DE8-BB85-4C3D6A84996A}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 11,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 1500,
+        "NAME_LATIN": "Pinopsida",
+        "NAME_LT": "Pušainiai",
+        "ORIGINAL_ID": 1500,
+        "SPC_TYPES_ID": 15,
+        "GLOBALID": "{18C0DE45-0DB3-43F3-B26C-CF8381E24EAB}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 12,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 1600,
+        "NAME_LATIN": "Magnoliopsida",
+        "NAME_LT": "Magnolijainiai",
+        "ORIGINAL_ID": 1600,
+        "SPC_TYPES_ID": 16,
+        "GLOBALID": "{75668CFE-F69C-4F8E-B7A7-AE9510501451}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 13,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 1601,
+        "NAME_LATIN": "Liliopsida",
+        "NAME_LT": "Lelijainiai",
+        "ORIGINAL_ID": 1601,
+        "SPC_TYPES_ID": 16,
+        "GLOBALID": "{0E1DE2C5-4E5A-4D60-BD2D-55ABC8EB121D}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 14,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 2000,
+        "NAME_LATIN": "Basidiomycetes",
+        "NAME_LT": "Papėdgrybiai",
+        "ORIGINAL_ID": 2000,
+        "SPC_TYPES_ID": 20,
+        "GLOBALID": "{CD1119B3-D690-4700-A9E1-3C55759EA5EE}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 15,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 2100,
+        "NAME_LATIN": "Ascomycetes",
+        "NAME_LT": "Aukšliagrybiai",
+        "ORIGINAL_ID": 2100,
+        "SPC_TYPES_ID": 21,
+        "GLOBALID": "{7173F667-62E5-459C-80F0-8CB1E69ECB35}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 16,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 2101,
+        "NAME_LATIN": "Ascomycetes lichenisati",
+        "NAME_LT": "Kerpės",
+        "ORIGINAL_ID": 2101,
+        "SPC_TYPES_ID": 21,
+        "GLOBALID": "{C2AEB9F4-71A0-48C1-9C9F-07E9A36AFD0B}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 17,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3000,
+        "NAME_LATIN": "Hirudinidae",
+        "NAME_LT": "Vandenyje gyvenančios dėlės",
+        "ORIGINAL_ID": 3000,
+        "SPC_TYPES_ID": 30,
+        "GLOBALID": "{A8398B59-8212-4A72-BE94-E074531CFC42}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 18,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3100,
+        "NAME_LATIN": "Mysidacea",
+        "NAME_LT": "Mizidės",
+        "ORIGINAL_ID": 3100,
+        "SPC_TYPES_ID": 31,
+        "GLOBALID": "{0848D48C-0E09-4F69-B861-F4439D5C545C}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 19,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3101,
+        "NAME_LATIN": "Anostraca",
+        "NAME_LT": "Bešarviai",
+        "ORIGINAL_ID": 3101,
+        "SPC_TYPES_ID": 31,
+        "GLOBALID": "{6EBCD502-47F2-42A0-86F2-61C030F87A4B}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 20,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3102,
+        "NAME_LATIN": "Notostraca",
+        "NAME_LT": "Skydvėžiai",
+        "ORIGINAL_ID": 3102,
+        "SPC_TYPES_ID": 31,
+        "GLOBALID": "{52794323-8DCB-4D0B-A611-78C247306B28}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 21,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3103,
+        "NAME_LATIN": "Amphipoda",
+        "NAME_LT": "Šoniplaukos",
+        "ORIGINAL_ID": 3103,
+        "SPC_TYPES_ID": 31,
+        "GLOBALID": "{F92CDA12-641F-404F-B440-57F54F801F45}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 22,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3104,
+        "NAME_LATIN": "Decapoda",
+        "NAME_LT": "Dešimtkojai",
+        "ORIGINAL_ID": 3104,
+        "SPC_TYPES_ID": 31,
+        "GLOBALID": "{504A6EA8-C880-4BBD-BC80-3B9CABF34A03}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 23,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3200,
+        "NAME_LATIN": "Odonata",
+        "NAME_LT": "Žirgeliai",
+        "ORIGINAL_ID": 3200,
+        "SPC_TYPES_ID": 32,
+        "GLOBALID": "{9765F371-5AA4-4C68-835F-0757D5799299}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 24,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3201,
+        "NAME_LATIN": "Lepidoptera",
+        "NAME_LT": "Drugiai",
+        "ORIGINAL_ID": 3201,
+        "SPC_TYPES_ID": 32,
+        "GLOBALID": "{42BDD602-95F5-43E3-9B89-E87D6376D14E}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 25,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3202,
+        "NAME_LATIN": "Coleoptera",
+        "NAME_LT": "Vabalai",
+        "ORIGINAL_ID": 3202,
+        "SPC_TYPES_ID": 32,
+        "GLOBALID": "{033865CB-A7BA-4BCE-9B95-FF3B57EA4CA5}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 26,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3203,
+        "NAME_LATIN": "Dermaptera",
+        "NAME_LT": "Auslindos",
+        "ORIGINAL_ID": 3203,
+        "SPC_TYPES_ID": 32,
+        "GLOBALID": "{B53A3FCF-C3F0-4A15-8D43-358AAF152D60}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 27,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3204,
+        "NAME_LATIN": "Ephemeroptera",
+        "NAME_LT": "Lašalai",
+        "ORIGINAL_ID": 3204,
+        "SPC_TYPES_ID": 32,
+        "GLOBALID": "{EE658705-A4D4-4A6F-B687-3017CE283B79}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 28,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3205,
+        "NAME_LATIN": "Hymenoptera",
+        "NAME_LT": "Plėviasparniai",
+        "ORIGINAL_ID": 3205,
+        "SPC_TYPES_ID": 32,
+        "GLOBALID": "{5371CF98-DD41-458C-9547-55BD5FEBB357}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 29,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3206,
+        "NAME_LATIN": "Trichoptera",
+        "NAME_LT": "Apsiuvos",
+        "ORIGINAL_ID": 3206,
+        "SPC_TYPES_ID": 32,
+        "GLOBALID": "{30321A4B-0B78-4DC2-A80B-68AAD31E598B}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 30,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3207,
+        "NAME_LATIN": "Homoptera",
+        "NAME_LT": "Lygiasparniai",
+        "ORIGINAL_ID": 3207,
+        "SPC_TYPES_ID": 32,
+        "GLOBALID": "{B6A2A800-877B-48F6-B568-482494D60358}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 31,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3208,
+        "NAME_LATIN": "Ortoptera",
+        "NAME_LT": "Tiesiasparniai",
+        "ORIGINAL_ID": 3208,
+        "SPC_TYPES_ID": 32,
+        "GLOBALID": "{0A74FC58-B77D-4828-B913-894A91ECB92A}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 32,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3209,
+        "NAME_LATIN": "Plecoptera",
+        "NAME_LT": "Ankstyvės",
+        "ORIGINAL_ID": 3209,
+        "SPC_TYPES_ID": 32,
+        "GLOBALID": "{B609CFC2-FE2B-4ACB-930E-71ACA10F4281}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 33,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3300,
+        "NAME_LATIN": "Araneae",
+        "NAME_LT": "Didžiapilviai",
+        "ORIGINAL_ID": 3300,
+        "SPC_TYPES_ID": 33,
+        "GLOBALID": "{B71E4DB3-9F0A-4E84-9884-16644FC63700}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 34,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3400,
+        "NAME_LATIN": "Pulmonata",
+        "NAME_LT": "Plautiniai",
+        "ORIGINAL_ID": 3400,
+        "SPC_TYPES_ID": 34,
+        "GLOBALID": "{A8F027A5-9D27-43D1-8692-BB213E5AE95D}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 35,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3401,
+        "NAME_LATIN": "Unionoida",
+        "NAME_LT": "Rausančiosios geldutės",
+        "ORIGINAL_ID": 3401,
+        "SPC_TYPES_ID": 34,
+        "GLOBALID": "{B44035CB-6D1B-4D67-AD9F-BA2FA0F0ED58}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 36,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3500,
+        "NAME_LATIN": "Perciformes",
+        "NAME_LT": "Ešeržuvės",
+        "ORIGINAL_ID": 3500,
+        "SPC_TYPES_ID": 35,
+        "GLOBALID": "{EA07A27C-E1CA-4C51-883F-4154B6E665A7}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 37,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3501,
+        "NAME_LATIN": "Siluriformes",
+        "NAME_LT": "Šamažuvės",
+        "ORIGINAL_ID": 3501,
+        "SPC_TYPES_ID": 35,
+        "GLOBALID": "{156C4269-18C1-49C5-9497-B424DB1C362E}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 38,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3502,
+        "NAME_LATIN": "Cypriniformes",
+        "NAME_LT": "Karpžuvės",
+        "ORIGINAL_ID": 3502,
+        "SPC_TYPES_ID": 35,
+        "GLOBALID": "{1C03CA0C-EDB2-480A-BF7B-24C1FA320DDF}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 39,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3503,
+        "NAME_LATIN": "Salmoniformes",
+        "NAME_LT": "Lašišažuvės",
+        "ORIGINAL_ID": 3503,
+        "SPC_TYPES_ID": 35,
+        "GLOBALID": "{91A9B442-DEE6-41B8-B4CF-436CD82E6F10}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 40,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3504,
+        "NAME_LATIN": "Clupeiformes",
+        "NAME_LT": "Silkiažuvės",
+        "ORIGINAL_ID": 3504,
+        "SPC_TYPES_ID": 35,
+        "GLOBALID": "{9782AF57-1AE4-43A6-808F-41D5ED48A71C}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 41,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3505,
+        "NAME_LATIN": "Acipenseriformes",
+        "NAME_LT": "Eršketžuvės",
+        "ORIGINAL_ID": 3505,
+        "SPC_TYPES_ID": 35,
+        "GLOBALID": "{C78559BD-2B04-4E2A-B1F9-DE751CB7215F}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 42,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3506,
+        "NAME_LATIN": "Petromyzontiformes",
+        "NAME_LT": "Nėgės",
+        "ORIGINAL_ID": 3506,
+        "SPC_TYPES_ID": 35,
+        "GLOBALID": "{CB772542-5F47-4709-AD83-8B25A1F6ED0C}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 43,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3600,
+        "NAME_LATIN": "Anura",
+        "NAME_LT": "Beuodegiai varliagyviai",
+        "ORIGINAL_ID": 3600,
+        "SPC_TYPES_ID": 36,
+        "GLOBALID": "{8D0C78D4-68E7-40C7-9B5C-4BAF0FCD1EE9}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 44,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3601,
+        "NAME_LATIN": "Urodela",
+        "NAME_LT": "Uodeguotieji varliagyviai",
+        "ORIGINAL_ID": 3601,
+        "SPC_TYPES_ID": 36,
+        "GLOBALID": "{89C3995D-74A9-4F31-B79D-6D36847F7CD3}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 45,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3700,
+        "NAME_LATIN": "Sqamata",
+        "NAME_LT": "Žvynaropliai",
+        "ORIGINAL_ID": 3700,
+        "SPC_TYPES_ID": 37,
+        "GLOBALID": "{A57CBBB8-85A6-4000-B7DA-7064CDB7B7EC}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 46,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3701,
+        "NAME_LATIN": "Chelonii",
+        "NAME_LT": "Vėžliai",
+        "ORIGINAL_ID": 3701,
+        "SPC_TYPES_ID": 37,
+        "GLOBALID": "{CA301ACC-455D-4E40-AD17-8616844AA25A}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 47,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3800,
+        "NAME_LATIN": "Gaviiformes",
+        "NAME_LT": "Nariniai",
+        "ORIGINAL_ID": 3800,
+        "SPC_TYPES_ID": 38,
+        "GLOBALID": "{95AC380A-67C0-4827-862D-7F482B4D6CEC}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 48,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3801,
+        "NAME_LATIN": "Podicipediformes",
+        "NAME_LT": "Kraginiai",
+        "ORIGINAL_ID": 3801,
+        "SPC_TYPES_ID": 38,
+        "GLOBALID": "{0416E17D-1EF4-4CCF-97A4-924D89BDA2BF}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 49,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3802,
+        "NAME_LATIN": "Procellariiformes",
+        "NAME_LT": "Audrapaukštiniai",
+        "ORIGINAL_ID": 3802,
+        "SPC_TYPES_ID": 38,
+        "GLOBALID": "{49A82B93-D190-4AB7-A773-F33C3E5DF919}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 50,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3803,
+        "NAME_LATIN": "Pelicaniformes",
+        "NAME_LT": "Irklakojiniai",
+        "ORIGINAL_ID": 3803,
+        "SPC_TYPES_ID": 38,
+        "GLOBALID": "{75E45188-A1DB-42E7-9E77-26E31DAEBC42}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 51,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3804,
+        "NAME_LATIN": "Ciconiiformes",
+        "NAME_LT": "Gandriniai",
+        "ORIGINAL_ID": 3804,
+        "SPC_TYPES_ID": 38,
+        "GLOBALID": "{C9E90D7F-0E84-482B-854A-8D306854F3E5}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 52,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3805,
+        "NAME_LATIN": "Phoenicopteriformes",
+        "NAME_LT": "Flaminginiai",
+        "ORIGINAL_ID": 3805,
+        "SPC_TYPES_ID": 38,
+        "GLOBALID": "{879FB1A8-7C2D-47BF-91D0-0BF8811F8C22}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 53,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3806,
+        "NAME_LATIN": "Anseriformes",
+        "NAME_LT": "Žąsiniai",
+        "ORIGINAL_ID": 3806,
+        "SPC_TYPES_ID": 38,
+        "GLOBALID": "{555D935D-1EF4-47B7-BA3A-F510F566188E}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 54,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3807,
+        "NAME_LATIN": "Falconiformes",
+        "NAME_LT": "Sakaliniai",
+        "ORIGINAL_ID": 3807,
+        "SPC_TYPES_ID": 38,
+        "GLOBALID": "{7310C5AA-F8A6-4E72-9F33-7C9545EA8950}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 55,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3808,
+        "NAME_LATIN": "Galliformes",
+        "NAME_LT": "Vištiniai",
+        "ORIGINAL_ID": 3808,
+        "SPC_TYPES_ID": 38,
+        "GLOBALID": "{FF977FA7-46DE-46BB-B35B-01D9696AB839}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 56,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3809,
+        "NAME_LATIN": "Gruiformes",
+        "NAME_LT": "Gerviniai",
+        "ORIGINAL_ID": 3809,
+        "SPC_TYPES_ID": 38,
+        "GLOBALID": "{F50B2A8D-145B-46ED-9F6F-22393132A476}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 57,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3810,
+        "NAME_LATIN": "Charadriiformes",
+        "NAME_LT": "Sėjikiniai",
+        "ORIGINAL_ID": 3810,
+        "SPC_TYPES_ID": 38,
+        "GLOBALID": "{5F6FFF1D-685D-46B4-93F7-18A75E2401E3}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 58,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3811,
+        "NAME_LATIN": "Psittaciformes",
+        "NAME_LT": "Papūginiai",
+        "ORIGINAL_ID": 3811,
+        "SPC_TYPES_ID": 38,
+        "GLOBALID": "{AE367B7E-5370-4FDB-B794-7FA8951B3A85}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 59,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3812,
+        "NAME_LATIN": "Columbiformes",
+        "NAME_LT": "Karveliniai",
+        "ORIGINAL_ID": 3812,
+        "SPC_TYPES_ID": 38,
+        "GLOBALID": "{C2412BE0-08BE-4DEF-9AC3-E730CE05FFFA}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 60,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3813,
+        "NAME_LATIN": "Cuculiformes",
+        "NAME_LT": "Gegutiniai",
+        "ORIGINAL_ID": 3813,
+        "SPC_TYPES_ID": 38,
+        "GLOBALID": "{2A22A616-34AA-44F6-8AD6-0490F58E0C2A}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 61,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3814,
+        "NAME_LATIN": "Strigiformes",
+        "NAME_LT": "Pelėdiniai",
+        "ORIGINAL_ID": 3814,
+        "SPC_TYPES_ID": 38,
+        "GLOBALID": "{96EB978B-565C-4A7A-A8D3-4D7D5B151126}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 62,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3815,
+        "NAME_LATIN": "Caprimulgiformes",
+        "NAME_LT": "Lėliniai",
+        "ORIGINAL_ID": 3815,
+        "SPC_TYPES_ID": 38,
+        "GLOBALID": "{6AFCA57D-8014-46E7-8624-D4899000CADF}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 63,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3816,
+        "NAME_LATIN": "Apodiformes",
+        "NAME_LT": "Čiurliniai",
+        "ORIGINAL_ID": 3816,
+        "SPC_TYPES_ID": 38,
+        "GLOBALID": "{5762FDCA-5EBC-468B-AC55-1E224BC5651E}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 64,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3817,
+        "NAME_LATIN": "Coraciiformes",
+        "NAME_LT": "Žalvarniniai",
+        "ORIGINAL_ID": 3817,
+        "SPC_TYPES_ID": 38,
+        "GLOBALID": "{CEB4B8A3-024B-44DA-B3D5-6BF87FDDCA1A}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 65,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3818,
+        "NAME_LATIN": "Piciformes",
+        "NAME_LT": "Geniniai",
+        "ORIGINAL_ID": 3818,
+        "SPC_TYPES_ID": 38,
+        "GLOBALID": "{65313477-9857-4CCF-A517-D7BDE71D1907}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 66,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3819,
+        "NAME_LATIN": "Passeriformes",
+        "NAME_LT": "Žvirbliniai",
+        "ORIGINAL_ID": 3819,
+        "SPC_TYPES_ID": 38,
+        "GLOBALID": "{5C6A77FE-D840-4718-857E-8072CCD853DE}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 67,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3900,
+        "NAME_LATIN": "Insectivora",
+        "NAME_LT": "Vabzdžiaėdžiai",
+        "ORIGINAL_ID": 3900,
+        "SPC_TYPES_ID": 39,
+        "GLOBALID": "{2D2BAD37-5DDB-4BAD-86B8-500DA1AFF970}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 68,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3901,
+        "NAME_LATIN": "Chiroptera",
+        "NAME_LT": "Šikšnosparniai",
+        "ORIGINAL_ID": 3901,
+        "SPC_TYPES_ID": 39,
+        "GLOBALID": "{CCD2FF16-F6BF-4446-B2A6-0959720827AF}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 69,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3902,
+        "NAME_LATIN": "Rodentia",
+        "NAME_LT": "Graužikai",
+        "ORIGINAL_ID": 3902,
+        "SPC_TYPES_ID": 39,
+        "GLOBALID": "{9E93AE13-E9B1-44E2-A669-1D09E4A4E2DB}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 70,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3903,
+        "NAME_LATIN": "Carnivora",
+        "NAME_LT": "Plėšrieji",
+        "ORIGINAL_ID": 3903,
+        "SPC_TYPES_ID": 39,
+        "GLOBALID": "{765AAB42-7FE3-47F2-81A5-B20A0A67830D}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 71,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3904,
+        "NAME_LATIN": "Pinnipedia",
+        "NAME_LT": "Tikrieji ruoniai",
+        "ORIGINAL_ID": 3904,
+        "SPC_TYPES_ID": 39,
+        "GLOBALID": "{C9C49D46-4C63-4C6F-89AE-C25716E6D8ED}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 72,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3905,
+        "NAME_LATIN": "Artiodactyla",
+        "NAME_LT": "Porakanopiai",
+        "ORIGINAL_ID": 3905,
+        "SPC_TYPES_ID": 39,
+        "GLOBALID": "{81ADA7E7-1F1A-45F7-A592-A078EEA2A684}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 73,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3906,
+        "NAME_LATIN": "Cetacea",
+        "NAME_LT": "Banginiai",
+        "ORIGINAL_ID": 3906,
+        "SPC_TYPES_ID": 39,
+        "GLOBALID": "{C993FD4F-EBDC-4EC1-BC55-1E816F0FD7A9}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 74,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3907,
+        "NAME_LATIN": "Lagomorpha",
+        "NAME_LT": "Kiškiažvėriai",
+        "ORIGINAL_ID": 3907,
+        "SPC_TYPES_ID": 39,
+        "GLOBALID": "{74AA8EF1-8117-485F-8655-7D431AF6C784}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 75,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3402,
+        "NAME_LATIN": "Bivalvia",
+        "NAME_LT": "Dvigeldžiai",
+        "ORIGINAL_ID": 3402,
+        "SPC_TYPES_ID": 34,
+        "GLOBALID": "{AF5AC34F-8C10-4ECD-A815-6D6BBF3BED4D}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    }
+  ]
+}

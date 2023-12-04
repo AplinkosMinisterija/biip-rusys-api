@@ -1,0 +1,54 @@
+{
+  "type": "FeatureCollection",
+  "name": "Spc_Kingdoms",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 1,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 1,
+        "NAME_LATIN": "Plantae",
+        "NAME_LT": "Augalai",
+        "ORIGINAL_ID": 1,
+        "GLOBALID": "{14796905-291D-4C4E-9324-C3BD7552A7D6}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 2,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 2,
+        "NAME_LATIN": "Fungi",
+        "NAME_LT": "Grybai",
+        "ORIGINAL_ID": 2,
+        "GLOBALID": "{F7E8CF36-FB97-45F8-9EAF-F3A2C0733D10}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 3,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 3,
+        "NAME_LATIN": "Animalia",
+        "NAME_LT": "Gyvūnai",
+        "ORIGINAL_ID": 3,
+        "GLOBALID": "{C2F0D5D8-73C2-4CB1-BBF4-54A94A74D142}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    }
+  ]
+}

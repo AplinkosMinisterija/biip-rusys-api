@@ -1,0 +1,329 @@
+{
+  "type": "FeatureCollection",
+  "name": "Spc_Types",
+  "features": [
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 1,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 10,
+        "NAME_LATIN": "Algae",
+        "NAME_LT": "Dumbliai",
+        "ORIGINAL_ID": 10,
+        "SPC_KINGDOMS_ID": 1,
+        "GLOBALID": "{387826EF-EC39-4930-99A3-C55B03888ED4}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 2,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 11,
+        "NAME_LATIN": "Bryophyta",
+        "NAME_LT": "Samanos",
+        "ORIGINAL_ID": 11,
+        "SPC_KINGDOMS_ID": 1,
+        "GLOBALID": "{DD6B0D50-CFF6-498C-B503-A6D7C00930D0}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 3,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 12,
+        "NAME_LATIN": "Equiphetophyta",
+        "NAME_LT": "Asiūklūnai",
+        "ORIGINAL_ID": 12,
+        "SPC_KINGDOMS_ID": 1,
+        "GLOBALID": "{9EF84014-6EE2-4E63-BA2E-9B882195D936}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 4,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 13,
+        "NAME_LATIN": "Lycopodiophyta",
+        "NAME_LT": "Pataisūnai",
+        "ORIGINAL_ID": 13,
+        "SPC_KINGDOMS_ID": 1,
+        "GLOBALID": "{071750FA-B2CF-4DEE-99FF-935C9E4CE9AC}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 5,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 14,
+        "NAME_LATIN": "Polypodiophyta",
+        "NAME_LT": "Šertvūnai",
+        "ORIGINAL_ID": 14,
+        "SPC_KINGDOMS_ID": 1,
+        "GLOBALID": "{A35DA835-016B-4FEC-AF86-BB5DCC146C76}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 6,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 15,
+        "NAME_LATIN": "Pinophyta",
+        "NAME_LT": "Spygliuočiai",
+        "ORIGINAL_ID": 15,
+        "SPC_KINGDOMS_ID": 1,
+        "GLOBALID": "{9BDC6A3F-97DA-4D65-B2C4-923A20A9F5B4}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 7,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 16,
+        "NAME_LATIN": "Magnoliophyta",
+        "NAME_LT": "Žiediniai augalai",
+        "ORIGINAL_ID": 16,
+        "SPC_KINGDOMS_ID": 1,
+        "GLOBALID": "{E34D4718-C3C5-45B3-9422-4BFDEA26B9ED}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 8,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 20,
+        "NAME_LATIN": "Basidiomycota",
+        "NAME_LT": "Papėdgrybūnai",
+        "ORIGINAL_ID": 20,
+        "SPC_KINGDOMS_ID": 2,
+        "GLOBALID": "{F92FAF98-7342-4A2C-B340-D06754B28314}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 9,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 21,
+        "NAME_LATIN": "Ascomycota",
+        "NAME_LT": "Aukšliagrybūnai",
+        "ORIGINAL_ID": 21,
+        "SPC_KINGDOMS_ID": 2,
+        "GLOBALID": "{74CAB372-7900-40A6-AE9C-9711E132C6AE}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 10,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 30,
+        "NAME_LATIN": "Annelida",
+        "NAME_LT": "Žieduotosios kirmėlės",
+        "ORIGINAL_ID": 30,
+        "SPC_KINGDOMS_ID": 3,
+        "GLOBALID": "{CE390A71-550F-4FA0-886E-F92F1AC33ADA}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 11,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 31,
+        "NAME_LATIN": "Crustacea",
+        "NAME_LT": "Vėžiagyviai",
+        "ORIGINAL_ID": 31,
+        "SPC_KINGDOMS_ID": 3,
+        "GLOBALID": "{66F26972-4E6E-4BDA-B4C3-2B21F3C775A2}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 12,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 32,
+        "NAME_LATIN": "Insecta",
+        "NAME_LT": "Vabzdžiai",
+        "ORIGINAL_ID": 32,
+        "SPC_KINGDOMS_ID": 3,
+        "GLOBALID": "{196C18DA-D049-41C0-AF95-7CA5A6AB08CD}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 13,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 33,
+        "NAME_LATIN": "Arachnida",
+        "NAME_LT": "Voragyviai",
+        "ORIGINAL_ID": 33,
+        "SPC_KINGDOMS_ID": 3,
+        "GLOBALID": "{319167AA-21CB-481A-BC1A-B1008339CD27}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 14,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 34,
+        "NAME_LATIN": "Mollusca",
+        "NAME_LT": "Moliuskai",
+        "ORIGINAL_ID": 34,
+        "SPC_KINGDOMS_ID": 3,
+        "GLOBALID": "{8A61135A-124A-4158-960B-DEF84D96FD88}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 15,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 35,
+        "NAME_LATIN": "Pisces",
+        "NAME_LT": "Žuvys",
+        "ORIGINAL_ID": 35,
+        "SPC_KINGDOMS_ID": 3,
+        "GLOBALID": "{D0A39180-045E-4930-BC59-C646ECDF6CD3}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 16,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 36,
+        "NAME_LATIN": "Amphibia",
+        "NAME_LT": "Varliagyviai",
+        "ORIGINAL_ID": 36,
+        "SPC_KINGDOMS_ID": 3,
+        "GLOBALID": "{C94D816E-FA55-4B1F-9776-7AA1612C8A72}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 17,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 37,
+        "NAME_LATIN": "Reptilia",
+        "NAME_LT": "Ropliai",
+        "ORIGINAL_ID": 37,
+        "SPC_KINGDOMS_ID": 3,
+        "GLOBALID": "{35C817B5-6113-4CCA-B911-AFCC6BE4D4C3}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 18,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 38,
+        "NAME_LATIN": "Aves",
+        "NAME_LT": "Paukščiai",
+        "ORIGINAL_ID": 38,
+        "SPC_KINGDOMS_ID": 3,
+        "GLOBALID": "{1D8BBCFB-9C71-4571-934C-46D98CE80614}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    },
+    {
+      "type": "Feature",
+      "properties": {
+        "OBJECTID": 19,
+        "DATE_MODIFIED": "2012-11-21T00:00:00",
+        "ID": 39,
+        "NAME_LATIN": "Mammalia",
+        "NAME_LT": "Žinduoliai",
+        "ORIGINAL_ID": 39,
+        "SPC_KINGDOMS_ID": 3,
+        "GLOBALID": "{B45B58CB-228F-47A1-9688-1ACBFAABCD60}",
+        "MODIFIED_BY": null,
+        "VALID_FROM": null,
+        "VALID_TO": null
+      },
+      "geometry": null
+    }
+  ]
+}

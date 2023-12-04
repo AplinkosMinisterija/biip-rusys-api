@@ -1,0 +1,41 @@
+<table class="w-full table-striped my-4" cellspacing="0" cellpadding="0">
+  <thead class="text-left">
+    <tr>
+      <th class="px-4 py-2">Nr.</th>
+      <th class="px-4 py-2">Stebėjimo data</th>
+      <% if (hasActivity) { %>
+      <th class="px-4 py-2">Veiklos požymiai</th>
+      <% }; %> <% if (hasEvolution) { %>
+      <th class="px-4 py-2">Vystymosi stadija</th>
+      <% }; %> <% if (hasMethod) { %>
+      <th class="px-4 py-2">Metodas</th>
+      <% }; %>
+    </tr>
+  </thead>
+  <% if (forms.length) { %>
+  <tbody>
+    <% forms.forEach(function(form, index){ %>
+    <tr>
+      <td class="px-4 py-2"><%= index+1 %>.</td>
+      <td class="px-4 py-2"><%= form.observedAt %></td>
+      <% if (hasActivity) { %>
+      <td class="px-4 py-2"><%= translates?.ACTIVITY?.[form.activity] || '-' %></td>
+      <% }; %> <% if (hasEvolution) { %>
+      <td class="px-4 py-2"><%= translates?.EVOLUTION?.[form.evolution] || '-' %></td>
+      <% }; %> <% if (hasMethod) { %>
+      <td class="px-4 py-2"><%= translates?.METHOD?.[form.method] || '-' %></td>
+      <% }; %>
+    </tr>
+    <% if (showCoordinates) { %>
+    <tr>
+      <td class="px-4 pt-2 pb-4" colspan="4">
+        <div>Koordinatės (LKS-94 koordinačių sistema):</div>
+        <div class="text-sm mt-2">
+          <%- include('coordinates', {coordinates: form.coordinates}); %>
+        </div>
+      </td>
+    </tr>
+    <% }; %> <% }); %>
+  </tbody>
+  <% } %>
+</table>

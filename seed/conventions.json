@@ -1,0 +1,224 @@
+{
+  "items": [
+    {
+      "code": "AEWA",
+      "description": "Susitarimas dėl Afrikos ir Eurazijos migruojančių vandens paukščių išsaugojimo",
+      "name": "AEWA susitarimas",
+      "items": [
+        {
+          "name": "I",
+          "description": "Susitarimo teritorijos apibrėžimas"
+        },
+        {
+          "name": "II",
+          "description": "Vandens paukščių rūšys, kurioms taikomas šis susitarimas"
+        },
+        {
+          "name": "III",
+          "description": "Veiksmų planas"
+        }
+      ]
+    },
+    {
+      "code": "BERN",
+      "description": "Europos laukinės gamtos ir gamtinės aplinkos apsaugos konvencija",
+      "name": "Berno konvencija",
+      "items": [
+        {
+          "name": "I",
+          "description": "Griežtai saugomos floros rūšys"
+        },
+        {
+          "name": "II",
+          "description": "Griežtai saugomos faunos rūšys"
+        },
+        {
+          "name": "III",
+          "description": "Globojamos faunos rūšys"
+        }
+      ]
+    },
+    {
+      "code": "BONN",
+      "description": "Migruojančių laukinių gyvūnų rūšių išsaugojimo konvencija",
+      "name": "Bonos konvencija",
+      "items": [
+        {
+          "name": "I",
+          "description": "Nykstančios migruojančios rūšys"
+        },
+        {
+          "name": "II",
+          "description": "Migruojančios rūšys, dėl kurių sudaromi susitarimai"
+        }
+      ]
+    },
+    {
+      "code": "CITES",
+      "description": "Nykstančių laukinės faunos ir floros rūšių tarptautinės prekybos konvencija",
+      "name": "CITES konvencija",
+      "items": [
+        {
+          "name": "I",
+          "description": "Visos rūšys, kurioms gresia išnykimas ir kurioms daro ar gali daryti įtakos prekyba."
+        },
+        {
+          "name": "II",
+          "description": "Visos rūšys, kurioms išnykimas galbūt dabar negresia, bet gali grėsti, jei tokioms rūšims priklausančių egzempliorių prekyba nebus griežtai kontroliuojama ir nebus siekiama uždrausti su tokių rūšių išlikimu nesuderinamo jų naudojimo."
+        },
+
+        {
+          "name": "III",
+          "description": "Visos bet kurios šalies nurodytos rūšys, kurias šalis reguliuoja jos jurisdikcijai priklausančioje teritorijoje, siekdama apriboti ar visai neleisti jų naudoti, ir kurių prekybos kontrolei būtinas kitų šalių bendradarbiavimas."
+        }
+      ]
+    },
+    {
+      "code": "COM_USE",
+      "description": "1996 m. gruodžio 9 d. Tarybos Reglamentas (EB) Nr. 338/97 dėl laukinės faunos ir floros rūšių apsaugos kontroliuojant jų prekybą",
+      "name": "Prekybos reglamentas",
+      "items": [
+        {
+          "name": "A",
+          "description": "CITES konvencijos I priedėlyje išvardytos rūšys, kurioms valstybės narės nepadarė išimčių.\nTaip pat rūšys, kurios turi arba gali turėti paklausą Bendrijoje ar tarptautinėje prekyboje ir kurioms gresia išnykimas dėl bet kokio masto prekybos."
+        },
+        {
+          "name": "B",
+          "description": "CITES konvencijos II priedėlyje išvardytos rūšys, išskyrus nurodytas A priede, kurioms valstybės narės nepadarė išimčių.\nTaip pat konvencijos I priedėlyje išvardytos rūšys, kurioms padarytos išlygos."
+        },
+        {
+          "name": "C",
+          "description": "CITES konvencijos III priedėlyje išvardytos rūšys, išskyrus nurodytas A ar B prieduose, kurioms valstybės narės nepadarė išlygų.\nTaip pat konvencijos II priedėlyje išvardytos rūšys, kurioms padarytos išlygos."
+        },
+        {
+          "name": "D",
+          "description": "A – C prieduose neišvardytos rūšys, importuojamos į Bendriją tokiais kiekiais, kokius galima garantuotai kontroliuoti.\nTaip pat konvencijos III priedėlyje išvardytos rūšys, kurioms padarytos išlygos."
+        }
+      ]
+    },
+    {
+      "code": "DIR_B",
+      "description": "1979 m. balandžio 2 d. Tarybos direktyva 79/409/ EEB dėl laukinių paukščių apsaugos",
+      "name": "Paukščių direktyva",
+      "items": [
+        {
+          "name": "I",
+          "description": "Paukščių rūšys, kurioms reikalinga griežta apsauga ir specialios apsaugos teritorijų steigimas"
+        },
+        {
+          "name": "III/1",
+          "description": "Paukščių rūšys kurias galima pardavinėti, jei jos buvo sumedžiotos legaliai"
+        },
+        {
+          "name": "III/2",
+          "description": "Paukščių rūšys kuriomis galima prekiauti tik gavus Europos Komisijos sutikimą"
+        },
+        {
+          "name": "II/1",
+          "description": "Paukščių rūšys kurias galima medžioti  visoje Europos Sąjungoje"
+        },
+        {
+          "name": "II/2",
+          "description": "Paukščių rūšys kurias galima medžioti tose Europos Sąjungos šalyse, kurios gauna Europos Komisijos sutikimą"
+        },
+        {
+          "name": "IV",
+          "description": "Draudžiami medžioklės būdai ir priemonės"
+        },
+        {
+          "name": "V",
+          "description": "Rekomenduojami moksliniai ir kiti darbai, užtikrinantys tinkamą Direktyvos įgyvendinimą"
+        },
+        {
+          "name": "-",
+          "description": "-"
+        }
+      ]
+    },
+    {
+      "code": "DIR_H",
+      "description": "1992 m. gegužės 21 d. Tarybos direktyva 92/43/EEB dėl natūralių buveinių ir laukinės faunos bei floros apsaugos",
+      "name": "Buveinių direktyva",
+      "items": [
+        {
+          "name": "I",
+          "description": "Bendrijos svarbos natūralių buveinių tipai, kurių apsaugai būtina steigti specialias saugomas teritorijas"
+        },
+        {
+          "name": "II",
+          "description": "Bendrijos svarbos gyvūnų ir augalų rūšys, kurių apsaugai reikalingas specialių saugomų teritorijų steigimas"
+        },
+        {
+          "name": "III",
+          "description": "Teritorijų, tinkamų identifikuoti Bendrijos svarbos teritorijomis, atrinkimo ir specialių saugomų teritorijų steigimo kriterijai"
+        },
+        {
+          "name": "IV",
+          "description": "Bendrijos svarbos gyvūnų ir augalų rūšys, kurioms reikalinga griežta apsauga"
+        },
+        {
+          "name": "V",
+          "description": "Draudžiami gaudymo, žudymo metodai ir priemonės bei transporto priemonės"
+        }
+      ]
+    },
+    {
+      "code": "LRDB",
+      "description": "Saugomų gyvūnų, augalų ir grybų rūšių Lietuvos raudonoji knyga",
+      "name": "Saugomų rūšių LRK",
+      "items": [
+        {
+          "name": "0(Ex)",
+          "description": "Gyvūnų, augalų ir grybų išnykusios ir tikėtinai išnykusios rūšys (Extinct and probably extinct)."
+        },
+        {
+          "name": "1(E)",
+          "description": "Gyvūnų, augalų ir grybų rūšys, kurios yra prie išnykimo ribos (Endangered)."
+        },
+        {
+          "name": "2(V)",
+          "description": "Pažeidžiamos gyvūnų, augalų ir grybų rūšys (Vulnerable)."
+        },
+        {
+          "name": "3(R)",
+          "description": "Retos gyvūnų, augalų ir grybų rūšys (Rare)."
+        },
+        {
+          "name": "4(I)",
+          "description": "Neapibrėžto statuso gyvūnų, augalų ir grybų rūšys (Indeterminate)."
+        },
+        {
+          "name": "5(Rs)",
+          "description": "Atkurtos gyvūnų, augalų ir grybų rūšys (Restored)."
+        }
+      ]
+    },
+    {
+      "code": "LBDB",
+      "description": "Augalų bendrijų Lietuvos raudonoji knyga",
+      "name": "Augalų bendrijų LRK",
+      "items": [
+        {
+          "name": "0",
+          "description": "Išnykusios bendrijos, žinomos iš literatūrinių šaltinių."
+        },
+        {
+          "name": "1",
+          "description": "Siauro arealo ir retos visame areale bendrijos bei jų diagnostinės rūšys, įrašytos į Lietuvos ar gretimų regionų raudonąsias knygas."
+        },
+        {
+          "name": "2",
+          "description": "Lietuvoje labai retos, mažus plotus užimančios bendrijos. Jos būdingos tam tikruose fiziniuose geografiniuose Lietuvos rajonuose. Bendrijoms gresia išnykimas dėl ūkinės ir rekreacinės veiklos."
+        },
+        {
+          "name": "3",
+          "description": "Lietuvoje retos arba etaloninės augalų bendrijos."
+        },
+        {
+          "name": "4",
+          "description": "Neapibrėžto statuso (nepakankamai ištirtos, neaiškaus paplitimo) bendrijos."
+        }
+      ]
+    }
+  ]
+}
