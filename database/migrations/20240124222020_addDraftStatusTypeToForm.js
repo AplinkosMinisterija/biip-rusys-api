@@ -19,7 +19,7 @@ exports.up = function (knex) {
  * @returns { Promise<void> }
  */
 exports.down = function (knex) {
-  return knex.schema.alterTable('placeHistories', (table) => {
+  return knex.schema.alterTable('forms', (table) => {
     table
       .enu('status', ['CREATED', 'RETURNED', 'REJECTED', 'APPROVED', 'SUBMITTED'], {
         useNative: true,
