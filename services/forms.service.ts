@@ -10,32 +10,32 @@ import PostgisMixin, { areaQuery, distanceQuery } from 'moleculer-postgis';
 import moment from 'moment';
 
 import {
-  COMMON_FIELDS,
-  COMMON_DEFAULT_SCOPES,
-  COMMON_SCOPES,
-  TENANT_FIELD,
-  FieldHookCallback,
   BaseModelInterface,
-  USER_PUBLIC_GET,
-  EndpointType,
+  COMMON_DEFAULT_SCOPES,
+  COMMON_FIELDS,
+  COMMON_SCOPES,
   ContextMeta,
-  EntityChangedParams,
   DBPagination,
-  USER_PUBLIC_POPULATE,
+  EndpointType,
+  EntityChangedParams,
+  FieldHookCallback,
   queryBoolean,
+  TENANT_FIELD,
   throwValidationError,
+  USER_PUBLIC_GET,
+  USER_PUBLIC_POPULATE,
 } from '../types';
 import { UserAuthMeta } from './api.service';
 
+import _ from 'lodash';
+import { parseToObject } from '../utils/functions';
+import { emailCanBeSent, notifyFormAssignee, notifyOnFormUpdate } from '../utils/mails';
 import { FormHistoryTypes } from './forms.histories.service';
+import { FormType } from './forms.types.service';
 import { Place } from './places.service';
+import { Taxonomy } from './taxonomies.service';
 import { Tenant } from './tenants.service';
 import { User, USERS_DEFAULT_SCOPES, UserType } from './users.service';
-import { emailCanBeSent, notifyFormAssignee, notifyOnFormUpdate } from '../utils/mails';
-import { Taxonomy } from './taxonomies.service';
-import _ from 'lodash';
-import { FormType } from './forms.types.service';
-import { parseToObject } from '../utils/functions';
 
 export const FormStatus = {
   CREATED: 'CREATED',
@@ -43,6 +43,7 @@ export const FormStatus = {
   REJECTED: 'REJECTED',
   RETURNED: 'RETURNED',
   APPROVED: 'APPROVED',
+  DRAFT: 'DRAFT',
 };
 
 const VISIBLE_TO_USER_SCOPE = 'visibleToUser';
@@ -215,7 +216,9 @@ export interface Form extends BaseModelInterface {
         type: 'string',
         enum: Object.values(FormStatus),
         validate: 'validateStatus',
-        onCreate: function ({ ctx }: FieldHookCallback & ContextMeta<FormAutoApprove>) {
+        onCreate: function ({ ctx, value }: FieldHookCallback & ContextMeta<FormAutoApprove>) {
+          if (value === FormStatus.DRAFT) return value;
+
           const { autoApprove } = ctx?.meta;
           return autoApprove ? FormStatus.APPROVED : FormStatus.CREATED;
         },
@@ -341,9 +344,9 @@ export interface Form extends BaseModelInterface {
         type: 'number',
         columnName: 'eunisId',
         populate: 'forms.settings.eunis.resolve',
-        validate: function ({ ctx, value }: FieldHookCallback) {
+        validate: function ({ ctx, value, entity }: FieldHookCallback) {
           const { user } = ctx.meta;
-          if (!value || !user?.id) return true;
+          if (!value || !user?.id || entity.status === FormStatus.DRAFT) return true;
           return user?.isExpert || 'Eunis can be set by expert only';
         },
       },
@@ -469,6 +472,12 @@ export interface Form extends BaseModelInterface {
       ...COMMON_SCOPES,
       visibleToUser(query: any, ctx: Context<null, UserAuthMeta>, params: any) {
         const { user, profile } = ctx?.meta;
+
+        query.$or = [
+          { status: { $ne: FormStatus.DRAFT } },
+          { status: FormStatus.DRAFT, createdBy: user?.id },
+        ];
+
         if (!user?.id || user?.type === UserType.ADMIN) {
           return query;
         }
@@ -1160,7 +1169,7 @@ export default class FormsService extends moleculer.Service {
   @Method
   validateStatus({ ctx, value, entity }: FieldHookCallback) {
     const { user, profile } = ctx.meta;
-    if (!value || !user?.id) return true;
+    if (!value || !user?.id || entity.status === FormStatus.DRAFT) return true;
 
     const expertStatuses = [FormStatus.REJECTED, FormStatus.RETURNED, FormStatus.APPROVED];
 
@@ -1184,6 +1193,8 @@ export default class FormsService extends moleculer.Service {
 
   @Method
   async validateQuantity({ ctx, params, entity, value }: FieldHookCallback) {
+    if (entity.status === FormStatus.DRAFT) return true;
+
     const speciesId = entity?.speciesId || params?.species;
 
     const formType = await this.getFormType(ctx, speciesId);
