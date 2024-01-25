@@ -473,6 +473,13 @@ export interface Form extends BaseModelInterface {
       visibleToUser(query: any, ctx: Context<null, UserAuthMeta>, params: any) {
         const { user, profile } = ctx?.meta;
 
+        if (user?.type === UserType.ADMIN || user.isExpert) {
+          query.$or = [
+            { status: { $ne: FormStatus.DRAFT } },
+            { status: FormStatus.DRAFT, createdBy: user?.id },
+          ];
+        }
+
         if (!user?.id || user?.type === UserType.ADMIN) {
           return query;
         }
