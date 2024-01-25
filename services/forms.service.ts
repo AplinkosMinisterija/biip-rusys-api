@@ -79,7 +79,7 @@ async function validateActivity({ ctx, params, entity, value }: FieldHookCallbac
   const speciesId = entity?.speciesId || params?.species;
 
   const formType = await this.getFormType(ctx, speciesId);
-  const validate = !entity?.id || !!value;
+  const validate = (!entity?.id || !!value) && params.status !== FormStatus.DRAFT;
 
   if (validate) {
     const isValid = await this.broker.call('forms.types.validateActivity', {
@@ -99,7 +99,7 @@ async function validateEvolution({ ctx, params, entity, value }: FieldHookCallba
   const speciesId = entity?.speciesId || params?.species;
 
   const formType = await this.getFormType(ctx, speciesId);
-  const validate = !entity?.id || !!value;
+  const validate = (!entity?.id || !!value) && params.status !== FormStatus.DRAFT;
 
   if (validate) {
     const isValid = await this.broker.call('forms.types.validateEvolution', {
@@ -120,7 +120,7 @@ async function validateMethod({ ctx, params, entity, value }: FieldHookCallback)
   const speciesId = entity?.speciesId || params?.species;
 
   const formType = await this.getFormType(ctx, speciesId);
-  const validate = !entity?.id || !!value;
+  const validate = (!entity?.id || !!value) && params.status !== FormStatus.DRAFT;
 
   if (validate) {
     const isValid = await this.broker.call('forms.types.validateMethod', {
@@ -222,10 +222,16 @@ export interface Form extends BaseModelInterface {
           const { autoApprove } = ctx?.meta;
           return autoApprove ? FormStatus.APPROVED : FormStatus.CREATED;
         },
-        onUpdate: function ({ ctx, value }: FieldHookCallback & ContextMeta<FormStatusChanged>) {
+        onUpdate: function ({
+          ctx,
+          value,
+          entity,
+        }: FieldHookCallback & ContextMeta<FormStatusChanged>) {
           const { user } = ctx?.meta;
           if (!ctx?.meta?.statusChanged) return;
           else if (!user?.id) return value;
+
+          if (entity.status === FormStatus.DRAFT && !value) return FormStatus.CREATED;
 
           return value || FormStatus.SUBMITTED;
         },
@@ -318,7 +324,6 @@ export interface Form extends BaseModelInterface {
           }
         },
       },
-
       species: {
         type: 'number',
         columnType: 'integer',
@@ -473,7 +478,7 @@ export interface Form extends BaseModelInterface {
       visibleToUser(query: any, ctx: Context<null, UserAuthMeta>, params: any) {
         const { user, profile } = ctx?.meta;
 
-        if (!profile?.id) {
+        if (!!user && !profile?.id) {
           query.$or = [
             { status: { $ne: FormStatus.DRAFT } },
             { status: FormStatus.DRAFT, createdBy: user?.id },
@@ -995,7 +1000,7 @@ export default class FormsService extends moleculer.Service {
 
     if (isCreatedByTenant || isCreatedByUser) {
       return {
-        edit: [FormStatus.RETURNED].includes(form.status),
+        edit: [FormStatus.RETURNED, FormStatus.DRAFT].includes(form.status),
         validate: false,
       };
     } else if (user.isExpert) {
@@ -1171,7 +1176,10 @@ export default class FormsService extends moleculer.Service {
   @Method
   validateStatus({ ctx, value, entity }: FieldHookCallback) {
     const { user, profile } = ctx.meta;
-    if (!value || !user?.id || value === FormStatus.DRAFT) return true;
+    const canSetDraft =
+      value === FormStatus.DRAFT && (!entity?.status || entity.status === FormStatus.DRAFT);
+
+    if (!value || !user?.id || canSetDraft) return true;
 
     const expertStatuses = [FormStatus.REJECTED, FormStatus.RETURNED, FormStatus.APPROVED];
 
@@ -1185,7 +1193,11 @@ export default class FormsService extends moleculer.Service {
     const editingPermissions = this.hasPermissionToEdit(entity, user, profile);
 
     if (editingPermissions.edit) {
-      return value === FormStatus.SUBMITTED || error;
+      return (
+        value === FormStatus.SUBMITTED ||
+        (entity.status === FormStatus.DRAFT && value === FormStatus.CREATED) ||
+        error
+      );
     } else if (editingPermissions.validate) {
       return expertStatuses.includes(value) || error;
     }
@@ -1330,9 +1342,12 @@ export default class FormsService extends moleculer.Service {
   async 'forms.updated'(ctx: Context<EntityChangedParams<Form>, UserAuthMeta>) {
     const { oldData: prevForm, data: form } = ctx.params;
 
+    if (form.status === FormStatus.DRAFT) return;
+
     if (prevForm?.status !== form.status) {
       const { comment } = ctx.options?.parentCtx?.params as any;
       const typesByStatus = {
+        [FormStatus.CREATED]: FormHistoryTypes.CREATED,
         [FormStatus.SUBMITTED]: FormHistoryTypes.UPDATED,
         [FormStatus.REJECTED]: FormHistoryTypes.REJECTED,
         [FormStatus.RETURNED]: FormHistoryTypes.RETURNED,
@@ -1369,6 +1384,8 @@ export default class FormsService extends moleculer.Service {
   @Event()
   async 'forms.created'(ctx: Context<EntityChangedParams<Form>>) {
     const { data: form } = ctx.params;
+
+    if (form.status === FormStatus.DRAFT) return;
 
     await this.createFormHistory(form.id, ctx.meta, FormHistoryTypes.CREATED);
     if (form.status === FormStatus.APPROVED) {
