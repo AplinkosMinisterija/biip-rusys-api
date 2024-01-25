@@ -274,8 +274,8 @@ export interface Form extends BaseModelInterface {
         populate: USER_PUBLIC_POPULATE,
         validate: 'validateAssignee',
         get: USER_PUBLIC_GET,
-        async onCreate({ ctx, params }: FieldHookCallback & ContextMeta<FormAutoApprove>) {
-          if (ctx?.meta?.autoApprove) return;
+        async onCreate({ ctx, params, entity }: FieldHookCallback & ContextMeta<FormAutoApprove>) {
+          if (ctx?.meta?.autoApprove || entity.status === FormStatus.DRAFT) return;
 
           return ctx.call('forms.getAssigneeForForm', {
             species: params.species,
