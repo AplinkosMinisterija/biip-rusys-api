@@ -291,6 +291,16 @@ export interface Form extends BaseModelInterface {
             createdBy: ctx.meta?.user?.id,
           });
         },
+        async onUpdate({ ctx, params, entity }: FieldHookCallback & ContextMeta<FormAutoApprove>) {
+          const assignee = entity?.assignee || entity?.assigneeId;
+
+          if (ctx?.meta?.autoApprove || !!assignee) return;
+
+          return ctx.call('forms.getAssigneeForForm', {
+            species: params.species,
+            createdBy: ctx.meta?.user?.id,
+          });
+        },
       },
 
       place: {
