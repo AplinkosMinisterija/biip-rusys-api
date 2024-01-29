@@ -2899,15 +2899,7 @@ gensync@^1.0.0-beta.2:
   resolved "https://registry.yarnpkg.com/gensync/-/gensync-1.0.0-beta.2.tgz#32a6ee76c3d7f52d46b2b1ae5d93fea8580a25e0"
   integrity sha512-3hN7NaskYvMDLQY55gnW3NQ+mesEAepTqlg+VEbj7zzqEMBVNhzcGYYeqFo/TlYz6eQiFcp1HcsCZO+nGgS8zg==
 
-geojsonjs@^0.1.1:
-  version "0.1.1"
-  resolved "https://registry.yarnpkg.com/geojsonjs/-/geojsonjs-0.1.1.tgz#b4ea2adc662848322014a69caeb2ff9e5c79941b"
-  integrity sha512-NjoGxSzd9dROe6RzbNPsqYnuc4/GzCL8Ko+dF5WM9JhA3YRNvjmqXAjV+ilcfmqNwT3L2BKaElPO5eeTGkLcaw==
-  dependencies:
-    lodash "^4.17.21"
-    typescript "^4.5.5"
-
-geojsonjs@^0.1.2:
+geojsonjs@0.1.2, geojsonjs@^0.1.2:
   version "0.1.2"
   resolved "https://registry.yarnpkg.com/geojsonjs/-/geojsonjs-0.1.2.tgz#470a905671a50e712a39edd4cd16ed9755a2a387"
   integrity sha512-ixEYX5NPi2K66eEbU6r93Dw2lkQdnfEiNuIXnRPgumzDrKp1k1xlJDN1AODA+gqvsb3r3Rz1EexmTfvjgnKPCg==
@@ -4563,10 +4555,10 @@ moleculer-decorators@^1.3.0:
     ramda "0.27.1"
     ramda-adjunct "^2.35.0"
 
-moleculer-postgis@^0.2.6:
-  version "0.2.6"
-  resolved "https://registry.yarnpkg.com/moleculer-postgis/-/moleculer-postgis-0.2.6.tgz#a0d088e3a264ff8c8c8dfba3dabee777bcd38500"
-  integrity sha512-STaw05c8PJmo6Z5KtvqvL2/6LMkNnrpSmUrD3Bk8Uwka7Sdh8uOmaRzh8PhQLEIR+3Sm+X+EclvR0f3s47Yzxw==
+moleculer-postgis@0.3.2:
+  version "0.3.2"
+  resolved "https://registry.yarnpkg.com/moleculer-postgis/-/moleculer-postgis-0.3.2.tgz#f31bdf8565c4eb3bcc836f91cca94761c508b481"
+  integrity sha512-qdUBArD+cq3pZci2tdXSjmXkjbvCp6vCpel5efd73507WD4zXyfQutSA2ju07Ho6NBdq/3KNzCh9vbfWBB85CA==
   dependencies:
     geojsonjs "^0.1.2"
     lodash "^4.17.21"

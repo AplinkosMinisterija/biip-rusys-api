@@ -20,20 +20,23 @@ import {
   EntityChangedParams,
   FieldHookCallback,
   TENANT_FIELD,
+  throwUnauthorizedError,
 } from '../types';
-import { UserAuthMeta } from './api.service';
+import { AuthType, UserAuthMeta } from './api.service';
 import { RequestHistoryTypes } from './requests.histories.service';
 import { Tenant } from './tenants.service';
 import { USERS_DEFAULT_SCOPES, User, UserType } from './users.service';
 
-import { getFeatureCollection } from 'geojsonjs';
+import { getFeatureCollection, parse } from 'geojsonjs';
 import PostgisMixin, { GeometryType } from 'moleculer-postgis';
 import moment from 'moment';
 import { getInformationalFormsByRequestIds, getPlacesByRequestIds } from '../utils/db.queries';
 import { parseToObject } from '../utils/functions';
 import { emailCanBeSent, notifyOnFileGenerated, notifyOnRequestUpdate } from '../utils/mails';
 import { Taxonomy } from './taxonomies.service';
-import { TaxonomySpeciesType } from './taxonomies.species.service';
+import { TaxonomySpeciesType, TaxonomySpeciesTypeTranslate } from './taxonomies.species.service';
+import { getRequestData } from '../utils/pdf/requests';
+import _ from 'lodash';
 
 export const RequestType = {
   GET: 'GET',
@@ -515,6 +518,13 @@ export default class RequestsService extends moleculer.Service {
     timeout: 0,
   })
   async generatePdf(ctx: Context<{ id: number }>) {
+    const { id } = ctx.params;
+    const request: Request = await ctx.call('requests.resolve', { id });
+
+    if (request.status !== RequestStatus.APPROVED || request.type !== RequestType.GET_ONCE) {
+      return throwUnauthorizedError('Cannot regenerate PDF');
+    }
+
     const flow: any = await ctx.call('jobs.requests.initiatePdfGenerate', {
       id: ctx.params.id,
     });
@@ -524,6 +534,129 @@ export default class RequestsService extends moleculer.Service {
     };
   }
 
+  @Action({
+    params: {
+      id: {
+        type: 'number',
+        convert: true,
+      },
+    },
+    rest: 'GET /:id/geojson',
+    // auth: AuthType.PUBLIC,
+    timeout: 0,
+  })
+  async getGeojson(
+    ctx: Context<
+      { id: number },
+      {
+        $responseType: string;
+        $statusCode: number;
+        $responseHeaders: any;
+      }
+    >,
+  ) {
+    const { id } = ctx.params;
+    const request: Request = await ctx.call('requests.resolve', { id });
+
+    if (request.type !== RequestType.GET_ONCE) {
+      return throwUnauthorizedError('Cannot get geojson');
+    }
+
+    const requestData = await getRequestData(ctx, id);
+
+    const taxonomyById: { [key: string]: Taxonomy } = await ctx.call('taxonomies.findBySpeciesId', {
+      id: Object.keys(requestData.speciesById),
+      mapping: true,
+      showHidden: true,
+    });
+
+    const geomTypeBySpeciesType = {
+      [TaxonomySpeciesType.INVASIVE]: 'Invazinės rūšies radavietė',
+      [TaxonomySpeciesType.ENDANGERED]: 'Saugomos rūšies radavietė',
+      [TaxonomySpeciesType.INTRODUCED]: 'Svetimžemės rūšies radavietė',
+      INFORMATIONAL: 'Saugomos rūšies radavietė (pavienis stebėjimas)',
+    };
+
+    function getSpeciesData(species: Taxonomy) {
+      if (!species?.speciesId) return;
+
+      return {
+        'Rūšies apsaugos grupė': TaxonomySpeciesTypeTranslate[species.speciesType],
+        'Rūšies pavadinimas': `${species.speciesName} (lot. ${species.speciesNameLatin})`,
+        'Karalystės pavadinimas': `${species.kingdomName} (lot. ${species.kingdomNameLatin})`,
+        'Klasės pavadinimas': `${species.className} (lot. ${species.classNameLatin})`,
+        'Tipo pavadinimas': `${species.phylumName} (lot. ${species.phylumNameLatin})`,
+        'Rūšies sinonimai': species.speciesSynonyms?.length
+          ? species.speciesSynonyms.join(', ')
+          : '',
+      };
+    }
+
+    function getFormData(form: any, speciesId: number | string) {
+      const translates = requestData.translates[`${speciesId}`];
+      const properties: any = {
+        ID: `STEBEJIMAS-${form.id}`,
+        'Stebėjimo data': form.observedAt,
+      };
+      if (form.method) {
+        properties['Metodas'] = translates?.METHOD?.[form.method];
+      }
+      if (form.evolution) {
+        properties['Vystymosi stadija'] = translates?.EVOLUTION?.[form.evolution];
+      }
+      if (form.activity) {
+        properties['Veiklos požymiai'] = translates?.ACTIVITY?.[form.activity];
+      }
+      return properties;
+    }
+
+    const formsGeom = Object.keys(requestData.informationalForms)
+      .reduce((acc, i) => {
+        const speciesForms = requestData.informationalForms[i].forms.map((form: any) => {
+          const properties = _.merge({}, getFormData(form, i), getSpeciesData(taxonomyById[i]), {
+            Tipas: geomTypeBySpeciesType.INFORMATIONAL,
+            ...getSpeciesData(taxonomyById[i]),
+          });
+
+          return form.geom?.features?.map((feature: any) =>
+            _.merge({}, feature.geometry, { properties }),
+          );
+        });
+
+        return [...acc, ...speciesForms];
+      }, [])
+      .flat();
+
+    const placesGeom = requestData.places.map((place) => {
+      const speciesId = `${place.species as number}`;
+      const forms = place.forms.map((form) => getFormData(form, speciesId));
+
+      const properties = {
+        ID: `RADAVIETE-${place.id}`,
+        Tipas: geomTypeBySpeciesType[taxonomyById[speciesId].speciesType],
+        'Radavietės kodas': place.placeCode,
+        'Paskutinio stebėjimo data': place.placeLastObservedAt,
+        Anketos: forms,
+        ...getSpeciesData(taxonomyById[speciesId]),
+      };
+
+      return place.geom?.features?.map((feature: any) =>
+        _.merge({}, feature.geometry, { properties }),
+      );
+    });
+
+    const name = `israsas-${requestData.id}.geojson`;
+
+    ctx.meta.$responseType = 'application/json';
+    ctx.meta.$statusCode = 200;
+    ctx.meta.$responseHeaders = {
+      'Content-Disposition': `attachment; filename="${name}"`,
+    };
+
+    return parse([...placesGeom, ...formsGeom]);
+  }
+
+  
   @Action({
     params: {
       id: 'number',
