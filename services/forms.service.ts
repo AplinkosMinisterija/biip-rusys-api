@@ -349,9 +349,10 @@ export interface Form extends BaseModelInterface {
         type: 'number',
         columnName: 'eunisId',
         populate: 'forms.settings.eunis.resolve',
-        validate: function ({ ctx, value, params }: FieldHookCallback) {
+        validate: function ({ ctx, value }: FieldHookCallback) {
           const { user } = ctx.meta;
-          if (!value || !user?.id || params.status === FormStatus.DRAFT) return true;
+          if (!value || !user?.id) return true;
+
           return user?.isExpert || 'Eunis can be set by expert only';
         },
       },
