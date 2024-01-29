@@ -226,12 +226,15 @@ export interface Form extends BaseModelInterface {
           ctx,
           value,
           entity,
-        }: FieldHookCallback & ContextMeta<FormStatusChanged>) {
+        }: FieldHookCallback & ContextMeta<FormAutoApprove & FormStatusChanged>) {
           const { user } = ctx?.meta;
           if (!ctx?.meta?.statusChanged) return;
           else if (!user?.id) return value;
 
-          if (entity.status === FormStatus.DRAFT && !value) return FormStatus.CREATED;
+          const { autoApprove } = ctx?.meta;
+
+          if (entity.status === FormStatus.DRAFT)
+            return autoApprove ? FormStatus.APPROVED : FormStatus.CREATED;
 
           return value || FormStatus.SUBMITTED;
         },
