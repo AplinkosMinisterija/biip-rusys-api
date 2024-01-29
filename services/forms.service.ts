@@ -233,7 +233,7 @@ export interface Form extends BaseModelInterface {
 
           const { autoApprove } = ctx?.meta;
 
-          if (entity.status === FormStatus.DRAFT)
+          if (entity.status === FormStatus.DRAFT && value !== FormStatus.DRAFT)
             return autoApprove ? FormStatus.APPROVED : FormStatus.CREATED;
 
           return value || FormStatus.SUBMITTED;
@@ -492,11 +492,18 @@ export interface Form extends BaseModelInterface {
       visibleToUser(query: any, ctx: Context<null, UserAuthMeta>, params: any) {
         const { user, profile } = ctx?.meta;
 
-        if (!!user && !profile?.id) {
-          query.$or = [
-            { status: { $ne: FormStatus.DRAFT } },
-            { status: FormStatus.DRAFT, createdBy: user?.id },
-          ];
+        if (!!user) {
+          if (profile?.id) {
+            query.$or = [
+              { status: { $ne: FormStatus.DRAFT } },
+              { status: FormStatus.DRAFT, tenant: profile.id },
+            ];
+          } else {
+            query.$or = [
+              { status: { $ne: FormStatus.DRAFT } },
+              { status: FormStatus.DRAFT, createdBy: user?.id, tenant: { $exists: false } },
+            ];
+          }
         }
 
         if (!user?.id || user?.type === UserType.ADMIN) {
@@ -549,7 +556,7 @@ export interface Form extends BaseModelInterface {
   hooks: {
     before: {
       create: ['validateIsInformational', 'validateStatusChange'],
-      update: ['validateStatusChange'],
+      update: ['validateIsInformational', 'validateStatusChange'],
     },
   },
   actions: {
@@ -1091,9 +1098,11 @@ export default class FormsService extends moleculer.Service {
       );
 
       ctx.meta.statusChanged = !doNotChangeStatus;
-    } else if (isInformational) {
+    }
+
+    if (isInformational) {
       ctx.meta.autoApprove = true;
-    } else if (!id && ctx?.meta?.user?.isExpert) {
+    } else if (ctx?.meta?.user?.isExpert) {
       ctx.meta.autoApprove = ctx.meta.user.expertSpecies.includes(Number(species));
     }
 
@@ -1209,7 +1218,8 @@ export default class FormsService extends moleculer.Service {
     if (editingPermissions.edit) {
       return (
         value === FormStatus.SUBMITTED ||
-        (entity.status === FormStatus.DRAFT && value === FormStatus.CREATED) ||
+        (entity.status === FormStatus.DRAFT &&
+          [FormStatus.CREATED, FormStatus.APPROVED].includes(value)) ||
         error
       );
     } else if (editingPermissions.validate) {
