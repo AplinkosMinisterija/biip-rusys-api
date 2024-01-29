@@ -22,7 +22,7 @@ import {
   TENANT_FIELD,
   throwUnauthorizedError,
 } from '../types';
-import { AuthType, UserAuthMeta } from './api.service';
+import { UserAuthMeta } from './api.service';
 import { RequestHistoryTypes } from './requests.histories.service';
 import { Tenant } from './tenants.service';
 import { USERS_DEFAULT_SCOPES, User, UserType } from './users.service';
