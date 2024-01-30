@@ -79,7 +79,7 @@ async function validateActivity({ ctx, params, entity, value }: FieldHookCallbac
   const speciesId = entity?.speciesId || params?.species;
 
   const formType = await this.getFormType(ctx, speciesId);
-  const validate = (!entity?.id || !!value) && params.status !== FormStatus.DRAFT;
+  const validate = canValidate({ params, entity, value });
 
   if (validate) {
     const isValid = await this.broker.call('forms.types.validateActivity', {
@@ -99,7 +99,7 @@ async function validateEvolution({ ctx, params, entity, value }: FieldHookCallba
   const speciesId = entity?.speciesId || params?.species;
 
   const formType = await this.getFormType(ctx, speciesId);
-  const validate = (!entity?.id || !!value) && params.status !== FormStatus.DRAFT;
+  const validate = canValidate({ params, entity, value });
 
   if (validate) {
     const isValid = await this.broker.call('forms.types.validateEvolution', {
@@ -120,7 +120,8 @@ async function validateMethod({ ctx, params, entity, value }: FieldHookCallback)
   const speciesId = entity?.speciesId || params?.species;
 
   const formType = await this.getFormType(ctx, speciesId);
-  const validate = (!entity?.id || !!value) && params.status !== FormStatus.DRAFT;
+
+  const validate = canValidate({ params, entity, value });
 
   if (validate) {
     const isValid = await this.broker.call('forms.types.validateMethod', {
@@ -134,6 +135,15 @@ async function validateMethod({ ctx, params, entity, value }: FieldHookCallback)
   }
 
   return value;
+}
+
+async function canValidate({ params, entity, value }: any) {
+  const isEntityDraft = entity?.status === FormStatus.DRAFT;
+  const isNotDraftStatus = params.status !== FormStatus.DRAFT;
+
+  const shouldValidate = isNotDraftStatus && (!entity?.id || isEntityDraft);
+
+  return shouldValidate || !!value;
 }
 
 export interface Form extends BaseModelInterface {
@@ -294,7 +304,7 @@ export interface Form extends BaseModelInterface {
         async onUpdate({ ctx, params, entity }: FieldHookCallback & ContextMeta<FormAutoApprove>) {
           const assignee = entity?.assignee || entity?.assigneeId;
 
-          if (ctx?.meta?.autoApprove || !!assignee) return;
+          if (ctx?.meta?.autoApprove || !!assignee || params.status === FormStatus.DRAFT) return;
 
           return ctx.call('forms.getAssigneeForForm', {
             species: params.species,
