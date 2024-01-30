@@ -79,7 +79,7 @@ async function validateActivity({ ctx, params, entity, value }: FieldHookCallbac
   const speciesId = entity?.speciesId || params?.species;
 
   const formType = await this.getFormType(ctx, speciesId);
-  const validate = canValidate({ params, entity, value });
+  const validate = canValidateField({ params, entity, value });
 
   if (validate) {
     const isValid = await this.broker.call('forms.types.validateActivity', {
@@ -99,7 +99,7 @@ async function validateEvolution({ ctx, params, entity, value }: FieldHookCallba
   const speciesId = entity?.speciesId || params?.species;
 
   const formType = await this.getFormType(ctx, speciesId);
-  const validate = canValidate({ params, entity, value });
+  const validate = canValidateField({ params, entity, value });
 
   if (validate) {
     const isValid = await this.broker.call('forms.types.validateEvolution', {
@@ -121,7 +121,7 @@ async function validateMethod({ ctx, params, entity, value }: FieldHookCallback)
 
   const formType = await this.getFormType(ctx, speciesId);
 
-  const validate = canValidate({ params, entity, value });
+  const validate = canValidateField({ params, entity, value });
 
   if (validate) {
     const isValid = await this.broker.call('forms.types.validateMethod', {
@@ -137,11 +137,21 @@ async function validateMethod({ ctx, params, entity, value }: FieldHookCallback)
   return value;
 }
 
-async function canValidate({ params, entity, value }: any) {
-  const isEntityDraft = entity?.status === FormStatus.DRAFT;
-  const isNotDraftStatus = params.status !== FormStatus.DRAFT;
+function validateDraft({ params, entity, value, field }: FieldHookCallback) {
+  const validate = canValidateField({ params, entity, value });
 
-  const shouldValidate = isNotDraftStatus && (!entity?.id || isEntityDraft);
+  if (!value && validate) {
+    return throwValidationError(`${field?.name} is required`, params);
+  }
+
+  return value;
+}
+
+function canValidateField({ params, entity, value }: any) {
+  const isEntityDraft = entity?.status === FormStatus.DRAFT;
+  const isDraftStatus = params.status === FormStatus.DRAFT;
+
+  const shouldValidate = !isDraftStatus && (!entity?.id || isEntityDraft);
 
   return shouldValidate || !!value;
 }
@@ -366,6 +376,9 @@ export interface Form extends BaseModelInterface {
         type: 'number',
         columnName: 'sourceId',
         populate: 'forms.settings.sources.resolve',
+        onCreate: validateDraft,
+        onUpdate: validateDraft,
+        onReplace: validateDraft,
       },
 
       eunis: {
@@ -502,18 +515,11 @@ export interface Form extends BaseModelInterface {
       visibleToUser(query: any, ctx: Context<null, UserAuthMeta>, params: any) {
         const { user, profile } = ctx?.meta;
 
-        if (!!user) {
-          if (profile?.id) {
-            query.$or = [
-              { status: { $ne: FormStatus.DRAFT } },
-              { status: FormStatus.DRAFT, tenant: profile.id },
-            ];
-          } else {
-            query.$or = [
-              { status: { $ne: FormStatus.DRAFT } },
-              { status: FormStatus.DRAFT, createdBy: user?.id, tenant: { $exists: false } },
-            ];
-          }
+        if (!!user && !profile?.id) {
+          query.$or = [
+            { status: { $ne: FormStatus.DRAFT } },
+            { status: FormStatus.DRAFT, createdBy: user?.id, tenant: { $exists: false } },
+          ];
         }
 
         if (!user?.id || user?.type === UserType.ADMIN) {
