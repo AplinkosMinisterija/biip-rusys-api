@@ -23,7 +23,7 @@ import {
   TENANT_FIELD,
   throwValidationError,
   USER_PUBLIC_GET,
-  USER_PUBLIC_POPULATE
+  USER_PUBLIC_POPULATE,
 } from '../types';
 import { UserAuthMeta } from './api.service';
 
@@ -263,15 +263,17 @@ export interface Form extends BaseModelInterface {
       geom: {
         type: 'any',
         geom: {
-          validate({ ctx, params, value, entity }: any) {
+          async validate({ ctx, params, value }: any) {
+            const { id } = params;
+            const entity = id
+              ? await ctx.call('forms.resolve', {
+                  id,
+                })
+              : {};
 
-            console.log(entity,"entityentity")
+            const isValid = !canValidateField({ params, entity, value }) || !!value;
 
-            canValidateField({params,entity,value})
-
-
-            console.log('validategeom Inner', value, params);
-            return true;
+            return isValid;
           },
           type: 'geom',
           properties: {
