@@ -28,7 +28,7 @@ import {
 import { UserAuthMeta } from './api.service';
 
 import _ from 'lodash';
-import { parseToObject } from '../utils/functions';
+import { isPositive, parseToObject } from '../utils/functions';
 import { emailCanBeSent, notifyFormAssignee, notifyOnFormUpdate } from '../utils/mails';
 import { FormHistoryTypes } from './forms.histories.service';
 import { FormType } from './forms.types.service';
@@ -140,7 +140,7 @@ async function validateMethod({ ctx, params, entity, value }: FieldHookCallback)
 function validateDraft({ params, entity, value, field }: FieldHookCallback) {
   const validate = canValidateField({ params, entity, value });
 
-  if (!value && validate) {
+  if (!value && value !== 0 && validate) {
     return throwValidationError(`${field?.name} is required`, params);
   }
 
@@ -201,6 +201,9 @@ export interface Form extends BaseModelInterface {
         type: 'number',
         validate: 'validateQuantity',
         integer: true,
+        onCreate: validateDraft,
+        onUpdate: validateDraft,
+        onReplace: validateDraft,
       },
 
       activity: {
@@ -228,7 +231,12 @@ export interface Form extends BaseModelInterface {
         type: 'string',
       },
 
-      description: 'string',
+      description: {
+        type: 'string',
+        onCreate: validateDraft,
+        onUpdate: validateDraft,
+        onReplace: validateDraft,
+      },
 
       notes: 'string',
 
@@ -407,16 +415,20 @@ export interface Form extends BaseModelInterface {
 
       transect: {
         type: 'object',
+        validate: function ({ value, params }: FieldHookCallback) {
+          if (params?.status === FormStatus.DRAFT || !value) return true;
+
+          return isPositive(value.width) && isPositive(value.height);
+        },
+
         properties: {
           width: {
             type: 'number',
             required: true,
-            positive: true,
           },
           height: {
             type: 'number',
             required: true,
-            positive: true,
           },
           unit: {
             type: 'string',
