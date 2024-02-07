@@ -146,6 +146,7 @@ async function getPlaces(ctx: Context, requestId: number, date: string) {
         hasActivity: placeForms.some((f) => !!f.activity),
         hasMethod: placeForms.some((f) => !!f.method),
         coordinates: getGeometryWithTranslates(placesGeomByPlaceId[p.id]),
+        geom: placesGeomByPlaceId[p.id],
         forms: placeForms
           .map((f) => getFormData(f))
           .sort((f1: any, f2: any) => {
@@ -197,6 +198,7 @@ async function getInformationalForms(ctx: Context, requestId: number, date: stri
     item.forms.push({
       ...getFormData(form),
       coordinates: getGeometryWithTranslates(formsGeomByFormId[form.id]),
+      geom: formsGeomByFormId[form.id],
     });
     item.hasActivity = item.hasActivity || !!form.activity;
     item.hasMethod = item.hasMethod || !!form.method;
