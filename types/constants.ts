@@ -1,7 +1,6 @@
 import _ from 'lodash';
 import Moleculer, { Context, Errors } from 'moleculer';
 import { UserAuthMeta } from '../services/api.service';
-import { UserType } from '../services/users.service';
 import { FieldHookCallback } from './';
 
 export type GenericObject<T> = { [key: string]: T };
@@ -208,9 +207,8 @@ function fieldValueForDeletedScope({ ctx, value }: any) {
     scope = scope.split(',');
   }
 
-  const scopesExists = scope.includes('deleted');
+  const scopesExists = ['deleted', 'getDeletedAtField'].some((key) => scope.includes(key));
 
-  if (!scopesExists) return;
   return value;
 }
 
@@ -246,5 +244,5 @@ export interface BaseModelInterface {
 
 export const COMMON_DEFAULT_SCOPES = ['notDeleted'];
 export const COMMON_DELETED_SCOPES = ['-notDeleted', 'deleted'];
-
+export const COMMON_GET_ALL_SCOPES = ['-notDeleted', 'getDeletedAtField'];
 export const AUTH_FREELANCERS_GROUP_ID = process.env.AUTH_FREELANCERS_GROUP_ID;

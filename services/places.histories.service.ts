@@ -19,6 +19,7 @@ export interface PlaceHistory extends BaseModelInterface {
   place: number | Place;
   form: number | Form;
   relevantForms: number[] | Form[];
+  quantity: number;
 }
 
 export const PlaceHistoryStatus = {

@@ -11,6 +11,7 @@ import {
   COMMON_DEFAULT_SCOPES,
   COMMON_DELETED_SCOPES,
   COMMON_FIELDS,
+  COMMON_GET_ALL_SCOPES,
   COMMON_SCOPES,
   EndpointType,
   EntityChangedParams,
@@ -18,13 +19,14 @@ import {
   throwUnauthorizedError,
   throwValidationError,
 } from '../types';
-import { UserAuthMeta } from './api.service';
+import { AuthType, UserAuthMeta } from './api.service';
 import { Form } from './forms.service';
 import { PlaceHistory } from './places.histories.service';
 import { TaxonomySpecies } from './taxonomies.species.service';
 import { User, UserType } from './users.service';
 
 import PostgisMixin, { asGeoJsonQuery } from 'moleculer-postgis';
+import moment from 'moment';
 
 const PlaceStatus = {
   INITIAL: 'INITIAL',
@@ -44,6 +46,7 @@ export interface Place extends BaseModelInterface {
   forms?: Form[];
   geom?: FeatureCollection;
   canEdit?: boolean;
+  area: number;
 }
 
 @Service({
@@ -259,6 +262,72 @@ export default class PlacesService extends moleculer.Service {
       ...ctx.params,
       scope: COMMON_DELETED_SCOPES,
     });
+  }
+
+  @Action({
+    rest: 'GET /statistics',
+    auth: AuthType.PUBLIC,
+  })
+  async statistics(ctx: Context<{}>) {
+    const limit = 65535; //postgres query parameters limit
+    const placesCount: number = await ctx.call('places.count', {
+      scope: COMMON_GET_ALL_SCOPES,
+    });
+
+    const allPlaces = [];
+
+    for (let offset = 0; offset <= placesCount; offset += limit) {
+      const places: Place[] = await ctx.call('places.find', {
+        populate: ['area', 'species'],
+        fields: ['id', 'species', 'area', 'status', 'deletedAt'],
+        scope: COMMON_GET_ALL_SCOPES,
+        sort: 'id',
+        offset,
+        limit,
+      });
+
+      allPlaces.push(...places);
+    }
+
+    const placeHistories: PlaceHistory[] = await ctx.call('places.histories.find', {});
+
+    const groupedHistoryByPlace = placeHistories.reduce((acc, curr) => {
+      const place = curr.place as number;
+
+      if (!acc[place]) {
+        acc[place] = curr;
+      } else {
+        const date1 = moment(acc[place].createdAt);
+        const date2 = moment(curr.createdAt);
+
+        if (date1.isBefore(date2)) {
+          acc[place] = curr;
+        }
+      }
+
+      return acc;
+    }, {} as any);
+
+    return allPlaces.reduce(
+      (acc, curr) => {
+        const specie = curr.species as TaxonomySpecies;
+        const key = !!curr?.deletedAt ? 'deleted' : 'notDeleted';
+
+        if (!acc[key][specie.id]) {
+          acc[key][specie.id] = {
+            specie: { name: specie.name, nameLatin: specie.nameLatin },
+            area: 0,
+            quantity: 0,
+          };
+        }
+
+        acc[key][specie.id].area += curr?.area;
+        acc[key][specie.id].quantity += groupedHistoryByPlace[curr?.id].quantity;
+
+        return acc;
+      },
+      { deleted: {}, notDeleted: {} } as any,
+    );
   }
 
   @Method
