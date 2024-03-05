@@ -209,6 +209,8 @@ function fieldValueForDeletedScope({ ctx, value }: any) {
 
   const scopesExists = ['deleted', 'getDeletedAtField'].some((key) => scope.includes(key));
 
+  if (!scopesExists) return;
+
   return value;
 }
 
