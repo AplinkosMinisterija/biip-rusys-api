@@ -117,6 +117,14 @@ export default function (opts: any = {}) {
         return;
       },
 
+      async updateMany(ctx: any) {
+        const updatedItems = await Promise.all(
+          ctx.params.map(async (item: any) => await this.updateEntity(ctx, { ...item })),
+        );
+
+        return updatedItems;
+      },
+
       async removeAllEntities(ctx: any) {
         return await this.clearEntities(ctx);
       },

@@ -11,6 +11,7 @@ import {
   COMMON_DEFAULT_SCOPES,
   COMMON_DELETED_SCOPES,
   COMMON_FIELDS,
+  COMMON_GET_ALL_SCOPES,
   COMMON_SCOPES,
   EndpointType,
   EntityChangedParams,
@@ -211,10 +212,15 @@ export default class PlacesService extends moleculer.Service {
     const place: Place = await ctx.call('places.resolve', {
       id,
       populate: 'canEdit',
+      scope: COMMON_GET_ALL_SCOPES,
     });
 
     if (!place.canEdit) {
       return throwUnauthorizedError('Cannot change place data');
+    }
+
+    if (isRelevant && !!place?.deletedAt) {
+      return throwUnauthorizedError('Cannot make any form relevant to the deleted place');
     }
 
     if (!isRelevant) {
@@ -354,6 +360,15 @@ export default class PlacesService extends moleculer.Service {
         status: place.status,
       },
       { meta: ctx.meta },
+    );
+
+    const forms: Form[] = await this.broker.call('forms.find', {
+      query: { place: place.id, isRelevant: true },
+    });
+
+    await this.broker.call(
+      'forms.updateMany',
+      forms.map((form) => ({ id: form.id, isRelevant: false })),
     );
 
     await this.refreshPlacesMaterializedView(ctx);
