@@ -1222,6 +1222,7 @@ export default class FormsService extends moleculer.Service {
     const place: Place = await ctx.call('places.resolve', {
       id: placeId,
       scope: COMMON_GET_ALL_SCOPES,
+      throwIfNotExist: true,
     });
 
     if (!!place?.deletedAt) {

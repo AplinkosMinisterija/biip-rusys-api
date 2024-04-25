@@ -213,6 +213,7 @@ export default class PlacesService extends moleculer.Service {
       id,
       populate: 'canEdit',
       scope: COMMON_GET_ALL_SCOPES,
+      throwIfNotExist: true,
     });
 
     if (!place.canEdit) {
