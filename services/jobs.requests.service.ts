@@ -154,13 +154,10 @@ export default class JobsRequestsService extends moleculer.Service {
     }
 
     // add preview screenshot
-    const placeIds = requestData?.places?.length ? requestData.places.map((p) => p.id) : [];
-
-    const placeObject = {
-      ...(placeIds.length && { $in: placeIds }),
-      request: requestData.id,
-    };
-    params.set('place', JSON.stringify(placeObject));
+    if (requestData?.places?.length) {
+      params.set('place', JSON.stringify({ $in: requestData.places.map((p) => p.id) }));
+    }
+    params.set('request', JSON.stringify(requestData.id));
 
     data.push({
       url: getUrl(params),
