@@ -154,9 +154,6 @@ export default class JobsRequestsService extends moleculer.Service {
     }
 
     // add preview screenshot
-    if (requestData?.places?.length) {
-      params.set('place', JSON.stringify({ $in: requestData.places.map((p) => p.id) }));
-    }
     params.set('request', requestData?.id?.toString());
 
     data.push({
