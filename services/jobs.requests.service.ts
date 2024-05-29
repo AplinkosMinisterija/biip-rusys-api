@@ -163,6 +163,7 @@ export default class JobsRequestsService extends moleculer.Service {
       url: getUrl(params),
       hash: requestData.previewScreenshotHash,
     });
+    params.delete('request');
 
     // add all places
     requestData?.places.forEach((place) => {
