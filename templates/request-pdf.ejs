@@ -145,19 +145,18 @@
           apžvalginis žemėlapis:
         </div>
         <%- include('places/table', {places: places}); %>
-          <% if (previewScreenshot) { %>
-            <img
-              src="<%= previewScreenshot %>"
-              class="w-full"
-            />
-          <% } %>
         <% } else { %>
-
         <div>
           Teritorijoje aptinkamų prašytų <%= systemNameShort %> radaviečių ir augaviečių
           <u><b>nerasta</b></u>.
         </div>
         <%}; %>
+        <% if (previewScreenshot) { %>
+          <img
+            src="<%= previewScreenshot %>"
+            class="w-full"
+          />
+        <% } %>
       </div>
 
       <% places.forEach(function(place, index){ %>
