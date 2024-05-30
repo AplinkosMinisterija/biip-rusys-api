@@ -3,9 +3,7 @@
   <table class="w-full table-striped my-4" cellspacing="0" cellpadding="0">
     <tbody>
       <tr>
-        <td class="w-1/2 text-right font-bold px-4 py-2">
-          Radavietės / augavietės kodas
-        </td>
+        <td class="w-1/2 text-right font-bold px-4 py-2">Radavietės / augavietės kodas</td>
         <td class="w-1/2 px-4 py-2"><%= place.placeCode %></td>
       </tr>
       <tr>
@@ -14,7 +12,7 @@
       </tr>
       <tr>
         <td class="w-1/2 text-right font-bold px-4 py-2">Lot. pavadinimas</td>
-        <td class="w-1/2 px-4 py-2"><%= species.nameLatin %></td>
+        <td class="w-1/2 px-4 py-2 font-italic"><%= species.nameLatin %></td>
       </tr>
       <tr>
         <td class="w-1/2 text-right font-bold px-4 py-2">Įtraukta į sąrašus</td>
@@ -25,20 +23,15 @@
   <div>Radavietės / augavietės žemėlapis:</div>
 
   <% if (place.screenshot) { %>
-  <img
-    src="<%= place.screenshot %>"
-    class="w-full my-4"
-  />
+  <img src="<%= place.screenshot %>" class="w-full my-4" />
   <% } %>
 
   <div>Radavietės / augavietės stebėjimų duomenys:</div>
 
-  <%- include('forms/table', {forms: place.forms, showCoordinates: false, translates: translates[species.id],
-  hasEvolution: place.hasEvolution, hasActivity: place.hasActivity, hasMethod: place.hasMethod}); %> <% if
-  (showCoordinates) { %>
+  <%- include('forms/table', {forms: place.forms, showCoordinates: false, translates:
+  translates[species.id], hasEvolution: place.hasEvolution, hasActivity: place.hasActivity,
+  hasMethod: place.hasMethod}); %> <% if (showCoordinates) { %>
   <div>Radavietės / augavietės koordinatės (LKS-94 koordinačių sistema):</div>
-  <div class="text-sm mt-2">
-    <%- include('coordinates', {coordinates: place.coordinates}); %>
-  </div>
+  <div class="text-sm mt-2"><%- include('coordinates', {coordinates: place.coordinates}); %></div>
   <% } %>
 </div>
