@@ -154,13 +154,13 @@ export default class JobsRequestsService extends moleculer.Service {
     }
 
     // add preview screenshot
-    if (requestData?.places?.length) {
-      params.set('place', JSON.stringify({ $in: requestData.places.map((p) => p.id) }));
-      data.push({
-        url: getUrl(params),
-        hash: requestData.previewScreenshotHash,
-      });
-    }
+    params.set('request', requestData?.id?.toString());
+
+    data.push({
+      url: getUrl(params),
+      hash: requestData.previewScreenshotHash,
+    });
+    params.delete('request');
 
     // add all places
     requestData?.places.forEach((place) => {
