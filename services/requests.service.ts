@@ -33,8 +33,7 @@ import { getInformationalFormsByRequestIds, getPlacesByRequestIds } from '../uti
 import { parseToObject } from '../utils/functions';
 import { emailCanBeSent, notifyOnFileGenerated, notifyOnRequestUpdate } from '../utils/mails';
 import { Taxonomy } from './taxonomies.service';
-import { TaxonomySpeciesType, TaxonomySpeciesTypeTranslate } from './taxonomies.species.service';
-import { getRequestData } from '../utils/pdf/requests';
+import { TaxonomySpeciesType } from './taxonomies.species.service';
 
 export const RequestType = {
   GET: 'GET',
