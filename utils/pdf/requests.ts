@@ -116,6 +116,7 @@ async function getPlaces(ctx: Context, requestId: number, date: string) {
       id: requestId,
       date: formatDate(date),
     },
+    { timeout: 0 },
   );
 
   const placesGeomByPlaceId: any = placesData.reduce(
