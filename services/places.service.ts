@@ -25,6 +25,7 @@ import { TaxonomySpecies } from './taxonomies.species.service';
 import { User, UserType } from './users.service';
 
 import PostgisMixin, { asGeoJsonQuery } from 'moleculer-postgis';
+import { GeojsonMixin } from '../mixins/geojson.mixin';
 
 const PlaceStatus = {
   INITIAL: 'INITIAL',
@@ -56,6 +57,7 @@ export interface Place extends BaseModelInterface {
     PostgisMixin({
       srid: 3346,
     }),
+    GeojsonMixin()
   ],
 
   settings: {
