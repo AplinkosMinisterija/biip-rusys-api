@@ -10,32 +10,32 @@ import PostgisMixin, { areaQuery, distanceQuery } from 'moleculer-postgis';
 import moment from 'moment';
 
 import {
-  COMMON_FIELDS,
-  COMMON_DEFAULT_SCOPES,
-  COMMON_SCOPES,
-  TENANT_FIELD,
-  FieldHookCallback,
   BaseModelInterface,
-  USER_PUBLIC_GET,
-  EndpointType,
+  COMMON_DEFAULT_SCOPES,
+  COMMON_FIELDS,
+  COMMON_SCOPES,
   ContextMeta,
-  EntityChangedParams,
   DBPagination,
-  USER_PUBLIC_POPULATE,
+  EndpointType,
+  EntityChangedParams,
+  FieldHookCallback,
   queryBoolean,
+  TENANT_FIELD,
   throwValidationError,
+  USER_PUBLIC_GET,
+  USER_PUBLIC_POPULATE,
 } from '../types';
 import { UserAuthMeta } from './api.service';
 
+import _ from 'lodash';
+import { parseToObject } from '../utils/functions';
+import { emailCanBeSent, notifyFormAssignee, notifyOnFormUpdate } from '../utils/mails';
 import { FormHistoryTypes } from './forms.histories.service';
+import { FormType } from './forms.types.service';
 import { Place } from './places.service';
+import { Taxonomy } from './taxonomies.service';
 import { Tenant } from './tenants.service';
 import { User, USERS_DEFAULT_SCOPES, UserType } from './users.service';
-import { emailCanBeSent, notifyFormAssignee, notifyOnFormUpdate } from '../utils/mails';
-import { Taxonomy } from './taxonomies.service';
-import _ from 'lodash';
-import { FormType } from './forms.types.service';
-import { parseToObject } from '../utils/functions';
 
 export const FormStatus = {
   CREATED: 'CREATED',
@@ -1002,13 +1002,14 @@ export default class FormsService extends moleculer.Service {
   }
 
   @Method
-  async getFormType(ctx: Context, speciesId: number) {
+  async getFormType(ctx: Context<any, any>, speciesId: number) {
     if (!speciesId) {
       return throwValidationError('No species');
     }
 
     const taxonomy: Taxonomy = await ctx.call('taxonomies.findBySpeciesId', {
       id: speciesId,
+      showHidden: !!ctx?.meta?.user?.isExpert,
     });
 
     return taxonomy?.formType;
@@ -1026,10 +1027,12 @@ export default class FormsService extends moleculer.Service {
     >,
   ) {
     const { species, activity } = ctx.params;
+
     ctx.params.isInformational = false;
 
     const taxonomy: Taxonomy = await this.broker.call('taxonomies.findBySpeciesId', {
       id: species,
+      showHidden: !!ctx?.meta?.user?.isExpert,
     });
 
     if (activity) {
@@ -1110,6 +1113,7 @@ export default class FormsService extends moleculer.Service {
 
     const taxonomy: Taxonomy = await this.broker.call('taxonomies.findBySpeciesId', {
       id: species,
+      showHidden: !!user?.isExpert,
     });
 
     if (!taxonomy?.speciesId) return {};
