@@ -230,6 +230,7 @@ export interface Form extends BaseModelInterface {
 
       geom: {
         type: 'any',
+        required: true,
         geom: {
           type: 'geom',
           properties: {
