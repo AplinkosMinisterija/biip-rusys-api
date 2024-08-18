@@ -20,8 +20,9 @@ import {
   EntityChangedParams,
   FieldHookCallback,
   TENANT_FIELD,
+  throwNotFoundError,
 } from '../types';
-import { UserAuthMeta } from './api.service';
+import { AuthType, UserAuthMeta } from './api.service';
 import { RequestHistoryTypes } from './requests.histories.service';
 import { Tenant } from './tenants.service';
 import { USERS_DEFAULT_SCOPES, User, UserType } from './users.service';
@@ -34,6 +35,9 @@ import { parseToObject } from '../utils/functions';
 import { emailCanBeSent, notifyOnFileGenerated, notifyOnRequestUpdate } from '../utils/mails';
 import { Taxonomy } from './taxonomies.service';
 import { TaxonomySpeciesType } from './taxonomies.species.service';
+import { getRequestData } from '../utils/pdf/requests';
+import { ApprovedFormsDbFields } from './views.approvedForms.service';
+import { PlacesWithTaxonomiesDbFields } from './views.placesWithTaxonomies.service';
 
 export const RequestType = {
   GET: 'GET',
@@ -614,6 +618,76 @@ export default class RequestsService extends moleculer.Service {
       ],
       [],
     );
+  }
+
+  @Action({
+    params: {
+      id: {
+        type: 'number',
+        convert: true,
+      },
+    },
+    rest: 'GET /:id/geojson',
+    timeout: 0,
+  })
+  async getRequestGeojson(
+    ctx: Context<{ id: number }, { $responseType: string; $responseHeaders: any }>,
+  ) {
+    const { id } = ctx.params;
+
+    const request: Request = await ctx.call('requests.resolve', {
+      id,
+      throwIfNotExist: true,
+    });
+
+    if (request.type !== RequestType.GET_ONCE || request.status !== RequestStatus.APPROVED) {
+      throwNotFoundError('Request not found');
+    }
+
+    const requestData = await getRequestData(ctx, id);
+
+    const informationalFormsIds = Object.values(requestData.informationalForms)
+      .map((i) => i.forms?.map((f: any) => f.id) || [])
+      .flat();
+    const placesIds = requestData.places.map((p) => p.id);
+
+    const features = [];
+
+    if (informationalFormsIds?.length) {
+      const dataForms: any = await ctx.call('views.approvedForms.getGeojson', {
+        fields: ApprovedFormsDbFields,
+        query: {
+          id: {
+            $raw: `id in ('${informationalFormsIds.join("', '")}')`,
+          },
+        },
+      });
+
+      features.push(...dataForms.features);
+    }
+
+    if (placesIds?.length) {
+      const dataPlaces: any = await ctx.call('views.placesWithTaxonomies.getGeojson', {
+        fields: PlacesWithTaxonomiesDbFields,
+        query: {
+          id: {
+            $raw: `id in ('${placesIds.join("', '")}')`,
+          },
+        },
+      });
+
+      features.push(...dataPlaces.features);
+    }
+
+    ctx.meta.$responseType = 'application/json';
+    ctx.meta.$responseHeaders = {
+      'Content-Disposition': `attachment; filename="request-${id}-geojson.json"`,
+    };
+
+    return {
+      type: 'FeatureCollection',
+      features,
+    };
   }
 
   @Action({

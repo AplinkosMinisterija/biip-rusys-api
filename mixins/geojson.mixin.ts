@@ -32,13 +32,13 @@ export function GeojsonMixin() {
           geomField = geomField || 'geom';
           srid = srid || 3346;
 
+          const geomQuery = `ST_Transform(${geomField}, ${srid}) as ${geomField}`;
           const itemsQuery = adapter
             .computeQuery(table, query)
-            .select(...fields, knex.raw(`ST_Transform(${geomField}, ${srid}) as ${geomField}`))
-            .limit(100);
+            .select(...fields, knex.raw(geomQuery));
 
           const res = await knex
-            .select(knex.raw(`ST_AsGeoJSON(i)::json as feature`))
+            .select(knex.raw(`ST_AsGeoJSON(i, '${geomField}', 2)::json as feature`))
             .from(itemsQuery.as('i'));
 
           return {
