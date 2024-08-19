@@ -11,7 +11,7 @@ import { getFeatureCollection } from 'geojsonjs';
 import jwt, { VerifyErrors } from 'jsonwebtoken';
 import { camelCase } from 'lodash';
 import moment from 'moment';
-import { getEndangeredPlacesAndFromsByRequestsIds } from '../utils/db.queries';
+import { getPlacesAndFromsByRequestsIds } from '../utils/db.queries';
 import { toReadableStream } from '../utils/functions';
 
 export const mapsSrisPlacesLayerId = 'radavietes';
@@ -115,6 +115,83 @@ export default class MapsService extends moleculer.Service {
     return request?.geom;
   }
 
+  @Action()
+  async getInvaLegendData(ctx: Context<{ all?: boolean }>) {
+    return this.getLegendData({
+      project: 'inva',
+      layers: ctx.params.all
+        ? 'radavietes_invazines,radavietes_svetimzemes'
+        : 'radavietes_invazines',
+    });
+  }
+
+  @Action()
+  async getSrisLegendData() {
+    return this.getLegendData({
+      project: 'sris',
+      layers: 'radavietes,stebejimai_interpretuojami',
+      auth: process.env.QGIS_SERVER_AUTH_KEY,
+    });
+  }
+
+  @Action()
+  getDefaultLegendData() {
+    return [
+      {
+        title: 'Prašytos teritorijos ribos',
+        icon: this.convertImageBase64(
+          'iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAABrSURBVHgB7dGxDYAwFEPBDyMxFiWDUDIWK8EGSRMplnJXu/KrAgAAAAAAAAAAAAAAAAAAAABgOVtvcJzXVwzzPnfz872IIkgYQcIIEkaQMIKEESSMIGEEAQAAAAAAAAAAAAAAAAAAAACA2X4MAwQUZh7N+AAAAABJRU5ErkJggg==',
+        ),
+      },
+    ];
+  }
+
+  @Method
+  getLegendData(opts: { project: string; layers: string; auth?: string }) {
+    const hostUrl = process.env.QGIS_SERVER_HOST || 'https://gis.biip.lt';
+    const url = `${hostUrl}/qgisserver/${opts.project}`;
+    const searchParams = new URLSearchParams({
+      SERVICE: 'WMS',
+      VERSION: '1.1.1',
+      REQUEST: 'GetLegendGraphic',
+      LAYERS: opts.layers,
+      FORMAT: 'application/json',
+      SRS: 'EPSG:3346',
+    });
+
+    const headers: any = {
+      'Content-Type': 'application/json',
+    };
+
+    if (opts.auth) {
+      headers['x-auth-key'] = opts.auth;
+    }
+
+    return fetch(`${url}?${searchParams.toString()}`, {
+      method: 'GET',
+      mode: 'no-cors',
+      headers,
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        return data.nodes.map((i: any) => {
+          const icon = i.symbols
+            .reverse()
+            .find((symbol: any) => symbol.title === 'small polygons' && symbol.icon)?.icon;
+
+          return {
+            title: i.title,
+            icon: this.convertImageBase64(icon),
+          };
+        });
+      });
+  }
+
+  @Method
+  convertImageBase64(iconBase64: string) {
+    return `data:image/png;base64,${iconBase64}`;
+  }
+
   @Action({
     params: {
       id: {
@@ -131,7 +208,7 @@ export default class MapsService extends moleculer.Service {
       throwIfNotExist: true,
     });
 
-    const data = await getEndangeredPlacesAndFromsByRequestsIds([request.id]);
+    const data = await getPlacesAndFromsByRequestsIds([request.id], request.speciesTypes);
 
     return data?.[0] || {};
   }
@@ -298,7 +375,7 @@ export default class MapsService extends moleculer.Service {
 
     if (!requests?.length) return { places: [], forms: [] };
 
-    const data = await getEndangeredPlacesAndFromsByRequestsIds(requests.map((r) => r.id));
+    const data = await getPlacesAndFromsByRequestsIds(requests.map((r) => r.id));
 
     return data.reduce(
       (acc, item) => {

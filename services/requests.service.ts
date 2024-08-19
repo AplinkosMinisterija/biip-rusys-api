@@ -30,10 +30,13 @@ import { getFeatureCollection } from 'geojsonjs';
 import PostgisMixin, { GeometryType } from 'moleculer-postgis';
 import moment from 'moment';
 import { getInformationalFormsByRequestIds, getPlacesByRequestIds } from '../utils/db.queries';
-import { parseToObject } from '../utils/functions';
+import { parseToObject, toReadableStream } from '../utils/functions';
 import { emailCanBeSent, notifyOnFileGenerated, notifyOnRequestUpdate } from '../utils/mails';
 import { Taxonomy } from './taxonomies.service';
 import { TaxonomySpeciesType } from './taxonomies.species.service';
+import { getRequestSecret } from './jobs.requests.service';
+import { getTemplateHtml } from '../utils/html';
+import { getRequestData } from '../utils/pdf/requests';
 
 export const RequestType = {
   GET: 'GET',
@@ -671,6 +674,43 @@ export default class RequestsService extends moleculer.Service {
       ],
       [],
     );
+  }
+
+  @Action({
+    params: {
+      id: {
+        type: 'number',
+        convert: true,
+      },
+    },
+    rest: 'GET /:id/pdf',
+    types: [EndpointType.ADMIN],
+    timeout: 0,
+  })
+  async getRequestPdf(ctx: Context<{ id: number }, { $responseType: string }>) {
+    const { id } = ctx.params;
+
+    const request: Request = await ctx.call('requests.resolve', {
+      id,
+      throwIfNotExist: true,
+    });
+
+    const requestData = await getRequestData(ctx, id);
+
+    const secret = getRequestSecret(request);
+
+    const footerHtml = getTemplateHtml('footer.ejs', {
+      id,
+      systemName: requestData.systemNameFooter,
+    });
+
+    const pdf = await ctx.call('tools.makePdf', {
+      url: `${process.env.SERVER_HOST}/jobs/requests/${id}/html?secret=${secret}&skey=admin_preview`,
+      footer: footerHtml,
+    });
+
+    ctx.meta.$responseType = 'application/pdf';
+    return toReadableStream(pdf);
   }
 
   @Method
