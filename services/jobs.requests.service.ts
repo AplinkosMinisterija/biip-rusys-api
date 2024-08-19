@@ -13,7 +13,7 @@ import { Request } from './requests.service';
 import { Tenant } from './tenants.service';
 import { User } from './users.service';
 
-function getSecret(request: Request) {
+export function getRequestSecret(request: Request) {
   return toMD5Hash(`id=${request.id}&date=${moment(request.createdAt).format('YYYYMMDDHHmmss')}`);
 }
 @Service({
@@ -96,7 +96,7 @@ export default class JobsRequestsService extends moleculer.Service {
 
     await this.broker.cacher.set(redisKey, screenshotsByHash);
 
-    const secret = getSecret(request);
+    const secret = getRequestSecret(request);
 
     const footerHtml = getTemplateHtml('footer.ejs', {
       id,
@@ -231,14 +231,18 @@ export default class JobsRequestsService extends moleculer.Service {
 
     const request: Request = await ctx.call('requests.resolve', { id });
 
-    const secretToApprove = getSecret(request);
+    const secretToApprove = getRequestSecret(request);
     if (!request?.id || !secret || secret !== secretToApprove) {
       return throwNotFoundError('Invalid secret!');
     }
 
     const requestData = await getRequestData(ctx, id);
 
-    const screenshotsByHash = await this.broker.cacher.get(`screenshots.${screenshotsRedisKey}`);
+    let screenshotsByHash: any = {};
+
+    if (screenshotsRedisKey !== 'admin_preview') {
+      screenshotsByHash = await this.broker.cacher.get(`screenshots.${screenshotsRedisKey}`);
+    }
 
     // set screenshots for places
     requestData?.places.forEach((p) => {

@@ -254,12 +254,23 @@ export async function getRequestData(ctx: Context, id: number) {
     request?.speciesTypes?.includes(TaxonomySpeciesType.INTRODUCED) ||
     request?.speciesTypes?.includes(TaxonomySpeciesType.INVASIVE);
 
+  const legendData: any[] = await ctx.call('maps.getDefaultLegendData');
+
+  if (isInvasive) {
+    const invaLegendData: any[] = await ctx.call('maps.getInvaLegendData');
+    legendData.push(...invaLegendData);
+  } else {
+    const srisLegendData: any[] = await ctx.call('maps.getSrisLegendData');
+    legendData.push(...srisLegendData);
+  }
+
   return {
     id: request.id,
     speciesById,
     requestDate,
     translates,
     createdAt: formatDate(request.createdAt),
+    legendData,
     places,
     speciesNames: Object.values(speciesById)
       .map((s) => s.name)

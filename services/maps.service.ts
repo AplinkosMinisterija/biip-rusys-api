@@ -115,6 +115,81 @@ export default class MapsService extends moleculer.Service {
     return request?.geom;
   }
 
+  @Action()
+  async getInvaLegendData() {
+    return this.getLegendData({
+      project: 'inva',
+      layers: 'radavietes_invazines,radavietes_svetimzemes',
+    });
+  }
+
+  @Action()
+  async getSrisLegendData() {
+    return this.getLegendData({
+      project: 'sris',
+      layers: 'radavietes,stebejimai_interpretuojami',
+      auth: process.env.QGIS_SERVER_AUTH_KEY,
+    });
+  }
+
+  @Action()
+  getDefaultLegendData() {
+    return [
+      {
+        title: 'Prašytos teritorijos ribos',
+        icon: this.convertImageBase64(
+          'iVBORw0KGgoAAAANSUhEUgAAAGQAAABkCAYAAABw4pVUAAAACXBIWXMAAAsTAAALEwEAmpwYAAAAAXNSR0IArs4c6QAAAARnQU1BAACxjwv8YQUAAABrSURBVHgB7dGxDYAwFEPBDyMxFiWDUDIWK8EGSRMplnJXu/KrAgAAAAAAAAAAAAAAAAAAAABgOVtvcJzXVwzzPnfz872IIkgYQcIIEkaQMIKEESSMIGEEAQAAAAAAAAAAAAAAAAAAAACA2X4MAwQUZh7N+AAAAABJRU5ErkJggg==',
+        ),
+      },
+    ];
+  }
+
+  @Method
+  getLegendData(opts: { project: string; layers: string; auth?: string }) {
+    const hostUrl = process.env.QGIS_SERVER_HOST || 'https://gis.biip.lt';
+    const url = `${hostUrl}/qgisserver/${opts.project}`;
+    const searchParams = new URLSearchParams({
+      SERVICE: 'WMS',
+      VERSION: '1.1.1',
+      REQUEST: 'GetLegendGraphic',
+      LAYERS: opts.layers,
+      FORMAT: 'application/json',
+      SRS: 'EPSG:3346',
+    });
+
+    const headers: any = {
+      'Content-Type': 'application/json',
+    };
+
+    if (opts.auth) {
+      headers['x-auth-key'] = opts.auth;
+    }
+
+    return fetch(`${url}?${searchParams.toString()}`, {
+      method: 'GET',
+      mode: 'no-cors',
+      headers,
+    })
+      .then((r) => r.json())
+      .then((data) => {
+        return data.nodes.map((i: any) => {
+          const icon = i.symbols
+            .reverse()
+            .find((symbol: any) => symbol.title === 'small polygons' && symbol.icon)?.icon;
+
+          return {
+            title: i.title,
+            icon: this.convertImageBase64(icon),
+          };
+        });
+      });
+  }
+
+  @Method
+  convertImageBase64(iconBase64: string) {
+    return `data:image/png;base64,${iconBase64}`;
+  }
+
   @Action({
     params: {
       id: {
