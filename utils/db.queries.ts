@@ -12,7 +12,10 @@ const getAdapter = () => {
   return knexAdapter;
 };
 
-export function getEndangeredPlacesAndFromsByRequestsIds(requestIds?: number[]) {
+export function getPlacesAndFromsByRequestsIds(
+  requestIds?: number[],
+  types: string[] = ['ENDANGERED'],
+) {
   const knex = getAdapter();
 
   const parsedTaxonomies = knex
@@ -41,7 +44,7 @@ export function getEndangeredPlacesAndFromsByRequestsIds(requestIds?: number[]) 
         end
         `),
       )
-      .where('ta.speciesType', 'ENDANGERED')
+      .whereIn('ta.speciesType', types)
       .where(knex.raw(`ta.${queryBooleanPlain('speciesIsHidden', false)}`))
       .groupBy('requests.id', 'requests.geom'),
   );

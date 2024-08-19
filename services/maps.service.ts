@@ -11,7 +11,7 @@ import { getFeatureCollection } from 'geojsonjs';
 import jwt, { VerifyErrors } from 'jsonwebtoken';
 import { camelCase } from 'lodash';
 import moment from 'moment';
-import { getEndangeredPlacesAndFromsByRequestsIds } from '../utils/db.queries';
+import { getPlacesAndFromsByRequestsIds } from '../utils/db.queries';
 import { toReadableStream } from '../utils/functions';
 
 export const mapsSrisPlacesLayerId = 'radavietes';
@@ -116,10 +116,12 @@ export default class MapsService extends moleculer.Service {
   }
 
   @Action()
-  async getInvaLegendData() {
+  async getInvaLegendData(ctx: Context<{ all?: boolean }>) {
     return this.getLegendData({
       project: 'inva',
-      layers: 'radavietes_invazines,radavietes_svetimzemes',
+      layers: ctx.params.all
+        ? 'radavietes_invazines,radavietes_svetimzemes'
+        : 'radavietes_invazines',
     });
   }
 
@@ -206,7 +208,7 @@ export default class MapsService extends moleculer.Service {
       throwIfNotExist: true,
     });
 
-    const data = await getEndangeredPlacesAndFromsByRequestsIds([request.id]);
+    const data = await getPlacesAndFromsByRequestsIds([request.id], request.speciesTypes);
 
     return data?.[0] || {};
   }
@@ -373,7 +375,7 @@ export default class MapsService extends moleculer.Service {
 
     if (!requests?.length) return { places: [], forms: [] };
 
-    const data = await getEndangeredPlacesAndFromsByRequestsIds(requests.map((r) => r.id));
+    const data = await getPlacesAndFromsByRequestsIds(requests.map((r) => r.id));
 
     return data.reduce(
       (acc, item) => {

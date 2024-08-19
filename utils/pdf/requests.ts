@@ -257,7 +257,9 @@ export async function getRequestData(ctx: Context, id: number) {
   const legendData: any[] = await ctx.call('maps.getDefaultLegendData');
 
   if (isInvasive) {
-    const invaLegendData: any[] = await ctx.call('maps.getInvaLegendData');
+    const invaLegendData: any[] = await ctx.call('maps.getInvaLegendData', {
+      all: request?.speciesTypes?.includes(TaxonomySpeciesType.INTRODUCED),
+    });
     legendData.push(...invaLegendData);
   } else {
     const srisLegendData: any[] = await ctx.call('maps.getSrisLegendData');
