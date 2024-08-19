@@ -3,6 +3,7 @@ import _, { snakeCase } from 'lodash';
 import config from '../knexfile';
 import { queryBooleanPlain } from '../types';
 import { asGeoJsonQuery } from 'moleculer-postgis';
+import moment from 'moment';
 
 let knexAdapter: Knex;
 const getAdapter = () => {
@@ -106,6 +107,7 @@ export function getPlacesByRequestIds(ids: number[], species?: number[], date?: 
     const snakePlaceHistoryTable = _.snakeCase(placeHistoryTable);
     const matchesTable = 'matches';
 
+    date = moment(date).endOf('day').format();
     function placeHistoryQuery() {
       this.select(knex.raw('distinct(items.place_id) as place_id'), 'items.geom')
         .from(function () {
@@ -168,6 +170,7 @@ export function getInformationalFormsByRequestIds(
     .whereIn(`${formsTable}.speciesId`, species);
 
   if (date) {
+    date = moment(date).endOf('day').format();
     query.where(`${formsTable}.createdAt`, '<=', date);
   }
 
