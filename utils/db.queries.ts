@@ -25,13 +25,21 @@ export function getPlacesAndFromsByRequestsIds(
       'requests.geom',
       knex.raw(`(jsonb_array_elements(requests.taxonomies)->>'id')::numeric as taxonomy_id`),
       knex.raw(`jsonb_array_elements(requests.taxonomies)->>'taxonomy' as taxonomy_type`),
+      knex.raw(
+        `to_timestamp(to_date(coalesce(requests.data::json->>'receiveDate', to_char(NOW(), 'YYYY-MM-DD')), 'YYYY-MM-DD') || ' 23:59:59', 'YYYY-MM-DD HH24:MI:SS') as date_to`,
+      ),
     )
     .from('requests');
 
   const requestsWithSpeciesQuery = knex.with(
     'requestsWithSpecies',
     knex
-      .select('requests.id', 'requests.geom', knex.raw(`array_agg(ta.species_id) as species_ids`))
+      .select(
+        'requests.id',
+        'requests.geom',
+        'requests.dateTo',
+        knex.raw(`array_agg(ta.species_id) as species_ids`),
+      )
       .from(parsedTaxonomies.as('requests'))
       .leftJoin(
         'taxonomiesAll as ta',
@@ -47,7 +55,7 @@ export function getPlacesAndFromsByRequestsIds(
       )
       .whereIn('ta.speciesType', types)
       .where(knex.raw(`ta.${queryBooleanPlain('speciesIsHidden', false)}`))
-      .groupBy('requests.id', 'requests.geom'),
+      .groupBy('requests.id', 'requests.geom', 'requests.dateTo'),
   );
 
   const geomSelectQuery = (table: string) => {
@@ -56,6 +64,7 @@ export function getPlacesAndFromsByRequestsIds(
       .from('requestsWithSpecies as r')
       .leftJoin(`${table} as subtable`, knex.raw(`st_intersects(r.geom, subtable.geom)`))
       .where(`subtable.speciesId`, '=', knex.raw(`any(r.species_ids)`))
+      .where(`subtable.createdAt`, '<=', knex.raw('r.date_to'))
       .groupBy('r.id');
   };
 
