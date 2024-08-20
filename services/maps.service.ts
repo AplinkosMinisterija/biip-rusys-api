@@ -203,14 +203,15 @@ export default class MapsService extends moleculer.Service {
     rest: 'GET /requests/:id/items',
   })
   async getRequestItems(ctx: Context<{ id: number }>) {
+    const { id } = ctx.params;
     const request: Request = await ctx.call('requests.resolve', {
       id: ctx.params.id,
       throwIfNotExist: true,
     });
 
-    const data = await getPlacesAndFromsByRequestsIds([request.id], request.speciesTypes);
+    const data = await getPlacesAndFromsByRequestsIds([request.id]);
 
-    return data?.[0] || {};
+    return data?.find((i) => i.id === id);
   }
 
   @Action({
