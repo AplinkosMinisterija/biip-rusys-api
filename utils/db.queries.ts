@@ -3,6 +3,7 @@ import _, { snakeCase } from 'lodash';
 import config from '../knexfile';
 import { queryBooleanPlain } from '../types';
 import { asGeoJsonQuery } from 'moleculer-postgis';
+import moment from 'moment';
 
 let knexAdapter: Knex;
 const getAdapter = () => {
@@ -12,27 +13,34 @@ const getAdapter = () => {
   return knexAdapter;
 };
 
-export function getEndangeredPlacesAndFromsByRequestsIds(requestIds?: number[]) {
+function getRequestsWithSpeciesQuery(ids: number[]) {
   const knex = getAdapter();
 
   const parsedTaxonomies = knex
     .select(
       'requests.id',
       'requests.geom',
+      'requests.speciesTypes',
       knex.raw(`(jsonb_array_elements(requests.taxonomies)->>'id')::numeric as taxonomy_id`),
       knex.raw(`jsonb_array_elements(requests.taxonomies)->>'taxonomy' as taxonomy_type`),
+      knex.raw(
+        `to_timestamp(to_date(coalesce(requests.data::json->>'receiveDate', to_char(NOW(), 'YYYY-MM-DD')), 'YYYY-MM-DD') || ' 23:59:59', 'YYYY-MM-DD HH24:MI:SS') as date_to`,
+      ),
     )
     .from('requests');
 
-  const requestsWithSpeciesQuery = knex.with(
-    'requestsWithSpecies',
-    knex
-      .select('requests.id', 'requests.geom', knex.raw(`array_agg(ta.species_id) as species_ids`))
-      .from(parsedTaxonomies.as('requests'))
-      .leftJoin(
-        'taxonomiesAll as ta',
-        'requests.taxonomyId',
-        knex.raw(`
+  const query = knex
+    .select(
+      'requests.id',
+      'requests.geom',
+      'requests.dateTo',
+      knex.raw(`array_agg(ta.species_id) as species_ids`),
+    )
+    .from(parsedTaxonomies.as('requests'))
+    .leftJoin(
+      'taxonomiesAll as ta',
+      'requests.taxonomyId',
+      knex.raw(`
         case 
           when requests.taxonomy_type='KINGDOM' then ta.kingdom_id
           when requests.taxonomy_type='PHYLUM' then ta.phylum_id 
@@ -40,32 +48,51 @@ export function getEndangeredPlacesAndFromsByRequestsIds(requestIds?: number[]) 
           when requests.taxonomy_type='SPECIES' then ta.species_id
         end
         `),
-      )
-      .where('ta.speciesType', 'ENDANGERED')
-      .where(knex.raw(`ta.${queryBooleanPlain('speciesIsHidden', false)}`))
-      .groupBy('requests.id', 'requests.geom'),
+    )
+    .where(knex.raw('requests.species_types @> to_jsonb(ta.species_type)'))
+    .where(knex.raw(`ta.${queryBooleanPlain('speciesIsHidden', false)}`))
+    .groupBy('requests.id', 'requests.geom', 'requests.dateTo');
+
+  if (ids?.length) {
+    parsedTaxonomies.whereIn('requests.id', ids);
+  }
+
+  return query;
+}
+
+export async function getPlacesAndFromsByRequestsIds(requestIds?: number[]): Promise<
+  {
+    id: number;
+    forms: number[];
+    places: number[];
+    speciesIds: number[];
+  }[]
+> {
+  const response = await getRequestsWithSpeciesQuery(requestIds);
+
+  const places = await Promise.all(
+    response.map((r) =>
+      getPlacesByRequestIds([r.id], r.speciesIds, r.dateTo).then((data) => ({
+        request: r.id,
+        places: data.map((p) => p.id),
+      })),
+    ),
+  );
+  const informationalForms = await Promise.all(
+    response.map((r) =>
+      getInformationalFormsByRequestIds([r.id], r.speciesIds, r.dateTo).then((data) => ({
+        request: r.id,
+        forms: data.map((f) => f.id),
+      })),
+    ),
   );
 
-  const geomSelectQuery = (table: string) => {
-    return knex
-      .select('r.id', knex.raw(`array_agg(subtable.id) as items`))
-      .from('requestsWithSpecies as r')
-      .leftJoin(`${table} as subtable`, knex.raw(`st_intersects(r.geom, subtable.geom)`))
-      .where(`subtable.speciesId`, '=', knex.raw(`any(r.species_ids)`))
-      .groupBy('r.id');
-  };
-
-  const query = requestsWithSpeciesQuery
-    .select('r.id', 'r.species_ids', 'p.items as places', 'f.items as forms')
-    .from('requestsWithSpecies as r')
-    .leftJoin(geomSelectQuery('placesWithTaxonomies').as('p'), 'r.id', 'p.id')
-    .leftJoin(geomSelectQuery('approvedForms').as('f'), 'r.id', 'f.id');
-
-  if (requestIds?.length) {
-    parsedTaxonomies.whereIn('requests.id', requestIds);
-    query.whereIn('r.id', requestIds);
-  }
-  return query;
+  return response.map((r: any) => ({
+    id: r.id,
+    forms: informationalForms.find((f) => f.request === r.id)?.forms || [],
+    places: places.find((f) => f.request === r.id)?.places || [],
+    speciesIds: r.speciesIds,
+  }));
 }
 
 export function getPlacesByRequestIds(ids: number[], species?: number[], date?: string) {
@@ -77,7 +104,7 @@ export function getPlacesByRequestIds(ids: number[], species?: number[], date?: 
     .select(`${placesTable}.id`)
     .from(requestsTable)
     .whereIn(`${requestsTable}.id`, ids)
-    .whereIn(`${placesTable}.speciesId`, species)
+    .where(knex.raw(`${placesTable}.species_id in ('${species.join("','")}')`))
     .whereNull(`${placesTable}.deletedAt`);
 
   const intersectsQuery = (tableName: string) => {
@@ -103,6 +130,7 @@ export function getPlacesByRequestIds(ids: number[], species?: number[], date?: 
     const snakePlaceHistoryTable = _.snakeCase(placeHistoryTable);
     const matchesTable = 'matches';
 
+    date = moment(date).endOf('day').format();
     function placeHistoryQuery() {
       this.select(knex.raw('distinct(items.place_id) as place_id'), 'items.geom')
         .from(function () {
@@ -165,6 +193,7 @@ export function getInformationalFormsByRequestIds(
     .whereIn(`${formsTable}.speciesId`, species);
 
   if (date) {
+    date = moment(date).endOf('day').format();
     query.where(`${formsTable}.createdAt`, '<=', date);
   }
 
