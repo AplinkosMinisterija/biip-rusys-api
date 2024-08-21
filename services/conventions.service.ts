@@ -38,7 +38,7 @@ function conventionToText(convention: Convention, append: string = ''): string {
       collection: 'conventions',
       cache: {
         enabled: true,
-        additionalKeys: ADDITIONAL_CACHE_KEYS,
+        additionalKeys: ADDITIONAL_CACHE_KEYS(),
       },
     }),
   ],
