@@ -22,7 +22,7 @@ import {
   TENANT_FIELD,
   throwNotFoundError,
 } from '../types';
-import { AuthType, UserAuthMeta } from './api.service';
+import { UserAuthMeta } from './api.service';
 import { RequestHistoryTypes } from './requests.histories.service';
 import { Tenant } from './tenants.service';
 import { USERS_DEFAULT_SCOPES, User, UserType } from './users.service';
@@ -38,7 +38,6 @@ import { TaxonomySpeciesType, TaxonomySpeciesTypeTranslate } from './taxonomies.
 import { getRequestSecret } from './jobs.requests.service';
 import { getTemplateHtml } from '../utils/html';
 import { getRequestData } from '../utils/pdf/requests';
-import { PlaceStatusTranslates } from './places.service';
 
 export const RequestType = {
   GET: 'GET',
