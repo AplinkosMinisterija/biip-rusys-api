@@ -1,12 +1,13 @@
 import { Context } from 'moleculer';
-import { TaxonomySpecies, TaxonomySpeciesType } from '../../services/taxonomies.species.service';
+import { TaxonomySpeciesType } from '../../services/taxonomies.species.service';
 import { Request } from '../../services/requests.service';
 import { Moment } from 'moment';
 import moment from 'moment-timezone';
-import { Place } from '../../services/places.service';
+import { Place, PlaceStatusTranslates } from '../../services/places.service';
 import { Form } from '../../services/forms.service';
 import { toMD5Hash } from '../functions';
 import { FeatureCollection, Feature, Geometry, getGeometries, GeometryType } from 'geojsonjs';
+import { Taxonomy } from '../../services/taxonomies.service';
 
 const dateFormat = 'YYYY-MM-DD';
 const dateFormatFull = `${dateFormat} HH:mm`;
@@ -28,13 +29,23 @@ function formatDate(date?: Date | string | Moment, full: boolean = false) {
     .format(full ? dateFormatFull : dateFormat);
 }
 
-function getFormData(form: Form) {
+function getFormData(form: Form, translates?: any) {
+  const formTranslates = translates?.[`${form.species as number}`];
   return {
     id: form.id,
     evolution: form.evolution,
     activity: form.activity,
     method: form.method,
     observedAt: formatDate(form.observedAt),
+    observedBy: form.observedBy,
+    createdAt: formatDate(form.createdAt),
+    source: (form.source as any)?.name || '',
+    photos: form.photos?.map((p) => p.url) || [],
+    description: form.description,
+    quantity: form.quantity,
+    activityTranslate: formTranslates?.ACTIVITY?.[form.activity] || '-',
+    methodTranslate: formTranslates?.METHOD?.[form.method] || '-',
+    evolutionTranslate: formTranslates?.EVOLUTION?.[form.evolution] || '-',
     status: '',
   };
 }
@@ -109,7 +120,7 @@ function getGeometryWithTranslates(geom: FeatureCollection | Feature) {
   });
 }
 
-async function getPlaces(ctx: Context, requestId: number, date: string) {
+async function getPlaces(ctx: Context, requestId: number, date: string, translates?: any) {
   const placesData: Array<{ placeId: number; geom: FeatureCollection }> = await ctx.call(
     'requests.getPlacesByRequest',
     {
@@ -130,7 +141,7 @@ async function getPlaces(ctx: Context, requestId: number, date: string) {
         $in: placesData.map((i) => i.placeId),
       },
     },
-    populate: 'forms',
+    populate: ['forms', 'area'],
   });
 
   const mappedPlaces = (places || [])
@@ -138,17 +149,22 @@ async function getPlaces(ctx: Context, requestId: number, date: string) {
       const placeForms = p.forms || [];
       return {
         id: p.id,
-        species: p.species,
+        species: p.species as number,
         placeCode: p.code,
         placeLastObservedAt: formatDate(moment.max(placeForms.map((f) => moment(f.observedAt)))),
+        placeFirstObservedAt: formatDate(moment.min(placeForms.map((f) => moment(f.observedAt)))),
+        placeArea: p.area,
+        placeStatusTranslate: PlaceStatusTranslates[p.status],
+        placeCreatedAt: formatDate(p.createdAt),
         screenshot: '',
         hash: toMD5Hash(`place=${p.id}`),
         hasEvolution: placeForms.some((f) => !!f.evolution),
         hasActivity: placeForms.some((f) => !!f.activity),
         hasMethod: placeForms.some((f) => !!f.method),
         coordinates: getGeometryWithTranslates(placesGeomByPlaceId[p.id]),
+        geom: placesGeomByPlaceId[p.id],
         forms: placeForms
-          .map((f) => getFormData(f))
+          .map((f) => getFormData(f, translates))
           .sort((f1: any, f2: any) => {
             return moment(f2.observedAt).diff(moment(f1.observedAt));
           }),
@@ -161,7 +177,12 @@ async function getPlaces(ctx: Context, requestId: number, date: string) {
   return mappedPlaces;
 }
 
-async function getInformationalForms(ctx: Context, requestId: number, date: string) {
+async function getInformationalForms(
+  ctx: Context,
+  requestId: number,
+  date: string,
+  translates?: any,
+) {
   const informationalForms: Array<{
     formId: number;
     geom: FeatureCollection;
@@ -181,6 +202,7 @@ async function getInformationalForms(ctx: Context, requestId: number, date: stri
         $in: informationalForms.map((i) => i.formId),
       },
     },
+    populate: ['source'],
   });
 
   const mappedForms = forms.reduce((acc: { [key: string]: any }, form) => {
@@ -196,8 +218,9 @@ async function getInformationalForms(ctx: Context, requestId: number, date: stri
     const item = acc[`${form.species}`];
 
     item.forms.push({
-      ...getFormData(form),
+      ...getFormData(form, translates),
       coordinates: getGeometryWithTranslates(formsGeomByFormId[form.id]),
+      geom: formsGeomByFormId[form.id],
     });
     item.hasActivity = item.hasActivity || !!form.activity;
     item.hasMethod = item.hasMethod || !!form.method;
@@ -236,17 +259,14 @@ export async function getRequestData(ctx: Context, id: number) {
 
   const speciesIds = request.inheritedSpecies || [];
   const translates = await getTranslates(ctx, speciesIds);
-  const speciesById: { [key: string]: TaxonomySpecies } = await ctx.call(
-    'taxonomies.species.resolve',
-    {
-      id: speciesIds,
-      populate: 'conventionsText',
-      mapping: true,
-    },
-  );
+  const speciesById: { [key: string]: Taxonomy } = await ctx.call('taxonomies.findBySpeciesId', {
+    id: speciesIds,
+    showHidden: true,
+    mapping: true,
+  });
 
-  const places = await getPlaces(ctx, id, requestDate);
-  const informationalForms = await getInformationalForms(ctx, id, requestDate);
+  const places = await getPlaces(ctx, id, requestDate, translates);
+  const informationalForms = await getInformationalForms(ctx, id, requestDate, translates);
 
   const previewScreenshotHash = toMD5Hash(`request=${request.id}`);
 
@@ -275,7 +295,7 @@ export async function getRequestData(ctx: Context, id: number) {
     legendData,
     places,
     speciesNames: Object.values(speciesById)
-      .map((s) => s.name)
+      .map((s) => s.speciesName)
       .join(', '),
     informationalForms,
     reason: request.data?.description || '-',

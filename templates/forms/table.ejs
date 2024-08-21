@@ -19,11 +19,11 @@
       <td class="px-4 py-2"><%= index+1 %>.</td>
       <td class="px-4 py-2"><%= form.observedAt %></td>
       <% if (hasActivity) { %>
-      <td class="px-4 py-2"><%= translates?.ACTIVITY?.[form.activity] || '-' %></td>
+      <td class="px-4 py-2"><%= form.activityTranslate || '-' %></td>
       <% }; %> <% if (hasEvolution) { %>
-      <td class="px-4 py-2"><%= translates?.EVOLUTION?.[form.evolution] || '-' %></td>
+      <td class="px-4 py-2"><%= form.evolutionTranslate || '-' %></td>
       <% }; %> <% if (hasMethod) { %>
-      <td class="px-4 py-2"><%= translates?.METHOD?.[form.method] || '-' %></td>
+      <td class="px-4 py-2"><%= form.methodTranslate || '-' %></td>
       <% }; %>
     </tr>
     <% if (showCoordinates) { %>

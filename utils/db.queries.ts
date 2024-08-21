@@ -114,7 +114,7 @@ export function getPlacesByRequestIds(ids: number[], species?: number[], date?: 
   const geomQuery = (tableName: string) => {
     return knex.raw(
       asGeoJsonQuery(`${tableName}.geom`, 'geom', 3346, {
-        digits: 0,
+        digits: 2,
         options: 0,
       }),
     );
@@ -173,7 +173,7 @@ export function getInformationalFormsByRequestIds(
   const geomQuery = (tableName: string) => {
     return knex.raw(
       asGeoJsonQuery(`${snakeCase(tableName)}.geom`, 'geom', 3346, {
-        digits: 0,
+        digits: 2,
         options: 0,
       }),
     );
