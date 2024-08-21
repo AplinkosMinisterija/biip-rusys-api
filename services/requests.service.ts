@@ -723,7 +723,6 @@ export default class RequestsService extends moleculer.Service {
       },
     },
     rest: 'GET /:id/geojson',
-    types: [EndpointType.ADMIN],
     timeout: 0,
   })
   async getGeojson(ctx: Context<{ id: number }, { $responseType: string; $responseHeaders: any }>) {
