@@ -36,6 +36,7 @@ import { Place } from './places.service';
 import { Taxonomy } from './taxonomies.service';
 import { Tenant } from './tenants.service';
 import { User, USERS_DEFAULT_SCOPES, UserType } from './users.service';
+import { FormSettingSource } from './forms.settings.sources.service';
 
 export const FormStatus = {
   CREATED: 'CREATED',
@@ -151,7 +152,10 @@ export interface Form extends BaseModelInterface {
   geomBufferSize?: number;
   isInformational: boolean;
   isRelevant: boolean;
+  source: number | FormSettingSource;
   geom: any;
+  photos?: { url: string }[];
+  observedBy: string;
 }
 
 @Service({

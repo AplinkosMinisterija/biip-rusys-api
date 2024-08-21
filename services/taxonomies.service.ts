@@ -60,7 +60,7 @@ const updateTaxonomies = async function () {
       },
       cache: {
         enabled: true,
-        additionalKeys: ADDITIONAL_CACHE_KEYS,
+        additionalKeys: ADDITIONAL_CACHE_KEYS(),
       },
     }),
   ],

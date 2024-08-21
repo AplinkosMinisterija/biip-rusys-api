@@ -25,9 +25,8 @@ import { TaxonomySpecies } from './taxonomies.species.service';
 import { User, UserType } from './users.service';
 
 import PostgisMixin, { asGeoJsonQuery } from 'moleculer-postgis';
-import { GeojsonMixin } from '../mixins/geojson.mixin';
 
-const PlaceStatus = {
+export const PlaceStatus = {
   INITIAL: 'INITIAL',
   STABLE: 'STABLE',
   INCREASED: 'INCREASED',
@@ -35,6 +34,16 @@ const PlaceStatus = {
   DISAPPEARED: 'DISAPPEARED',
   DESTROYED: 'DESTROYED',
   MISTAKEN: 'MISTAKEN',
+};
+
+export const PlaceStatusTranslates = {
+  [PlaceStatus.INITIAL]: 'Sukurta',
+  [PlaceStatus.STABLE]: 'Stabili',
+  [PlaceStatus.INCREASED]: 'Padidėjus',
+  [PlaceStatus.DECREASED]: 'Sumažėjus',
+  [PlaceStatus.DISAPPEARED]: 'Išnyko',
+  [PlaceStatus.DESTROYED]: 'Sunaikinta',
+  [PlaceStatus.MISTAKEN]: 'Klaidingai įvesti duomenys / susidubliavimas',
 };
 
 export interface Place extends BaseModelInterface {
@@ -45,6 +54,7 @@ export interface Place extends BaseModelInterface {
   forms?: Form[];
   geom?: FeatureCollection;
   canEdit?: boolean;
+  area?: number;
 }
 
 @Service({
@@ -57,7 +67,6 @@ export interface Place extends BaseModelInterface {
     PostgisMixin({
       srid: 3346,
     }),
-    GeojsonMixin()
   ],
 
   settings: {

@@ -15,7 +15,7 @@ export enum EndpointType {
   SELF = 'SELF',
 }
 
-export const ADDITIONAL_CACHE_KEYS = ['#user.type', '#user.isExpert'];
+export const ADDITIONAL_CACHE_KEYS = () => ['#user.type', '#user.isExpert'];
 
 export function throwUnauthorizedError(message?: string, data?: any): Errors.MoleculerError {
   throw new Moleculer.Errors.MoleculerClientError(
