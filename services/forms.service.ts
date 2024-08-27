@@ -1226,17 +1226,17 @@ export default class FormsService extends moleculer.Service {
   async validateIsRelevant({ ctx, entity, value }: FieldHookCallback) {
     const placeId = entity?.place || entity?.placeId;
 
-    if (!entity?.id || !placeId) return true;
+    if (!entity?.id || !placeId || !!value) return true;
 
-    const place: Place = await ctx.call('places.resolve', {
-      id: placeId,
-      scope: COMMON_GET_ALL_SCOPES,
-      throwIfNotExist: true,
-    });
+    // const place: Place = await ctx.call('places.resolve', {
+    //   id: placeId,
+    //   scope: COMMON_GET_ALL_SCOPES,
+    //   throwIfNotExist: true,
+    // });
 
-    if (!!place?.deletedAt) {
-      return !value || 'Cannot make any form relevant to the deleted place';
-    }
+    // if (!!place?.deletedAt) {
+    //   return !value || 'Cannot make any form relevant to the deleted place';
+    // }
 
     const relevantFormsCount: number = await this.broker.call('forms.relevantFormsCount', {
       place: placeId,
