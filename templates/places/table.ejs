@@ -13,8 +13,8 @@
     <% places.forEach(function(place, index){ %>
     <tr>
       <td class="px-4 py-2"><%= index+1 %>.</td>
-      <td class="px-4 py-2"><%= speciesById[place.species].name %></td>
-      <td class="px-4 py-2"><%= speciesById[place.species].nameLatin %></td>
+      <td class="px-4 py-2"><%= speciesById[place.species].speciesName %></td>
+      <td class="px-4 py-2 font-italic"><%= speciesById[place.species].speciesNameLatin %></td>
       <td class="px-4 py-2"><%= place.placeCode %></td>
       <td class="px-4 py-2"><%= place.placeLastObservedAt %></td>
     </tr>

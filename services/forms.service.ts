@@ -37,6 +37,7 @@ import { Place } from './places.service';
 import { Taxonomy } from './taxonomies.service';
 import { Tenant } from './tenants.service';
 import { User, USERS_DEFAULT_SCOPES, UserType } from './users.service';
+import { FormSettingSource } from './forms.settings.sources.service';
 
 export const FormStatus = {
   CREATED: 'CREATED',
@@ -152,7 +153,10 @@ export interface Form extends BaseModelInterface {
   geomBufferSize?: number;
   isInformational: boolean;
   isRelevant: boolean;
+  source: number | FormSettingSource;
   geom: any;
+  photos?: { url: string }[];
+  observedBy: string;
 }
 
 @Service({
@@ -231,6 +235,7 @@ export interface Form extends BaseModelInterface {
 
       geom: {
         type: 'any',
+        required: true,
         geom: {
           type: 'geom',
           properties: {
@@ -1003,13 +1008,14 @@ export default class FormsService extends moleculer.Service {
   }
 
   @Method
-  async getFormType(ctx: Context, speciesId: number) {
+  async getFormType(ctx: Context<any, any>, speciesId: number) {
     if (!speciesId) {
       return throwValidationError('No species');
     }
 
     const taxonomy: Taxonomy = await ctx.call('taxonomies.findBySpeciesId', {
       id: speciesId,
+      showHidden: !!ctx?.meta?.user?.isExpert,
     });
 
     return taxonomy?.formType;
@@ -1027,10 +1033,12 @@ export default class FormsService extends moleculer.Service {
     >,
   ) {
     const { species, activity } = ctx.params;
+
     ctx.params.isInformational = false;
 
     const taxonomy: Taxonomy = await this.broker.call('taxonomies.findBySpeciesId', {
       id: species,
+      showHidden: !!ctx?.meta?.user?.isExpert,
     });
 
     if (activity) {
@@ -1111,6 +1119,7 @@ export default class FormsService extends moleculer.Service {
 
     const taxonomy: Taxonomy = await this.broker.call('taxonomies.findBySpeciesId', {
       id: species,
+      showHidden: !!user?.isExpert,
     });
 
     if (!taxonomy?.speciesId) return {};

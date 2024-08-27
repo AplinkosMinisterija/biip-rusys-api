@@ -40,6 +40,12 @@ export const TaxonomySpeciesType = {
   INTRODUCED: 'INTRODUCED',
 };
 
+export const TaxonomySpeciesTypeTranslate = {
+  [TaxonomySpeciesType.INVASIVE]: 'Invazinė',
+  [TaxonomySpeciesType.ENDANGERED]: 'Saugoma',
+  [TaxonomySpeciesType.INTRODUCED]: 'Svetimžemė',
+};
+
 const publicPopulate = ['class', 'conventions'];
 
 @Service({
