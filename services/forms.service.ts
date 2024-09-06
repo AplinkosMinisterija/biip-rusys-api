@@ -4,6 +4,7 @@ import moleculer, { Context, RestSchema } from 'moleculer';
 import { Action, Event, Method, Service } from 'moleculer-decorators';
 
 import DbConnection, { MaterializedView } from '../mixins/database.mixin';
+import { TaxonomySpeciesType } from './taxonomies.species.service';
 
 import PostgisMixin, { areaQuery, distanceQuery } from 'moleculer-postgis';
 
@@ -525,6 +526,7 @@ export interface Form extends BaseModelInterface {
     before: {
       create: ['validateIsInformational', 'validateStatusChange'],
       update: ['validateStatusChange'],
+      list: 'speciesTypeFilter',
     },
   },
   actions: {
@@ -539,6 +541,34 @@ export interface Form extends BaseModelInterface {
   },
 })
 export default class FormsService extends moleculer.Service {
+  @Method
+  async speciesTypeFilter(ctx: any) {
+    ctx.params.query = parseToObject(ctx.params.query);
+
+    ctx.params.query ||= {};
+
+    if (ctx.params.query.speciesType) {
+      if (TaxonomySpeciesType.hasOwnProperty(ctx.params.query.speciesType)) {
+        const speciesIds = await ctx.call('taxonomies.species.find', {
+          query: {
+            type: ctx.params.query.speciesType,
+          },
+          fields: ['id'],
+        });
+
+        if (speciesIds?.length) {
+          ctx.params.query.species = {
+            $in: speciesIds.map((i: any) => i.id),
+          };
+        }
+      }
+
+      delete ctx.params.query.speciesType;
+    }
+
+    return ctx;
+  }
+
   @Action({
     rest: 'GET /:id/history',
     params: {
