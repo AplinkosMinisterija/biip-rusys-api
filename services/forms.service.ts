@@ -25,7 +25,7 @@ import {
   USER_PUBLIC_GET,
   USER_PUBLIC_POPULATE,
 } from '../types';
-import { UserAuthMeta } from './api.service';
+import { AuthType, UserAuthMeta } from './api.service';
 
 import _ from 'lodash';
 import { parseToObject } from '../utils/functions';
@@ -647,6 +647,26 @@ export default class FormsService extends moleculer.Service {
     return ctx.call('minio.uploadFile', {
       payload: ctx.params,
       folder: 'uploads/forms',
+    });
+  }
+
+  @Action({
+    rest: <RestSchema>{
+      method: 'POST',
+      path: '/upload/test',
+      type: 'multipart',
+      busboyConfig: {
+        limits: {
+          files: 1,
+        },
+      },
+    },
+    auth: AuthType.PUBLIC,
+  })
+  async uploadTest(ctx: Context<{}>) {
+    return ctx.call('minio.uploadFile', {
+      payload: ctx.params,
+      folder: 'uploads/test',
     });
   }
 
