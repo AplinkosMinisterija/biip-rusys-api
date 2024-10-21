@@ -885,7 +885,7 @@ export default class RequestsService extends moleculer.Service {
     } else if (user?.isExpert || user?.type === UserType.ADMIN) {
       ctx.meta.autoApprove = type === RequestType.GET_ONCE;
     } else if (speciesTypes?.includes(TaxonomySpeciesType.INVASIVE)) {
-      ctx.meta.autoApprove = true;
+      ctx.meta.autoApprove = type === RequestType.GET_ONCE;
     }
     return ctx;
   }
