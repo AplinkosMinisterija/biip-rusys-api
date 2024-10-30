@@ -85,7 +85,7 @@ exports.up = function (knex) {
               )
               .leftJoin(
                 'formSettingsOptions as fsor',
-                knex.raw(`fsor.name = f.activity and fsor.group = 'NO_QUANTITY_REASON'`),
+                knex.raw(`fsor.name = f.no_quantity_reason and fsor.group = 'NO_QUANTITY_REASON'`),
               )
               .groupBy('f.id')
               .as('translates'),
