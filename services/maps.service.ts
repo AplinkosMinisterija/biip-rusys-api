@@ -18,6 +18,8 @@ export const mapsSrisPlacesLayerId = 'radavietes';
 export const mapsInvaPlacesInvasiveLayerId = 'radavietes_invazines';
 export const mapsInvaPlacesIntroducedLayerId = 'radavietes_svetimzemes';
 export const mapsSrisInformationalFormsLayerId = 'stebejimai_interpretuojami';
+export const mapsInvaNoQuantityInvasiveFormsLayerId = 'stebejimai_tyrineta_nerasta_invazines';
+export const mapsInvaNoQuantityIntroducedFormsLayerId = 'stebejimai_tyrineta_nerasta_svetimzemes';
 
 @Service({
   name: 'maps',
@@ -120,8 +122,13 @@ export default class MapsService extends moleculer.Service {
     return this.getLegendData({
       project: 'inva',
       layers: ctx.params.all
-        ? 'radavietes_invazines,radavietes_svetimzemes'
-        : 'radavietes_invazines',
+        ? [
+            mapsInvaPlacesInvasiveLayerId,
+            mapsInvaPlacesIntroducedLayerId,
+            mapsInvaNoQuantityInvasiveFormsLayerId,
+            mapsInvaNoQuantityIntroducedFormsLayerId,
+          ].join(',')
+        : [mapsInvaPlacesInvasiveLayerId, mapsInvaNoQuantityInvasiveFormsLayerId].join(','),
     });
   }
 
@@ -129,7 +136,7 @@ export default class MapsService extends moleculer.Service {
   async getSrisLegendData() {
     return this.getLegendData({
       project: 'sris',
-      layers: 'radavietes,stebejimai_interpretuojami',
+      layers: [mapsSrisPlacesLayerId, mapsSrisInformationalFormsLayerId].join(','),
       auth: process.env.QGIS_SERVER_AUTH_KEY,
     });
   }
