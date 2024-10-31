@@ -287,7 +287,7 @@ export default class MapsHexagonService extends moleculer.Service {
         _.merge(options, { speciesType: TaxonomySpeciesType.INVASIVE }),
       )
         .where(adapter.client.raw(`${snakeCase(table)}.${queryBooleanPlain('isRelevant', true)}`))
-        .whereNotNull('noQuantityReason');
+        .whereNotNull(`${table}.noQuantityReason`);
 
       if (options.forms?.id) {
         addIdQuery(formsQuery, table, options.forms.id);
@@ -306,7 +306,7 @@ export default class MapsHexagonService extends moleculer.Service {
         _.merge(options, { speciesType: TaxonomySpeciesType.INTRODUCED }),
       )
         .where(adapter.client.raw(`${snakeCase(table)}.${queryBooleanPlain('isRelevant', true)}`))
-        .whereNotNull('noQuantityReason');
+        .whereNotNull(`${table}.noQuantityReason`);
 
       if (options.forms?.id) {
         addIdQuery(formsQuery, table, options.forms.id);
