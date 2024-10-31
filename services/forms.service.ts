@@ -1428,15 +1428,21 @@ export default class FormsService extends moleculer.Service {
   async 'places.removed'(ctx: Context<EntityChangedParams<Place>>) {
     const { data: place } = ctx.params;
 
-    await this.updateEntities(ctx, {
-      query: {
-        place: place.id,
+    await this.updateEntities(
+      ctx,
+      {
+        query: {
+          place: place.id,
+        },
+        changes: {
+          $set: {
+            isRelevant: false,
+          },
+        },
+        scope: WITHOUT_AUTH_SCOPES,
       },
-      changes: {
-        isRelevant: false,
-      },
-      scope: WITHOUT_AUTH_SCOPES,
-    });
+      { raw: true },
+    );
   }
 
   @Event()
