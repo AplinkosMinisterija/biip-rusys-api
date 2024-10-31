@@ -66,6 +66,11 @@ const FormStates = {
   ARCHIVAL: 'ARCHIVAL',
 };
 
+export const FormNoQuantityReason = {
+  CLEANUP: 'CLEANUP',
+  RESEARCH: 'RESEARCH',
+};
+
 const populatePermissions = (field: string) => {
   return function (ctx: Context<{}, UserAuthMeta>, _values: any, forms: any[]) {
     const { user, profile } = ctx?.meta;
@@ -464,6 +469,11 @@ export interface Form extends BaseModelInterface {
         type: 'array',
         columnType: 'json',
         items: { type: 'object' },
+      },
+
+      FormnoQuantityReason: {
+        type: 'string',
+        enum: Object.values(FormNoQuantityReason),
       },
 
       ...TENANT_FIELD,
@@ -1412,6 +1422,27 @@ export default class FormsService extends moleculer.Service {
     }
 
     await this.refreshApprovedFormsViewIfNeeded(ctx, form, prevForm);
+  }
+
+  @Event()
+  async 'places.removed'(ctx: Context<EntityChangedParams<Place>>) {
+    const { data: place } = ctx.params;
+
+    await this.updateEntities(
+      ctx,
+      {
+        query: {
+          place: place.id,
+        },
+        changes: {
+          $set: {
+            isRelevant: false,
+          },
+        },
+        scope: WITHOUT_AUTH_SCOPES,
+      },
+      { raw: true },
+    );
   }
 
   @Event()

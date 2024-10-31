@@ -148,6 +148,8 @@ const updateTaxonomies = async function () {
             } else if (entity.phylumName === 'Vėžiagyviai') {
               return FormType.INVASIVE_CRUSTACEAN;
             }
+
+            return FormType.INVASIVE;
           }
 
           return FormType.DEFAULT;

@@ -621,6 +621,12 @@ export default class SeedService extends moleculer.Service {
         formType: FormType.INVASIVE_MAMMAL,
       },
       {
+        name: 'VALUE_0',
+        value: '0 - nerasta nei vieno individo.',
+        group: 'METHOD',
+        formType: FormType.INVASIVE_PLANT,
+      },
+      {
         name: 'VALUE_1',
         value: '1 - pasitaiko tik pavienių individų, jie užima 0,1% buveinės ploto.',
         group: 'METHOD',
@@ -685,6 +691,18 @@ export default class SeedService extends moleculer.Service {
           '10 - augalai sudaro beveik ištisinį sąžalyną ir užima daugiau kaip 80% buveinės ploto',
         group: 'METHOD',
         formType: FormType.INVASIVE_PLANT,
+      },
+      {
+        name: 'RESEARCH',
+        value: 'Buvo vykdomas tyrimas',
+        group: 'NO_QUANTITY_REASON',
+        formType: FormType.INVASIVE,
+      },
+      {
+        name: 'CLEANUP',
+        value: 'Invazinė rūšis išnaikinta',
+        group: 'NO_QUANTITY_REASON',
+        formType: FormType.INVASIVE,
       },
     ];
 
