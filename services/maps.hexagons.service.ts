@@ -20,6 +20,7 @@ import {
 } from './maps.service';
 import { TaxonomySpeciesType } from './taxonomies.species.service';
 import { UserType } from './users.service';
+import { FormNoQuantityReason } from './forms.service';
 @Service({
   name: 'maps.hexagons',
 
@@ -287,7 +288,7 @@ export default class MapsHexagonService extends moleculer.Service {
         _.merge(options, { speciesType: TaxonomySpeciesType.INVASIVE }),
       )
         .where(adapter.client.raw(`${snakeCase(table)}.${queryBooleanPlain('isRelevant', true)}`))
-        .whereNotNull(`${table}.noQuantityReason`);
+        .where(`${table}.noQuantityReason`, FormNoQuantityReason.RESEARCH);
 
       if (options.forms?.id) {
         addIdQuery(formsQuery, table, options.forms.id);
@@ -306,7 +307,7 @@ export default class MapsHexagonService extends moleculer.Service {
         _.merge(options, { speciesType: TaxonomySpeciesType.INTRODUCED }),
       )
         .where(adapter.client.raw(`${snakeCase(table)}.${queryBooleanPlain('isRelevant', true)}`))
-        .whereNotNull(`${table}.noQuantityReason`);
+        .where(`${table}.noQuantityReason`, FormNoQuantityReason.RESEARCH);
 
       if (options.forms?.id) {
         addIdQuery(formsQuery, table, options.forms.id);

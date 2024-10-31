@@ -66,7 +66,7 @@ const FormStates = {
   ARCHIVAL: 'ARCHIVAL',
 };
 
-const NoQuantityReason = {
+export const FormNoQuantityReason = {
   CLEANUP: 'CLEANUP',
   RESEARCH: 'RESEARCH',
 };
@@ -471,9 +471,9 @@ export interface Form extends BaseModelInterface {
         items: { type: 'object' },
       },
 
-      noQuantityReason: {
+      FormnoQuantityReason: {
         type: 'string',
-        enum: Object.values(NoQuantityReason),
+        enum: Object.values(FormNoQuantityReason),
       },
 
       ...TENANT_FIELD,
