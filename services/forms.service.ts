@@ -311,7 +311,10 @@ export interface Form extends BaseModelInterface {
           const isInformational = params?.isInformational || entity?.isInformational;
 
           const assignPlace =
-            (statusChanged && params?.status === FormStatus.APPROVED) || placeChanged;
+            (statusChanged &&
+              params?.status === FormStatus.APPROVED &&
+              params.noQuantityReason !== FormNoQuantityReason.RESEARCH) ||
+            placeChanged;
 
           if (isInformational || !assignPlace || autoApprove) return;
 
