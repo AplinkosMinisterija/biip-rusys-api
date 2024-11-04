@@ -162,6 +162,7 @@ export interface Form extends BaseModelInterface {
   geom: any;
   photos?: { url: string }[];
   observedBy: string;
+  noQuantityReason: string;
 }
 
 @Service({
@@ -471,7 +472,7 @@ export interface Form extends BaseModelInterface {
         items: { type: 'object' },
       },
 
-      FormnoQuantityReason: {
+      noQuantityReason: {
         type: 'string',
         enum: Object.values(FormNoQuantityReason),
       },
@@ -1155,7 +1156,12 @@ export default class FormsService extends moleculer.Service {
 
   @Method
   async assignPlaceIfNeeded(ctx: Context, form: Form) {
-    if (!form || form.status !== FormStatus.APPROVED || form.isInformational) {
+    if (
+      !form ||
+      form.status !== FormStatus.APPROVED ||
+      form.isInformational ||
+      form.noQuantityReason === FormNoQuantityReason.RESEARCH
+    ) {
       return form;
     }
 
