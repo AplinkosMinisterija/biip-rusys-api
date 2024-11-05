@@ -376,7 +376,7 @@ export default class RequestsService extends moleculer.Service {
         tenant: { $exists: false },
       },
       populate: {
-        action: 'findBySpeciesId',
+        action: 'inheritedSpecies',
         params: {
           showHidden: true,
         },
@@ -502,7 +502,12 @@ export default class RequestsService extends moleculer.Service {
         status: RequestStatus.APPROVED,
         createdBy: { $exists: true },
       },
-      populate: 'inheritedSpecies',
+      populate: {
+        action: 'inheritedSpecies',
+        params: {
+          showHidden: true,
+        },
+      },
       scope: WITHOUT_AUTH_SCOPES,
     });
 
