@@ -25,19 +25,19 @@ import {
 import { UserAuthMeta } from './api.service';
 import { RequestHistoryTypes } from './requests.histories.service';
 import { Tenant } from './tenants.service';
-import { USERS_DEFAULT_SCOPES, User, UserType } from './users.service';
+import { User, USERS_DEFAULT_SCOPES, UserType } from './users.service';
 
 import { getFeatureCollection } from 'geojsonjs';
 import PostgisMixin, { GeometryType } from 'moleculer-postgis';
 import moment from 'moment';
 import { getInformationalFormsByRequestIds, getPlacesByRequestIds } from '../utils/db.queries';
 import { parseToObject, toReadableStream } from '../utils/functions';
+import { getTemplateHtml } from '../utils/html';
 import { emailCanBeSent, notifyOnFileGenerated, notifyOnRequestUpdate } from '../utils/mails';
+import { getRequestData } from '../utils/pdf/requests';
+import { getRequestSecret } from './jobs.requests.service';
 import { Taxonomy } from './taxonomies.service';
 import { TaxonomySpeciesType, TaxonomySpeciesTypeTranslate } from './taxonomies.species.service';
-import { getRequestSecret } from './jobs.requests.service';
-import { getTemplateHtml } from '../utils/html';
-import { getRequestData } from '../utils/pdf/requests';
 
 export const RequestType = {
   GET: 'GET',
@@ -232,7 +232,11 @@ const populatePermissions = (field: string) => {
         populate(ctx: any, _values: any, requests: Request[]) {
           return Promise.all(
             requests.map((request) =>
-              this.populateTaxonomies(request.taxonomies, request.speciesTypes),
+              this.populateTaxonomies(
+                request.taxonomies,
+                request.speciesTypes,
+                ctx?.params?.showHidden,
+              ),
             ),
           );
         },
@@ -371,7 +375,12 @@ export default class RequestsService extends moleculer.Service {
         status: RequestStatus.APPROVED,
         tenant: { $exists: false },
       },
-      populate: 'inheritedSpecies',
+      populate: {
+        action: 'findBySpeciesId',
+        params: {
+          showHidden: true,
+        },
+      },
       scope: WITHOUT_AUTH_SCOPES,
     });
 
@@ -977,7 +986,11 @@ export default class RequestsService extends moleculer.Service {
   }
 
   @Method
-  async populateTaxonomies(taxonomies: Request['taxonomies'], speciesTypes?: string[]) {
+  async populateTaxonomies(
+    taxonomies: Request['taxonomies'],
+    speciesTypes?: string[],
+    showHidden?: boolean,
+  ) {
     const taxonomyMap: any = {
       [TaxonomyTypes.KINGDOM]: 'kingdomId',
       [TaxonomyTypes.PHYLUM]: 'phylumId',
@@ -994,6 +1007,10 @@ export default class RequestsService extends moleculer.Service {
 
       if (speciesTypes?.length) {
         query.speciesType = { $in: speciesTypes };
+      }
+
+      if (showHidden) {
+        query.showHidden = showHidden;
       }
 
       const result: Taxonomy[] = await this.broker.call('taxonomies.find', {
