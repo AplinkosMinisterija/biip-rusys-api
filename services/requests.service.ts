@@ -887,19 +887,20 @@ export default class RequestsService extends moleculer.Service {
   @Method
   async validateStatusChange(
     ctx: Context<
-      { id: number; type: string },
+      { id: number; type: string; speciesTypes: string[] },
       UserAuthMeta & RequestAutoApprove & RequestStatusChanged
     >,
   ) {
-    const { id, type } = ctx.params;
+    const { id, type, speciesTypes } = ctx.params;
 
     const { user } = ctx.meta;
     if (!!id) {
       ctx.meta.statusChanged = true;
     } else if (user?.isExpert || user?.type === UserType.ADMIN) {
       ctx.meta.autoApprove = type === RequestType.GET_ONCE;
+    } else if (speciesTypes?.includes(TaxonomySpeciesType.INVASIVE)) {
+      ctx.meta.autoApprove = type === RequestType.GET_ONCE;
     }
-
     return ctx;
   }
 

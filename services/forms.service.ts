@@ -66,6 +66,11 @@ const FormStates = {
   ARCHIVAL: 'ARCHIVAL',
 };
 
+export const FormNoQuantityReason = {
+  CLEANUP: 'CLEANUP',
+  RESEARCH: 'RESEARCH',
+};
+
 const populatePermissions = (field: string) => {
   return function (ctx: Context<{}, UserAuthMeta>, _values: any, forms: any[]) {
     const { user, profile } = ctx?.meta;
@@ -157,6 +162,7 @@ export interface Form extends BaseModelInterface {
   geom: any;
   photos?: { url: string }[];
   observedBy: string;
+  noQuantityReason: string;
 }
 
 @Service({
@@ -305,7 +311,10 @@ export interface Form extends BaseModelInterface {
           const isInformational = params?.isInformational || entity?.isInformational;
 
           const assignPlace =
-            (statusChanged && params?.status === FormStatus.APPROVED) || placeChanged;
+            (statusChanged &&
+              params?.status === FormStatus.APPROVED &&
+              params.noQuantityReason !== FormNoQuantityReason.RESEARCH) ||
+            placeChanged;
 
           if (isInformational || !assignPlace || autoApprove) return;
 
@@ -464,6 +473,11 @@ export interface Form extends BaseModelInterface {
         type: 'array',
         columnType: 'json',
         items: { type: 'object' },
+      },
+
+      noQuantityReason: {
+        type: 'string',
+        enum: Object.values(FormNoQuantityReason),
       },
 
       ...TENANT_FIELD,
@@ -1145,7 +1159,12 @@ export default class FormsService extends moleculer.Service {
 
   @Method
   async assignPlaceIfNeeded(ctx: Context, form: Form) {
-    if (!form || form.status !== FormStatus.APPROVED || form.isInformational) {
+    if (
+      !form ||
+      form.status !== FormStatus.APPROVED ||
+      form.isInformational ||
+      form.noQuantityReason === FormNoQuantityReason.RESEARCH
+    ) {
       return form;
     }
 
@@ -1412,6 +1431,27 @@ export default class FormsService extends moleculer.Service {
     }
 
     await this.refreshApprovedFormsViewIfNeeded(ctx, form, prevForm);
+  }
+
+  @Event()
+  async 'places.removed'(ctx: Context<EntityChangedParams<Place>>) {
+    const { data: place } = ctx.params;
+
+    await this.updateEntities(
+      ctx,
+      {
+        query: {
+          place: place.id,
+        },
+        changes: {
+          $set: {
+            isRelevant: false,
+          },
+        },
+        scope: WITHOUT_AUTH_SCOPES,
+      },
+      { raw: true },
+    );
   }
 
   @Event()
