@@ -375,12 +375,8 @@ export default class RequestsService extends moleculer.Service {
         status: RequestStatus.APPROVED,
         tenant: { $exists: false },
       },
-      populate: {
-        action: 'requests.inheritedSpecies',
-        params: {
-          showHidden: true,
-        },
-      },
+      populate: 'inheritedSpecies',
+      showHidden: true,
       scope: WITHOUT_AUTH_SCOPES,
     });
 
@@ -502,12 +498,8 @@ export default class RequestsService extends moleculer.Service {
         status: RequestStatus.APPROVED,
         createdBy: { $exists: true },
       },
-      populate: {
-        action: 'requests.inheritedSpecies',
-        params: {
-          showHidden: true,
-        },
-      },
+      populate: 'inheritedSpecies',
+      showHidden: true,
       scope: WITHOUT_AUTH_SCOPES,
     });
 
