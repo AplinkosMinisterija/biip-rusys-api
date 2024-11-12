@@ -4,33 +4,16 @@ import moleculer from 'moleculer';
 import { Service } from 'moleculer-decorators';
 import DbConnection from '../mixins/database.mixin';
 import { COMMON_DEFAULT_SCOPES, COMMON_FIELDS, COMMON_SCOPES } from '../types';
-import { Convention } from './conventions.service';
-import { FormType } from './forms.types.service';
 import { PlaceStatus } from './places.service';
 import { TaxonomySpeciesType } from './taxonomies.species.service';
 
-export interface Taxonomy {
-  speciesId: number;
+export interface PlaceWithTaxonomies {
+  id: string;
+  code: string;
+  status: keyof typeof PlaceStatus;
+  speciesType: keyof typeof TaxonomySpeciesType;
   speciesName: string;
   speciesNameLatin: string;
-  speciesType: string;
-  speciesSynonyms: string[];
-  speciesConventions?: number[] | Convention[];
-  speciesConventionsText?: string;
-  speciesPhotos?: Array<{ name: string; size: number; url: string }>;
-  speciesDescription?: string;
-  speciesLtAddedAt: Date;
-  speciesEuAddedAt: Date;
-  classId: number;
-  className: string;
-  classNameLatin: string;
-  phylumId: number;
-  phylumName: string;
-  phylumNameLatin: string;
-  kingdomId: number;
-  kingdomName: string;
-  kingdomNameLatin: string;
-  formType: FormType;
 }
 
 @Service({
