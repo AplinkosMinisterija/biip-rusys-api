@@ -32,12 +32,12 @@ import _ from 'lodash';
 import { parseToObject } from '../utils/functions';
 import { emailCanBeSent, notifyFormAssignee, notifyOnFormUpdate } from '../utils/mails';
 import { FormHistoryTypes } from './forms.histories.service';
+import { FormSettingSource } from './forms.settings.sources.service';
 import { FormType } from './forms.types.service';
 import { Place } from './places.service';
 import { Taxonomy } from './taxonomies.service';
 import { Tenant } from './tenants.service';
 import { User, USERS_DEFAULT_SCOPES, UserType } from './users.service';
-import { FormSettingSource } from './forms.settings.sources.service';
 
 export const FormStatus = {
   CREATED: 'CREATED',
@@ -64,6 +64,11 @@ const FormStates = {
   PREARCHIVAL: 'PREARCHIVAL',
   INFORMATIONAL: 'INFORMATIONAL',
   ARCHIVAL: 'ARCHIVAL',
+};
+
+export const FormNoQuantityReason = {
+  CLEANUP: 'CLEANUP',
+  RESEARCH: 'RESEARCH',
 };
 
 const populatePermissions = (field: string) => {
@@ -157,6 +162,7 @@ export interface Form extends BaseModelInterface {
   geom: any;
   photos?: { url: string }[];
   observedBy: string;
+  noQuantityReason: string;
 }
 
 @Service({
@@ -305,7 +311,10 @@ export interface Form extends BaseModelInterface {
           const isInformational = params?.isInformational || entity?.isInformational;
 
           const assignPlace =
-            (statusChanged && params?.status === FormStatus.APPROVED) || placeChanged;
+            (statusChanged &&
+              params?.status === FormStatus.APPROVED &&
+              params.noQuantityReason !== FormNoQuantityReason.RESEARCH) ||
+            placeChanged;
 
           if (isInformational || !assignPlace || autoApprove) return;
 
@@ -466,6 +475,11 @@ export interface Form extends BaseModelInterface {
         items: { type: 'object' },
       },
 
+      noQuantityReason: {
+        type: 'string',
+        enum: Object.values(FormNoQuantityReason),
+      },
+
       ...TENANT_FIELD,
 
       ...COMMON_FIELDS,
@@ -526,13 +540,11 @@ export interface Form extends BaseModelInterface {
     before: {
       create: ['validateIsInformational', 'validateStatusChange'],
       update: ['validateStatusChange'],
+      remove: ['validateDeletion'],
       list: 'speciesTypeFilter',
     },
   },
   actions: {
-    remove: {
-      rest: null,
-    },
     update: {
       additionalParams: {
         comment: { type: 'string', optional: true },
@@ -1051,6 +1063,30 @@ export default class FormsService extends moleculer.Service {
   }
 
   @Method
+  async validateDeletion(ctx: Context<any, any>) {
+    const { user, profile } = ctx.meta;
+
+    const form: Form = await ctx.call('forms.resolve', {
+      id: ctx.params.id,
+      throwIfNotExist: true,
+    });
+
+    const tenantId = form?.tenant;
+    const isCreatedByUser = !tenantId && user?.id === form.createdBy;
+    const isCreatedByTenant = tenantId && profile?.id === tenantId;
+
+    if (!isCreatedByUser && !isCreatedByTenant) {
+      throwValidationError('Only the form creator or associated tenant user can delete this form.');
+    }
+
+    if (form.status !== FormStatus.RETURNED) {
+      throwValidationError(`Cannot delete the form with status ${form.status}`);
+    }
+
+    return ctx;
+  }
+
+  @Method
   async validateIsInformational(
     ctx: Context<
       {
@@ -1123,7 +1159,12 @@ export default class FormsService extends moleculer.Service {
 
   @Method
   async assignPlaceIfNeeded(ctx: Context, form: Form) {
-    if (!form || form.status !== FormStatus.APPROVED || form.isInformational) {
+    if (
+      !form ||
+      form.status !== FormStatus.APPROVED ||
+      form.isInformational ||
+      form.noQuantityReason === FormNoQuantityReason.RESEARCH
+    ) {
       return form;
     }
 
@@ -1390,6 +1431,27 @@ export default class FormsService extends moleculer.Service {
     }
 
     await this.refreshApprovedFormsViewIfNeeded(ctx, form, prevForm);
+  }
+
+  @Event()
+  async 'places.removed'(ctx: Context<EntityChangedParams<Place>>) {
+    const { data: place } = ctx.params;
+
+    await this.updateEntities(
+      ctx,
+      {
+        query: {
+          place: place.id,
+        },
+        changes: {
+          $set: {
+            isRelevant: false,
+          },
+        },
+        scope: WITHOUT_AUTH_SCOPES,
+      },
+      { raw: true },
+    );
   }
 
   @Event()
