@@ -23,6 +23,7 @@ export const FormSettingsGroupType = {
   ACTIVITY: 'ACTIVITY',
   EVOLUTION: 'EVOLUTION',
   METHOD: 'METHOD',
+  NO_QUANTITY_REASON: 'NO_QUANTITY_REASON',
 };
 
 export type FormSettingsOptionTranslate = string;
