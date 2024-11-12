@@ -46,10 +46,7 @@ export interface PlaceWithTaxonomies {
         type: 'enum',
         values: Object.values(PlaceStatus),
       },
-      speciesType: {
-        type: 'enum',
-        enum: Object.values(TaxonomySpeciesType),
-      },
+      speciesType: 'string',
       speciesName: 'string',
       speciesNameLatin: 'string',
 
