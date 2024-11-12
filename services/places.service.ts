@@ -176,6 +176,16 @@ export default class PlacesService extends moleculer.Service {
   }
 
   @Action({
+    rest: 'GET /deleted',
+  })
+  listDeleted(ctx: Context<{}>) {
+    return ctx.call('placesWithTaxonomies.list', {
+      ...ctx.params,
+      scope: COMMON_DELETED_SCOPES,
+    });
+  }
+
+  @Action({
     rest: 'GET /:id/history',
     params: {
       id: {
@@ -270,16 +280,6 @@ export default class PlacesService extends moleculer.Service {
     ctx.emit('places.changed', { id, comment });
 
     return { success: true };
-  }
-
-  @Action({
-    rest: 'GET /deleted',
-  })
-  listDeleted(ctx: Context<{}>) {
-    return ctx.call('places.list', {
-      ...ctx.params,
-      scope: COMMON_DELETED_SCOPES,
-    });
   }
 
   @Method
