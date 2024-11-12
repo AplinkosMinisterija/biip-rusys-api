@@ -148,6 +148,9 @@ export interface Place extends BaseModelInterface {
   },
 
   actions: {
+    list: {
+      rest: null,
+    },
     create: {
       types: [EndpointType.ADMIN, EndpointType.EXPERT],
     },
@@ -165,6 +168,13 @@ export interface Place extends BaseModelInterface {
   },
 })
 export default class PlacesService extends moleculer.Service {
+  @Action({
+    rest: 'GET /',
+  })
+  async getList(ctx: Context) {
+    return ctx.call('placesWithTaxonomies.list', ctx.params);
+  }
+
   @Action({
     rest: 'GET /:id/history',
     params: {
