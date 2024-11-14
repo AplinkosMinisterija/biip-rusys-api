@@ -12,6 +12,7 @@ export interface PlaceWithTaxonomies {
   code: string;
   status: keyof typeof PlaceStatus;
   speciesType: keyof typeof TaxonomySpeciesType;
+  speciesId: number;
   speciesName: string;
   speciesNameLatin: string;
 }
@@ -47,6 +48,7 @@ export interface PlaceWithTaxonomies {
         values: Object.values(PlaceStatus),
       },
       speciesType: 'string',
+      speciesId: 'number',
       speciesName: 'string',
       speciesNameLatin: 'string',
 
