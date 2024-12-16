@@ -1210,6 +1210,7 @@ export default class RequestsService extends moleculer.Service {
     const { comment } = ctx.options?.parentCtx?.params as any;
 
     if (request?.type === RequestType.CHECK && request?.createdBy) {
+      await this.broker.cacher?.clean(`${this.fullName}.**`);
       // remove expert from forms where he/she is assignee and form is still active
       await ctx.call('forms.checkAssignmentsForUser', {
         userId: request.createdBy,
