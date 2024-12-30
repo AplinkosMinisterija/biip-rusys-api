@@ -1,13 +1,13 @@
+import { Feature, FeatureCollection, Geometry, GeometryType, getGeometries } from 'geojsonjs';
 import { Context } from 'moleculer';
-import { TaxonomySpeciesType } from '../../services/taxonomies.species.service';
-import { Request } from '../../services/requests.service';
 import { Moment } from 'moment';
 import moment from 'moment-timezone';
-import { Place, PlaceStatusTranslates } from '../../services/places.service';
 import { Form } from '../../services/forms.service';
-import { toMD5Hash } from '../functions';
-import { FeatureCollection, Feature, Geometry, getGeometries, GeometryType } from 'geojsonjs';
+import { Place, PlaceStatusTranslates } from '../../services/places.service';
+import { Request } from '../../services/requests.service';
 import { Taxonomy } from '../../services/taxonomies.service';
+import { TaxonomySpeciesType } from '../../services/taxonomies.species.service';
+import { toMD5Hash } from '../functions';
 
 const dateFormat = 'YYYY-MM-DD';
 const dateFormatFull = `${dateFormat} HH:mm`;
@@ -36,6 +36,7 @@ function getFormData(form: Form, translates?: any) {
     evolution: form.evolution,
     activity: form.activity,
     method: form.method,
+    geom: form.geom,
     observedAt: formatDate(form.observedAt),
     observedBy: form.observedBy,
     createdAt: formatDate(form.createdAt),
@@ -130,11 +131,6 @@ async function getPlaces(ctx: Context, requestId: number, date: string, translat
     { timeout: 0 },
   );
 
-  const placesGeomByPlaceId: any = placesData.reduce(
-    (acc, item) => ({ ...acc, [item.placeId]: item.geom }),
-    {},
-  );
-
   const places: Place[] = await ctx.call('places.find', {
     query: {
       id: {
@@ -161,8 +157,8 @@ async function getPlaces(ctx: Context, requestId: number, date: string, translat
         hasEvolution: placeForms.some((f) => !!f.evolution),
         hasActivity: placeForms.some((f) => !!f.activity),
         hasMethod: placeForms.some((f) => !!f.method),
-        coordinates: getGeometryWithTranslates(placesGeomByPlaceId[p.id]),
-        geom: placesGeomByPlaceId[p.id],
+        coordinates: getGeometryWithTranslates(p.geom),
+        geom: p.geom,
         forms: placeForms
           .map((f) => getFormData(f, translates))
           .sort((f1: any, f2: any) => {

@@ -25,19 +25,19 @@ import {
 import { UserAuthMeta } from './api.service';
 import { RequestHistoryTypes } from './requests.histories.service';
 import { Tenant } from './tenants.service';
-import { USERS_DEFAULT_SCOPES, User, UserType } from './users.service';
+import { User, USERS_DEFAULT_SCOPES, UserType } from './users.service';
 
 import { getFeatureCollection } from 'geojsonjs';
 import PostgisMixin, { GeometryType } from 'moleculer-postgis';
 import moment from 'moment';
 import { getInformationalFormsByRequestIds, getPlacesByRequestIds } from '../utils/db.queries';
 import { parseToObject, toReadableStream } from '../utils/functions';
+import { getTemplateHtml } from '../utils/html';
 import { emailCanBeSent, notifyOnFileGenerated, notifyOnRequestUpdate } from '../utils/mails';
+import { getRequestData } from '../utils/pdf/requests';
+import { getRequestSecret } from './jobs.requests.service';
 import { Taxonomy } from './taxonomies.service';
 import { TaxonomySpeciesType, TaxonomySpeciesTypeTranslate } from './taxonomies.species.service';
-import { getRequestSecret } from './jobs.requests.service';
-import { getTemplateHtml } from '../utils/html';
-import { getRequestData } from '../utils/pdf/requests';
 
 export const RequestType = {
   GET: 'GET',
@@ -763,23 +763,28 @@ export default class RequestsService extends moleculer.Service {
     }
 
     requestData.places?.forEach((place) => {
-      let { features } = place.geom || [];
-      const featuresToInsert = features.map((f: any) => {
-        f.geometry.crs = { type: 'name', properties: { name: 'EPSG:3346' } };
-        f.properties = {
-          id: place.id,
-          'Radavietės kodas': place.placeCode,
-          ...getSpeciesData(place.species),
-          'Pirmo stebėjimo data': place.placeFirstObservedAt,
-          'Radavietės statusas': place.placeStatusTranslate,
-          'Sukūrimo data': place.placeCreatedAt,
-          'Plotas (kv.m.2)': place.placeArea,
-          // TODO Centro koordinatės
-        };
-        return f;
-      });
+      place.forms?.forEach((form) => {
+        let { features } = form.geom || [];
+        const featuresToInsert = features.map((f: any) => {
+          f.geometry.crs = { type: 'name', properties: { name: 'EPSG:3346' } };
+          f.properties = {
+            'Anketos id': form.id,
+            'Radavietės id': place.id,
+            'Radavietės kodas': place.placeCode,
+            ...getSpeciesData(place.species),
+            'Individų skaičius (gausumas)': form.quantity,
+            'Buveinė, elgsena, ūkinė veikla ir kita informacija': form.description,
+            'Įvedimo į SRIS data': form.createdAt,
+            'Stebėjimo data': form.observedAt,
+            Šaltinis: form.source,
+            'Veiklos požymiai': form.activityTranslate,
+            'Vystymosi stadija': form.evolutionTranslate,
+          };
+          return f;
+        });
 
-      geojson.features.push(...featuresToInsert);
+        geojson.features.push(...featuresToInsert);
+      });
     });
 
     Object.values(requestData.informationalForms)?.forEach((item) => {
@@ -788,18 +793,17 @@ export default class RequestsService extends moleculer.Service {
         const featuresToInsert = features.map((f: any) => {
           f.geometry.crs = { type: 'name', properties: { name: 'EPSG:3346' } };
           f.properties = {
-            id: form.id,
+            'Anketos id': form.id,
+            'Radavietės id': '-',
+            'Radavietės kodas': '-',
+            ...getSpeciesData(form.species),
             'Individų skaičius (gausumas)': form.quantity,
             'Buveinė, elgsena, ūkinė veikla ir kita informacija': form.description,
-            'Sukūrimo data': form.createdAt,
+            'Įvedimo į SRIS data': form.createdAt,
             'Stebėjimo data': form.observedAt,
-            Stebėtojas: form.observedBy,
-            Nuotraukos: form.photos,
             Šaltinis: form.source,
             'Veiklos požymiai': form.activityTranslate,
             'Vystymosi stadija': form.evolutionTranslate,
-            ...getSpeciesData(form.species),
-            // TODO Centro koordinatės
           };
           return f;
         });
