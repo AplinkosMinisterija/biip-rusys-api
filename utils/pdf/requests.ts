@@ -131,6 +131,11 @@ async function getPlaces(ctx: Context, requestId: number, date: string, translat
     { timeout: 0 },
   );
 
+  const placesGeomByPlaceId: any = placesData.reduce(
+    (acc, item) => ({ ...acc, [item.placeId]: item.geom }),
+    {},
+  );
+
   const places: Place[] = await ctx.call('places.find', {
     query: {
       id: {
@@ -157,8 +162,8 @@ async function getPlaces(ctx: Context, requestId: number, date: string, translat
         hasEvolution: placeForms.some((f) => !!f.evolution),
         hasActivity: placeForms.some((f) => !!f.activity),
         hasMethod: placeForms.some((f) => !!f.method),
-        coordinates: getGeometryWithTranslates(p.geom),
-        geom: p.geom,
+        coordinates: getGeometryWithTranslates(placesGeomByPlaceId[p.id]),
+        geom: placesGeomByPlaceId[p.id],
         forms: placeForms
           .map((f) => getFormData(f, translates))
           .sort((f1: any, f2: any) => {
