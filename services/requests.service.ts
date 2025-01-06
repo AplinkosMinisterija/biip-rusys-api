@@ -768,8 +768,8 @@ export default class RequestsService extends moleculer.Service {
         const featuresToInsert = features.map((f: any) => {
           f.geometry.crs = { type: 'name', properties: { name: 'EPSG:3346' } };
           f.properties = {
-            ID: form.id,
-            'Radavietės id': place.id,
+            'Anketos ID': form.id,
+            'Radavietės ID': place.id,
             'Radavietės kodas': place.placeCode,
             ...getSpeciesData(place.species),
             'Individų skaičius (gausumas)': form.quantity,
@@ -793,8 +793,8 @@ export default class RequestsService extends moleculer.Service {
         const featuresToInsert = features.map((f: any) => {
           f.geometry.crs = { type: 'name', properties: { name: 'EPSG:3346' } };
           f.properties = {
-            ID: form.id,
-            'Radavietės id': '-',
+            'Anketos ID': form.id,
+            'Radavietės ID': '-',
             'Radavietės kodas': '-',
             ...getSpeciesData(form.species),
             'Individų skaičius (gausumas)': form.quantity,
