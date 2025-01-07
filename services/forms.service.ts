@@ -964,10 +964,12 @@ export default class FormsService extends moleculer.Service {
 
     if (ctx.params.place) return await this.broker.call('forms.count', { query });
   }
+
   @Action({
     params: {
       userId: 'number',
     },
+    timeout: 0,
   })
   async checkAssignmentsForUser(ctx: Context<{ userId: number }>) {
     const { userId } = ctx.params;
@@ -980,21 +982,22 @@ export default class FormsService extends moleculer.Service {
         status: { $nin: nonEditableStatuses },
         assignee: userId,
       },
+      scope: WITHOUT_AUTH_SCOPES,
     });
 
-    return await Promise.all(
-      unAssignedForms.map(async (form) => {
-        const assignee = await ctx.call('forms.getAssigneeForForm', {
-          species: form.species,
-          createdBy: form.createdBy,
-        });
+    for (const form of unAssignedForms) {
+      const assignee = await ctx.call('forms.getAssigneeForForm', {
+        species: form.species,
+        createdBy: form.createdBy,
+      });
 
-        await this.updateEntity(ctx, {
-          id: form.id,
-          assignee,
-        });
-      }),
-    );
+      await this.updateEntity(ctx, {
+        id: form.id,
+        assignee: assignee || null,
+      });
+    }
+
+    return { success: true };
   }
 
   @Method
