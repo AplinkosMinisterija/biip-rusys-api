@@ -87,11 +87,18 @@ export default function (opts: any = {}) {
     },
   };
 
-  const cache = {
-    enabled: false,
-  };
+  const cache = _.merge({}, { enabled: false }, opts.cache || {});
 
-  opts = _.defaultsDeep(opts, { adapter }, { cache: opts.cache || cache });
+  if (cache.enabled) {
+    const additionalKeys = ['mapping', 'mappingField', 'mappingMulti'];
+    if (!cache.additionalKeys) {
+      cache.additionalKeys = additionalKeys;
+    } else {
+      cache.additionalKeys = [...cache.additionalKeys, ...additionalKeys];
+    }
+  }
+
+  opts = _.defaultsDeep(opts, { adapter }, { cache });
 
   const removeRestActions: any = {};
 
@@ -207,7 +214,7 @@ export default function (opts: any = {}) {
     hooks: {
       after: {
         find: [
-          async function (
+          function (
             ctx: Context<{
               mapping: string;
               mappingMulti: boolean;

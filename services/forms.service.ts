@@ -4,6 +4,7 @@ import moleculer, { Context, RestSchema } from 'moleculer';
 import { Action, Event, Method, Service } from 'moleculer-decorators';
 
 import DbConnection, { MaterializedView } from '../mixins/database.mixin';
+import { TaxonomySpeciesType } from './taxonomies.species.service';
 
 import PostgisMixin, { areaQuery, distanceQuery } from 'moleculer-postgis';
 
@@ -29,8 +30,9 @@ import { UserAuthMeta } from './api.service';
 
 import _ from 'lodash';
 import { isPositive, parseToObject } from '../utils/functions';
-import { emailCanBeSent, notifyFormAssignee, notifyOnFormUpdate } from '../utils/mails';
 import { FormHistoryTypes } from './forms.histories.service';
+import { emailCanBeSent, notifyFormAssignee, notifyOnFormUpdate } from '../utils/mails';
+import { FormSettingSource } from './forms.settings.sources.service';
 import { FormType } from './forms.types.service';
 import { Place } from './places.service';
 import { Taxonomy } from './taxonomies.service';
@@ -63,6 +65,11 @@ const FormStates = {
   PREARCHIVAL: 'PREARCHIVAL',
   INFORMATIONAL: 'INFORMATIONAL',
   ARCHIVAL: 'ARCHIVAL',
+};
+
+export const FormNoQuantityReason = {
+  CLEANUP: 'CLEANUP',
+  RESEARCH: 'RESEARCH',
 };
 
 const populatePermissions = (field: string) => {
@@ -172,7 +179,11 @@ export interface Form extends BaseModelInterface {
   geomBufferSize?: number;
   isInformational: boolean;
   isRelevant: boolean;
+  source: number | FormSettingSource;
   geom: any;
+  photos?: { url: string }[];
+  observedBy: string;
+  noQuantityReason: string;
 }
 
 @Service({
@@ -270,6 +281,7 @@ export interface Form extends BaseModelInterface {
 
       geom: {
         type: 'any',
+        required: true,
         geom: {
           async validate({ ctx, params, value }: any) {
             const { id } = params;
@@ -361,7 +373,10 @@ export interface Form extends BaseModelInterface {
           const isInformational = params?.isInformational || entity?.isInformational;
 
           const assignPlace =
-            (statusChanged && params?.status === FormStatus.APPROVED) || placeChanged;
+            (statusChanged &&
+              params?.status === FormStatus.APPROVED &&
+              params.noQuantityReason !== FormNoQuantityReason.RESEARCH) ||
+            placeChanged;
 
           if (isInformational || !assignPlace || autoApprove) return;
 
@@ -529,6 +544,11 @@ export interface Form extends BaseModelInterface {
         items: { type: 'object' },
       },
 
+      noQuantityReason: {
+        type: 'string',
+        enum: Object.values(FormNoQuantityReason),
+      },
+
       ...TENANT_FIELD,
 
       ...COMMON_FIELDS,
@@ -596,13 +616,12 @@ export interface Form extends BaseModelInterface {
   hooks: {
     before: {
       create: ['validateIsInformational', 'validateStatusChange'],
-      update: ['validateIsInformational', 'validateStatusChange'],
+      update: ['validateStatusChange'],
+      remove: ['validateDeletion'],
+      list: 'speciesTypeFilter',
     },
   },
   actions: {
-    remove: {
-      rest: null,
-    },
     update: {
       additionalParams: {
         comment: { type: 'string', optional: true },
@@ -611,6 +630,34 @@ export interface Form extends BaseModelInterface {
   },
 })
 export default class FormsService extends moleculer.Service {
+  @Method
+  async speciesTypeFilter(ctx: any) {
+    ctx.params.query = parseToObject(ctx.params.query);
+
+    ctx.params.query ||= {};
+
+    if (ctx.params.query.speciesType) {
+      if (TaxonomySpeciesType.hasOwnProperty(ctx.params.query.speciesType)) {
+        const speciesIds = await ctx.call('taxonomies.species.find', {
+          query: {
+            type: ctx.params.query.speciesType,
+          },
+          fields: ['id'],
+        });
+
+        if (speciesIds?.length) {
+          ctx.params.query.species = {
+            $in: speciesIds.map((i: any) => i.id),
+          };
+        }
+      }
+
+      delete ctx.params.query.speciesType;
+    }
+
+    return ctx;
+  }
+
   @Action({
     rest: 'GET /:id/history',
     params: {
@@ -1079,16 +1126,41 @@ export default class FormsService extends moleculer.Service {
   }
 
   @Method
-  async getFormType(ctx: Context, speciesId: number) {
+  async getFormType(ctx: Context<any, any>, speciesId: number) {
     if (!speciesId) {
       return throwValidationError('No species');
     }
 
     const taxonomy: Taxonomy = await ctx.call('taxonomies.findBySpeciesId', {
       id: speciesId,
+      showHidden: !!ctx?.meta?.user?.isExpert,
     });
 
     return taxonomy?.formType;
+  }
+
+  @Method
+  async validateDeletion(ctx: Context<any, any>) {
+    const { user, profile } = ctx.meta;
+
+    const form: Form = await ctx.call('forms.resolve', {
+      id: ctx.params.id,
+      throwIfNotExist: true,
+    });
+
+    const tenantId = form?.tenant;
+    const isCreatedByUser = !tenantId && user?.id === form.createdBy;
+    const isCreatedByTenant = tenantId && profile?.id === tenantId;
+
+    if (!isCreatedByUser && !isCreatedByTenant) {
+      throwValidationError('Only the form creator or associated tenant user can delete this form.');
+    }
+
+    if (form.status !== FormStatus.RETURNED) {
+      throwValidationError(`Cannot delete the form with status ${form.status}`);
+    }
+
+    return ctx;
   }
 
   @Method
@@ -1103,10 +1175,12 @@ export default class FormsService extends moleculer.Service {
     >,
   ) {
     const { species, activity } = ctx.params;
+
     ctx.params.isInformational = false;
 
     const taxonomy: Taxonomy = await this.broker.call('taxonomies.findBySpeciesId', {
       id: species,
+      showHidden: !!ctx?.meta?.user?.isExpert,
     });
 
     if (activity) {
@@ -1164,7 +1238,12 @@ export default class FormsService extends moleculer.Service {
 
   @Method
   async assignPlaceIfNeeded(ctx: Context, form: Form) {
-    if (!form || form.status !== FormStatus.APPROVED || form.isInformational) {
+    if (
+      !form ||
+      form.status !== FormStatus.APPROVED ||
+      form.isInformational ||
+      form.noQuantityReason === FormNoQuantityReason.RESEARCH
+    ) {
       return form;
     }
 
@@ -1189,6 +1268,7 @@ export default class FormsService extends moleculer.Service {
 
     const taxonomy: Taxonomy = await this.broker.call('taxonomies.findBySpeciesId', {
       id: species,
+      showHidden: !!user?.isExpert,
     });
 
     if (!taxonomy?.speciesId) return {};
@@ -1443,6 +1523,27 @@ export default class FormsService extends moleculer.Service {
     }
 
     await this.refreshApprovedFormsViewIfNeeded(ctx, form, prevForm);
+  }
+
+  @Event()
+  async 'places.removed'(ctx: Context<EntityChangedParams<Place>>) {
+    const { data: place } = ctx.params;
+
+    await this.updateEntities(
+      ctx,
+      {
+        query: {
+          place: place.id,
+        },
+        changes: {
+          $set: {
+            isRelevant: false,
+          },
+        },
+        scope: WITHOUT_AUTH_SCOPES,
+      },
+      { raw: true },
+    );
   }
 
   @Event()

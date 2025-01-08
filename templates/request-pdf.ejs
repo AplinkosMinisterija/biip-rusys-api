@@ -145,19 +145,29 @@
           apžvalginis žemėlapis:
         </div>
         <%- include('places/table', {places: places}); %>
-          <% if (previewScreenshot) { %>
-            <img
-              src="<%= previewScreenshot %>"
-              class="w-full"
-            />
-          <% } %>
         <% } else { %>
-
         <div>
           Teritorijoje aptinkamų prašytų <%= systemNameShort %> radaviečių ir augaviečių
           <u><b>nerasta</b></u>.
         </div>
         <%}; %>
+        <% if (previewScreenshot) { %>
+          <img
+            src="<%= previewScreenshot %>"
+            class="w-full"
+          />
+        <% } %>
+        <% if (legendData.length) { %>
+          <div class="mt-2">
+            <span class="font-bold">Sutartiniai ženklai</span>
+          </div>
+          <% legendData.forEach(function(item){ %>
+            <div style="display: flex; align-items: center; gap: 5px;">
+              <img src="<%= item.icon %>" style="height: 18px; width: 18px; margin: 0;"/>
+              <%= item.title %>
+            </div>
+          <% });%>
+        <% };%>
       </div>
 
       <% places.forEach(function(place, index){ %>

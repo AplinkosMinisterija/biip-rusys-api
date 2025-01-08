@@ -59,7 +59,7 @@ const updateTaxonomies = async function () {
       },
       cache: {
         enabled: true,
-        additionalKeys: ADDITIONAL_CACHE_KEYS,
+        additionalKeys: ADDITIONAL_CACHE_KEYS(),
       },
     }),
   ],
@@ -147,6 +147,8 @@ const updateTaxonomies = async function () {
             } else if (entity.phylumName === 'Vėžiagyviai') {
               return FormType.INVASIVE_CRUSTACEAN;
             }
+
+            return FormType.INVASIVE;
           }
 
           return FormType.DEFAULT;

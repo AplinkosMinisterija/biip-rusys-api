@@ -20,6 +20,7 @@ import {
   EntityChangedParams,
   FieldHookCallback,
   TENANT_FIELD,
+  throwNotFoundError,
 } from '../types';
 import { UserAuthMeta } from './api.service';
 import { RequestHistoryTypes } from './requests.histories.service';
@@ -30,10 +31,13 @@ import { getFeatureCollection } from 'geojsonjs';
 import PostgisMixin, { GeometryType } from 'moleculer-postgis';
 import moment from 'moment';
 import { getInformationalFormsByRequestIds, getPlacesByRequestIds } from '../utils/db.queries';
-import { parseToObject } from '../utils/functions';
+import { parseToObject, toReadableStream } from '../utils/functions';
 import { emailCanBeSent, notifyOnFileGenerated, notifyOnRequestUpdate } from '../utils/mails';
 import { Taxonomy } from './taxonomies.service';
-import { TaxonomySpeciesType } from './taxonomies.species.service';
+import { TaxonomySpeciesType, TaxonomySpeciesTypeTranslate } from './taxonomies.species.service';
+import { getRequestSecret } from './jobs.requests.service';
+import { getTemplateHtml } from '../utils/html';
+import { getRequestData } from '../utils/pdf/requests';
 
 export const RequestType = {
   GET: 'GET',
@@ -673,6 +677,145 @@ export default class RequestsService extends moleculer.Service {
     );
   }
 
+  @Action({
+    params: {
+      id: {
+        type: 'number',
+        convert: true,
+      },
+    },
+    rest: 'GET /:id/pdf',
+    types: [EndpointType.ADMIN],
+    timeout: 0,
+  })
+  async getRequestPdf(ctx: Context<{ id: number }, { $responseType: string }>) {
+    const { id } = ctx.params;
+
+    const request: Request = await ctx.call('requests.resolve', {
+      id,
+      throwIfNotExist: true,
+    });
+
+    const requestData = await getRequestData(ctx, id);
+
+    const secret = getRequestSecret(request);
+
+    const footerHtml = getTemplateHtml('footer.ejs', {
+      id,
+      systemName: requestData.systemNameFooter,
+    });
+
+    const pdf = await ctx.call('tools.makePdf', {
+      url: `${process.env.SERVER_HOST}/jobs/requests/${id}/html?secret=${secret}&skey=admin_preview`,
+      footer: footerHtml,
+    });
+
+    ctx.meta.$responseType = 'application/pdf';
+    return toReadableStream(pdf);
+  }
+
+  @Action({
+    params: {
+      id: {
+        type: 'number',
+        convert: true,
+      },
+    },
+    rest: 'GET /:id/geojson',
+    timeout: 0,
+  })
+  async getGeojson(ctx: Context<{ id: number }, { $responseType: string; $responseHeaders: any }>) {
+    const { id } = ctx.params;
+
+    const request: Request = await ctx.call('requests.resolve', {
+      id,
+      throwIfNotExist: true,
+    });
+
+    if (request.status !== RequestStatus.APPROVED || request.type !== RequestType.GET_ONCE) {
+      return throwNotFoundError('Cannot download request');
+    }
+
+    const requestData = await getRequestData(ctx, id);
+
+    const geojson: any = {
+      type: 'FeatureCollection',
+      features: [],
+    };
+
+    function getSpeciesData(id: number) {
+      const species = requestData.speciesById[`${id}`];
+
+      if (!species?.speciesId) return {};
+
+      return {
+        'Rūšies tipas': TaxonomySpeciesTypeTranslate[species.speciesType],
+        'Rūšies pavadinimas': species.speciesName,
+        'Rūšies lotyniškas pavadinimas': species.speciesNameLatin,
+        'Rūšies sinonimai': species.speciesSynonyms?.join(', ') || '',
+        'Klasės pavadinimas': species.className,
+        'Klasės lotyniškas pavadinimas': species.classNameLatin,
+        'Tipo pavadinimas': species.phylumName,
+        'Tipo lotyniškas pavadinimas': species.phylumNameLatin,
+        'Karalystės pavadinimas': species.kingdomName,
+        'Karalystės lotyniškas pavadinimas': species.kingdomNameLatin,
+      };
+    }
+
+    requestData.places?.forEach((place) => {
+      let { features } = place.geom || [];
+      const featuresToInsert = features.map((f: any) => {
+        f.geometry.crs = { type: 'name', properties: { name: 'EPSG:3346' } };
+        f.properties = {
+          id: place.id,
+          'Radavietės kodas': place.placeCode,
+          ...getSpeciesData(place.species),
+          'Pirmo stebėjimo data': place.placeFirstObservedAt,
+          'Radavietės statusas': place.placeStatusTranslate,
+          'Sukūrimo data': place.placeCreatedAt,
+          'Plotas (kv.m.2)': place.placeArea,
+          // TODO Centro koordinatės
+        };
+        return f;
+      });
+
+      geojson.features.push(...featuresToInsert);
+    });
+
+    Object.values(requestData.informationalForms)?.forEach((item) => {
+      item?.forms?.forEach((form: any) => {
+        let { features } = form.geom || [];
+        const featuresToInsert = features.map((f: any) => {
+          f.geometry.crs = { type: 'name', properties: { name: 'EPSG:3346' } };
+          f.properties = {
+            id: form.id,
+            'Individų skaičius (gausumas)': form.quantity,
+            'Buveinė, elgsena, ūkinė veikla ir kita informacija': form.description,
+            'Sukūrimo data': form.createdAt,
+            'Stebėjimo data': form.observedAt,
+            Stebėtojas: form.observedBy,
+            Nuotraukos: form.photos,
+            Šaltinis: form.source,
+            'Veiklos požymiai': form.activityTranslate,
+            'Vystymosi stadija': form.evolutionTranslate,
+            ...getSpeciesData(form.species),
+            // TODO Centro koordinatės
+          };
+          return f;
+        });
+
+        geojson.features.push(...featuresToInsert);
+      });
+    });
+
+    ctx.meta.$responseType = 'application/json';
+    ctx.meta.$responseHeaders = {
+      'Content-Disposition': `attachment; filename="request-${id}-geojson.json"`,
+    };
+
+    return geojson;
+  }
+
   @Method
   async getAdminEmails() {
     const authUsers: DBPagination<any> = await this.broker.call(
@@ -730,19 +873,20 @@ export default class RequestsService extends moleculer.Service {
   @Method
   async validateStatusChange(
     ctx: Context<
-      { id: number; type: string },
+      { id: number; type: string; speciesTypes: string[] },
       UserAuthMeta & RequestAutoApprove & RequestStatusChanged
     >,
   ) {
-    const { id, type } = ctx.params;
+    const { id, type, speciesTypes } = ctx.params;
 
     const { user } = ctx.meta;
     if (!!id) {
       ctx.meta.statusChanged = true;
     } else if (user?.isExpert || user?.type === UserType.ADMIN) {
       ctx.meta.autoApprove = type === RequestType.GET_ONCE;
+    } else if (speciesTypes?.includes(TaxonomySpeciesType.INVASIVE)) {
+      ctx.meta.autoApprove = type === RequestType.GET_ONCE;
     }
-
     return ctx;
   }
 
@@ -1066,6 +1210,7 @@ export default class RequestsService extends moleculer.Service {
     const { comment } = ctx.options?.parentCtx?.params as any;
 
     if (request?.type === RequestType.CHECK && request?.createdBy) {
+      await this.broker.cacher?.clean(`${this.fullName}.**`);
       // remove expert from forms where he/she is assignee and form is still active
       await ctx.call('forms.checkAssignmentsForUser', {
         userId: request.createdBy,

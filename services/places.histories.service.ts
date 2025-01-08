@@ -13,23 +13,13 @@ import {
 
 import PostgisMixin from 'moleculer-postgis';
 import { Form } from './forms.service';
-import { Place } from './places.service';
+import { Place, PlaceStatus } from './places.service';
 
 export interface PlaceHistory extends BaseModelInterface {
   place: number | Place;
   form: number | Form;
   relevantForms: number[] | Form[];
 }
-
-export const PlaceHistoryStatus = {
-  INITIAL: 'INITIAL',
-  STABLE: 'STABLE',
-  INCREASED: 'INCREASED',
-  DECREASED: 'DECREASED',
-  DISAPPEARED: 'DISAPPEARED',
-  DESTROYED: 'DESTROYED',
-  MISTAKEN: 'MISTAKEN',
-};
 
 @Service({
   name: 'places.histories',
@@ -63,8 +53,8 @@ export const PlaceHistoryStatus = {
 
       status: {
         type: 'enum',
-        values: Object.values(PlaceHistoryStatus),
-        default: PlaceHistoryStatus.INITIAL,
+        values: Object.values(PlaceStatus),
+        default: PlaceStatus.INITIAL,
       },
 
       geom: {

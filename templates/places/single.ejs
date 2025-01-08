@@ -1,5 +1,5 @@
 <div>
-  <h1><%= index %>. <%= place.placeCode %> (<%= species.name %>)</h1>
+  <h1><%= index %>. <%= place.placeCode %> (<%= species.speciesName %>)</h1>
   <table class="w-full table-striped my-4" cellspacing="0" cellpadding="0">
     <tbody>
       <tr>
@@ -10,15 +10,15 @@
       </tr>
       <tr>
         <td class="w-1/2 text-right font-bold px-4 py-2">Pavadinimas</td>
-        <td class="w-1/2 px-4 py-2"><%= species.name %></td>
+        <td class="w-1/2 px-4 py-2"><%= species.speciesName %></td>
       </tr>
       <tr>
         <td class="w-1/2 text-right font-bold px-4 py-2">Lot. pavadinimas</td>
-        <td class="w-1/2 px-4 py-2 font-italic"><%= species.nameLatin %></td>
+        <td class="w-1/2 px-4 py-2 font-italic"><%= species.speciesNameLatin %></td>
       </tr>
       <tr>
         <td class="w-1/2 text-right font-bold px-4 py-2">Įtraukta į sąrašus</td>
-        <td class="w-1/2 px-4 py-2"><%= species.conventionsText || '-' %></td>
+        <td class="w-1/2 px-4 py-2"><%= species.speciesConventionsText || '-' %></td>
       </tr>
     </tbody>
   </table>
@@ -33,7 +33,7 @@
 
   <div>Radavietės / augavietės stebėjimų duomenys:</div>
 
-  <%- include('forms/table', {forms: place.forms, showCoordinates: false, translates: translates[species.id],
+  <%- include('forms/table', {forms: place.forms, showCoordinates: false, translates: translates[species.speciesId],
   hasEvolution: place.hasEvolution, hasActivity: place.hasActivity, hasMethod: place.hasMethod}); %> <% if
   (showCoordinates) { %>
   <div>Radavietės / augavietės koordinatės (LKS-94 koordinačių sistema):</div>

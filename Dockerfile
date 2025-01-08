@@ -20,6 +20,9 @@ COPY . .
 # Build the application
 RUN yarn build
 
+# Copy DB migrations
+COPY database ./dist/database
+
 # Stage 3: Final production image
 FROM base
 

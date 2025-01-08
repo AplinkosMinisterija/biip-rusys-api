@@ -1,18 +1,18 @@
 <div>
-  <h1>Radavietės (pavieniai stebėjimai) (<%= species.name %>)</h1>
+  <h1>Radavietės (pavieniai stebėjimai) (<%= species.speciesName %>)</h1>
   <table class="w-full table-striped my-4" cellspacing="0" cellpadding="0">
     <tbody>
       <tr>
         <td class="w-1/2 text-right font-bold px-4 py-2">Pavadinimas</td>
-        <td class="w-1/2 px-4 py-2"><%= species.name %></td>
+        <td class="w-1/2 px-4 py-2"><%= species.speciesName %></td>
       </tr>
       <tr>
         <td class="w-1/2 text-right font-bold px-4 py-2">Lot. pavadinimas</td>
-        <td class="w-1/2 px-4 py-2 font-italic"><%= species.nameLatin %></td>
+        <td class="w-1/2 px-4 py-2 font-italic"><%= species.speciesNameLatin %></td>
       </tr>
       <tr>
         <td class="w-1/2 text-right font-bold px-4 py-2">Įtraukta į sąrašus</td>
-        <td class="w-1/2 px-4 py-2"><%= species.conventionsText || '-' %></td>
+        <td class="w-1/2 px-4 py-2"><%= species.speciesConventionsText || '-' %></td>
       </tr>
     </tbody>
   </table>
@@ -23,7 +23,6 @@
 
   <div>Stebėjimų duomenys:</div>
 
-  <%- include('forms/table', {forms: item.forms, translates: translates[species.id], hasEvolution:
-  item.hasEvolution, hasActivity: item.hasActivity, hasMethod: item.hasMethod});
-  %>
+  <%- include('forms/table', {forms: item.forms, translates: translates[species.speciesId],
+  hasEvolution: item.hasEvolution, hasActivity: item.hasActivity, hasMethod: item.hasMethod}); %>
 </div>
