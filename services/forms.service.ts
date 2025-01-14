@@ -969,36 +969,35 @@ export default class FormsService extends moleculer.Service {
     params: {
       userId: 'number',
     },
+    timeout: 0,
   })
   async checkAssignmentsForUser(ctx: Context<{ userId: number }>) {
     const { userId } = ctx.params;
-    const species: number[] = await ctx.call('requests.getExpertSpecies', {
-      userId,
+
+    const species: number[] = await ctx.call('requests.getExpertSpecies', { userId });
+
+    const unAssignedForms: Form[] = await this.findEntities(ctx, {
+      query: {
+        species: { $nin: species },
+        status: { $nin: nonEditableStatuses },
+        assignee: userId,
+      },
+      scope: WITHOUT_AUTH_SCOPES,
     });
 
-    return await this.updateEntities(
-      ctx,
-      {
-        query: {
-          species: {
-            $nin: species,
-          },
-          status: {
-            $nin: nonEditableStatuses,
-          },
-          assignee: userId,
-        },
-        changes: {
-          $set: {
-            assigneeId: null,
-          },
-        },
-        scope: WITHOUT_AUTH_SCOPES,
-      },
-      {
-        raw: true,
-      },
-    );
+    for (const form of unAssignedForms) {
+      const assignee = await ctx.call('forms.getAssigneeForForm', {
+        species: form.species,
+        createdBy: form.createdBy,
+      });
+
+      await this.updateEntity(ctx, {
+        id: form.id,
+        assignee: assignee || null,
+      });
+    }
+
+    return { success: true };
   }
 
   @Method
