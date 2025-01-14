@@ -1,13 +1,13 @@
+import { Feature, FeatureCollection, Geometry, GeometryType, getGeometries } from 'geojsonjs';
 import { Context } from 'moleculer';
-import { TaxonomySpeciesType } from '../../services/taxonomies.species.service';
-import { Request } from '../../services/requests.service';
 import { Moment } from 'moment';
 import moment from 'moment-timezone';
-import { Place, PlaceStatusTranslates } from '../../services/places.service';
 import { Form } from '../../services/forms.service';
-import { toMD5Hash } from '../functions';
-import { FeatureCollection, Feature, Geometry, getGeometries, GeometryType } from 'geojsonjs';
+import { Place, PlaceStatusTranslates } from '../../services/places.service';
+import { Request } from '../../services/requests.service';
 import { Taxonomy } from '../../services/taxonomies.service';
+import { TaxonomySpeciesType } from '../../services/taxonomies.species.service';
+import { toMD5Hash } from '../functions';
 
 const dateFormat = 'YYYY-MM-DD';
 const dateFormatFull = `${dateFormat} HH:mm`;
@@ -36,6 +36,7 @@ function getFormData(form: Form, translates?: any) {
     evolution: form.evolution,
     activity: form.activity,
     method: form.method,
+    geom: form.geom,
     observedAt: formatDate(form.observedAt),
     observedBy: form.observedBy,
     createdAt: formatDate(form.createdAt),
