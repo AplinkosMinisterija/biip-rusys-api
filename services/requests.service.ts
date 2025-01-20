@@ -762,6 +762,15 @@ export default class RequestsService extends moleculer.Service {
       };
     }
 
+    function getTitle(speciesId: number) {
+      const species = requestData.speciesById[`${speciesId}`];
+      const isInvasive = [TaxonomySpeciesType.INTRODUCED, TaxonomySpeciesType.INVASIVE].includes(
+        species?.speciesType,
+      );
+
+      return isInvasive ? 'Įvedimo į INVA data' : 'Įvedimo į SRIS data';
+    }
+
     requestData.places?.forEach((place) => {
       place.forms?.forEach((form) => {
         let { features } = form.geom || [];
@@ -774,7 +783,7 @@ export default class RequestsService extends moleculer.Service {
             ...getSpeciesData(place.species),
             'Individų skaičius (gausumas)': form.quantity,
             'Buveinė, elgsena, ūkinė veikla ir kita informacija': form.description,
-            'Įvedimo į SRIS data': form.createdAt,
+            [getTitle(place.species)]: form.createdAt,
             'Stebėjimo data': form.observedAt,
             Šaltinis: form.source,
             'Veiklos požymiai': form.activityTranslate,
@@ -799,7 +808,7 @@ export default class RequestsService extends moleculer.Service {
             ...getSpeciesData(form.species),
             'Individų skaičius (gausumas)': form.quantity,
             'Buveinė, elgsena, ūkinė veikla ir kita informacija': form.description,
-            'Įvedimo į SRIS data': form.createdAt,
+            [getTitle(form.species)]: form.createdAt,
             'Stebėjimo data': form.observedAt,
             Šaltinis: form.source,
             'Veiklos požymiai': form.activityTranslate,
