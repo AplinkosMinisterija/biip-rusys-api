@@ -765,7 +765,7 @@ export default class RequestsService extends moleculer.Service {
     function getTitle(speciesId: number) {
       const species = requestData.speciesById[`${speciesId}`];
       const isInvasive = [TaxonomySpeciesType.INTRODUCED, TaxonomySpeciesType.INVASIVE].includes(
-        species.speciesType,
+        species?.speciesType,
       );
 
       return isInvasive ? 'Įvedimo į INVA data' : 'Įvedimo į SRIS data';
