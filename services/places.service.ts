@@ -118,6 +118,7 @@ export interface Place extends BaseModelInterface {
           handler: PopulateHandlerFn('forms.populateByProp'),
           params: {
             queryKey: 'place',
+            populate: 'geom,source',
             mappingMulti: true,
             sort: '-observedAt',
           },
