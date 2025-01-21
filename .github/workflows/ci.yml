@@ -12,5 +12,6 @@ jobs:
     with:
       docker-image: ghcr.io/aplinkosministerija/example
       environment: test
+      runs-on: ubuntu-latest
       latest-tag: true
       push: false

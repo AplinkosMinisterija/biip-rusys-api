@@ -11,6 +11,8 @@ import { queryBooleanPlain } from '../types';
 import { getMapsGridStatsQuery } from '../utils/db.queries';
 import { AuthType, UserAuthMeta } from './api.service';
 import {
+  mapsInvaNoQuantityIntroducedFormsLayerId,
+  mapsInvaNoQuantityInvasiveFormsLayerId,
   mapsInvaPlacesIntroducedLayerId,
   mapsInvaPlacesInvasiveLayerId,
   mapsSrisInformationalFormsLayerId,
@@ -18,6 +20,7 @@ import {
 } from './maps.service';
 import { TaxonomySpeciesType } from './taxonomies.species.service';
 import { UserType } from './users.service';
+import { FormNoQuantityReason } from './forms.service';
 @Service({
   name: 'maps.hexagons',
 
@@ -274,6 +277,44 @@ export default class MapsHexagonService extends moleculer.Service {
 
       const places: any[] = await placesQuery;
       makeCount(places, 'invaIntroducedPlaces');
+    }
+
+    if (layers?.inva?.includes(mapsInvaNoQuantityInvasiveFormsLayerId)) {
+      const table = 'approvedForms';
+
+      const formsQuery = this.getStatsQuery(
+        adapter,
+        table,
+        _.merge(options, { speciesType: TaxonomySpeciesType.INVASIVE }),
+      )
+        .where(adapter.client.raw(`${snakeCase(table)}.${queryBooleanPlain('isRelevant', true)}`))
+        .where(`${table}.noQuantityReason`, FormNoQuantityReason.RESEARCH);
+
+      if (options.forms?.id) {
+        addIdQuery(formsQuery, table, options.forms.id);
+      }
+
+      const formsCount = await formsQuery;
+      makeCount(formsCount, 'invaNoQuantityForms');
+    }
+
+    if (layers?.inva?.includes(mapsInvaNoQuantityIntroducedFormsLayerId)) {
+      const table = 'approvedForms';
+
+      const formsQuery = this.getStatsQuery(
+        adapter,
+        table,
+        _.merge(options, { speciesType: TaxonomySpeciesType.INTRODUCED }),
+      )
+        .where(adapter.client.raw(`${snakeCase(table)}.${queryBooleanPlain('isRelevant', true)}`))
+        .where(`${table}.noQuantityReason`, FormNoQuantityReason.RESEARCH);
+
+      if (options.forms?.id) {
+        addIdQuery(formsQuery, table, options.forms.id);
+      }
+
+      const formsCount = await formsQuery;
+      makeCount(formsCount, 'invaIntroducedNoQuantityForms');
     }
 
     if (layers?.sris?.includes(mapsSrisInformationalFormsLayerId)) {
