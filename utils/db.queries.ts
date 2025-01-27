@@ -157,6 +157,28 @@ export function getPlacesByRequestIds(ids: number[], species?: number[], date?: 
   return query;
 }
 
+export function getFormsByDateAndPlaceIds(ids: number[], date: string) {
+  const formsTable = 'approvedForms';
+  const knex = getAdapter();
+  date = moment(date).endOf('day').format();
+
+  const query = knex
+    .select(
+      `${formsTable}.*`,
+      knex.raw(
+        asGeoJsonQuery(`${snakeCase(formsTable)}.geom`, 'geom', 3346, {
+          digits: 2,
+          options: 0,
+        }),
+      ),
+    )
+    .from(formsTable)
+    .whereIn(`${formsTable}.placeId`, ids)
+    .where(`${formsTable}.createdAt`, '<=', date);
+
+  return query;
+}
+
 export function getInformationalFormsByRequestIds(
   ids: number[],
   species?: number[],
