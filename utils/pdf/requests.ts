@@ -240,6 +240,7 @@ async function getInformationalForms(
       ...getFormData(form, translates),
       coordinates: getGeometryWithTranslates(formsGeomByFormId[form.id]),
       geom: formsGeomByFormId[form.id],
+      species: form.species,
     });
     item.hasActivity = item.hasActivity || !!form.activity;
     item.hasMethod = item.hasMethod || !!form.method;
