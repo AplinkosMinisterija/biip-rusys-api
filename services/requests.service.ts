@@ -363,9 +363,9 @@ export default class RequestsService extends moleculer.Service {
         convert: true,
       },
     },
-    // cache: {
-    //   keys: ['userId'],
-    // },
+    cache: {
+      keys: ['userId'],
+    },
   })
   async getExpertSpecies(ctx: Context<{ userId: number }>) {
     const approvedRequests: Request[] = await ctx.call('requests.find', {
