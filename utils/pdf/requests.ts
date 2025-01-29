@@ -1,4 +1,11 @@
-import { Feature, FeatureCollection, Geometry, GeometryType, getGeometries } from 'geojsonjs';
+import {
+  Feature,
+  FeatureCollection,
+  Geometry,
+  GeometryType,
+  getFeatureCollection,
+  getGeometries,
+} from 'geojsonjs';
 import { Context } from 'moleculer';
 import { Moment } from 'moment';
 import moment from 'moment-timezone';
@@ -8,6 +15,7 @@ import { Request } from '../../services/requests.service';
 import { Taxonomy } from '../../services/taxonomies.service';
 import { TaxonomySpeciesType } from '../../services/taxonomies.species.service';
 import { toMD5Hash } from '../functions';
+import { getFormsByDateAndPlaceIds } from '../db.queries';
 
 const dateFormat = 'YYYY-MM-DD';
 const dateFormatFull = `${dateFormat} HH:mm`;
@@ -30,7 +38,8 @@ function formatDate(date?: Date | string | Moment, full: boolean = false) {
 }
 
 function getFormData(form: Form, translates?: any) {
-  const formTranslates = translates?.[`${form.species as number}`];
+  const speciesId = (form.species || (form as any).speciesId) as number;
+  const formTranslates = translates?.[`${speciesId}`];
   return {
     id: form.id,
     evolution: form.evolution,
@@ -40,7 +49,7 @@ function getFormData(form: Form, translates?: any) {
     observedAt: formatDate(form.observedAt),
     observedBy: form.observedBy,
     createdAt: formatDate(form.createdAt),
-    source: (form.source as any)?.name || '',
+    source: (form.source as any)?.name || form.source || '',
     photos: form.photos?.map((p) => p.url) || [],
     description: form.description,
     quantity: form.quantity,
@@ -123,11 +132,12 @@ function getGeometryWithTranslates(geom: FeatureCollection | Feature) {
 }
 
 async function getPlaces(ctx: Context, requestId: number, date: string, translates?: any) {
+  date = formatDate(date);
   const placesData: Array<{ placeId: number; geom: FeatureCollection }> = await ctx.call(
     'requests.getPlacesByRequest',
     {
       id: requestId,
-      date: formatDate(date),
+      date,
     },
     { timeout: 0 },
   );
@@ -137,18 +147,26 @@ async function getPlaces(ctx: Context, requestId: number, date: string, translat
     {},
   );
 
+  const placesIds = placesData.map((i) => i.placeId);
   const places: Place[] = await ctx.call('places.find', {
     query: {
       id: {
-        $in: placesData.map((i) => i.placeId),
+        $in: placesIds,
       },
     },
-    populate: ['forms', 'area'],
+    populate: ['area'],
   });
+
+  const placesForms: any[] = await getFormsByDateAndPlaceIds(placesIds, date);
 
   const mappedPlaces = (places || [])
     .map((p) => {
-      const placeForms = p.forms || [];
+      const placeForms = placesForms
+        .filter((i) => i.placeId === p.id)
+        .map((item) => {
+          item.geom = getFeatureCollection(item.geom);
+          return item;
+        });
       return {
         id: p.id,
         species: p.species as number,
@@ -223,6 +241,7 @@ async function getInformationalForms(
       ...getFormData(form, translates),
       coordinates: getGeometryWithTranslates(formsGeomByFormId[form.id]),
       geom: formsGeomByFormId[form.id],
+      species: form.species,
     });
     item.hasActivity = item.hasActivity || !!form.activity;
     item.hasMethod = item.hasMethod || !!form.method;
