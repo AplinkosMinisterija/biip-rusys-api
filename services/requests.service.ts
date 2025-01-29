@@ -491,7 +491,7 @@ export default class RequestsService extends moleculer.Service {
       },
     },
   })
-  async getExpertsIdsBySpecies(ctx: Context<{ speciesId: number; hidden?: boolean }>) {
+  async getExpertsIdsBySpecies(ctx: Context<{ speciesId: number }>) {
     const approvedRequests: Request[] = await ctx.call('requests.find', {
       query: {
         type: RequestType.CHECK,
