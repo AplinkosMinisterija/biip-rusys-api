@@ -94,6 +94,7 @@ export async function getMapsSearchParams(ctx: Context): Promise<URLSearchParams
   searchParams.set('auth', mapsToken.token);
   searchParams.set('preview', '1');
   searchParams.set('screenshot', '1');
+  searchParams.set('hideGrid', '1');
 
   return searchParams;
 }
