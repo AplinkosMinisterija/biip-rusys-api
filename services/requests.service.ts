@@ -232,7 +232,11 @@ const populatePermissions = (field: string) => {
         populate(ctx: any, _values: any, requests: Request[]) {
           return Promise.all(
             requests.map((request) =>
-              this.populateTaxonomies(request.taxonomies, request.speciesTypes),
+              this.populateTaxonomies(
+                request.taxonomies,
+                request.speciesTypes,
+                ctx?.params?.showHidden,
+              ),
             ),
           );
         },
@@ -371,6 +375,7 @@ export default class RequestsService extends moleculer.Service {
         status: RequestStatus.APPROVED,
         tenant: { $exists: false },
       },
+      showHidden: true,
       populate: 'inheritedSpecies',
       scope: WITHOUT_AUTH_SCOPES,
     });
@@ -493,6 +498,7 @@ export default class RequestsService extends moleculer.Service {
         status: RequestStatus.APPROVED,
         createdBy: { $exists: true },
       },
+      showHidden: true,
       populate: 'inheritedSpecies',
       scope: WITHOUT_AUTH_SCOPES,
     });
@@ -992,7 +998,11 @@ export default class RequestsService extends moleculer.Service {
   }
 
   @Method
-  async populateTaxonomies(taxonomies: Request['taxonomies'], speciesTypes?: string[]) {
+  async populateTaxonomies(
+    taxonomies: Request['taxonomies'],
+    speciesTypes?: string[],
+    showHidden?: boolean,
+  ) {
     const taxonomyMap: any = {
       [TaxonomyTypes.KINGDOM]: 'kingdomId',
       [TaxonomyTypes.PHYLUM]: 'phylumId',
@@ -1009,6 +1019,10 @@ export default class RequestsService extends moleculer.Service {
 
       if (speciesTypes?.length) {
         query.speciesType = { $in: speciesTypes };
+      }
+
+      if (showHidden) {
+        query.showHidden = showHidden;
       }
 
       const result: Taxonomy[] = await this.broker.call('taxonomies.find', {
