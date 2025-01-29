@@ -778,6 +778,7 @@ export default class RequestsService extends moleculer.Service {
     }
 
     requestData.places?.forEach((place) => {
+      const speciesInfo = getSpeciesData(place.species);
       place.forms?.forEach((form) => {
         let { features } = form.geom || [];
         const featuresToInsert = features.map((f: any) => {
@@ -786,7 +787,7 @@ export default class RequestsService extends moleculer.Service {
             'Anketos ID': form.id,
             'Radavietės ID': place.id,
             'Radavietės kodas': place.placeCode,
-            ...getSpeciesData(place.species),
+            ...speciesInfo,
             'Individų skaičius (gausumas)': form.quantity,
             'Buveinė, elgsena, ūkinė veikla ir kita informacija': form.description,
             [getTitle(place.species)]: form.createdAt,
