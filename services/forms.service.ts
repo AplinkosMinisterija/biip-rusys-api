@@ -1122,11 +1122,11 @@ export default class FormsService extends moleculer.Service {
   @Method
   async validateStatusChange(
     ctx: Context<
-      { id: number; species: number; isInformational?: boolean },
+      { id: number; species: number; isInformational?: boolean; quantity?: number },
       UserAuthMeta & FormAutoApprove & FormStatusChanged
     >,
   ) {
-    const { id, species, isInformational } = ctx.params;
+    const { id, species, isInformational, quantity } = ctx.params;
 
     if (!!id) {
       const doNotChangeStatus = Object.keys(ctx.params).every((key) =>
@@ -1134,7 +1134,7 @@ export default class FormsService extends moleculer.Service {
       );
 
       ctx.meta.statusChanged = !doNotChangeStatus;
-    } else if (isInformational) {
+    } else if (isInformational && !!quantity) {
       ctx.meta.autoApprove = true;
     } else if (!id && ctx?.meta?.user?.isExpert) {
       ctx.meta.autoApprove = ctx.meta.user.expertSpecies.includes(Number(species));
