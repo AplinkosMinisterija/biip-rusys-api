@@ -1063,20 +1063,10 @@ export default class FormsService extends moleculer.Service {
 
   @Method
   async validateDeletion(ctx: Context<any, any>) {
-    const { user, profile } = ctx.meta;
-
     const form: Form = await ctx.call('forms.resolve', {
       id: ctx.params.id,
       throwIfNotExist: true,
     });
-
-    const tenantId = form?.tenant;
-    const isCreatedByUser = !tenantId && user?.id === form.createdBy;
-    const isCreatedByTenant = tenantId && profile?.id === tenantId;
-
-    if (!isCreatedByUser && !isCreatedByTenant) {
-      throwValidationError('Only the form creator or associated tenant user can delete this form.');
-    }
 
     if (form.status !== FormStatus.RETURNED) {
       throwValidationError(`Cannot delete the form with status ${form.status}`);
