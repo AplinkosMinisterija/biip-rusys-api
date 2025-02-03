@@ -6,19 +6,19 @@ import { Action, Method, Service } from 'moleculer-decorators';
 import DbConnection from '../mixins/database.mixin';
 import TaxonomyFilter from '../mixins/taxonomy.mixin';
 import {
-  COMMON_FIELDS,
-  COMMON_DEFAULT_SCOPES,
-  COMMON_SCOPES,
   BaseModelInterface,
+  COMMON_DEFAULT_SCOPES,
+  COMMON_FIELDS,
+  COMMON_SCOPES,
   EndpointType,
-  throwNotFoundError,
   queryBoolean,
+  throwNotFoundError,
 } from '../types';
+import { UserAuthMeta } from './api.service';
 import { Convention } from './conventions.service';
 import { TaxonomyClass } from './taxonomies.classes.service';
 import { TaxonomyKingdom } from './taxonomies.kingdoms.service';
 import { TaxonomyPhylum } from './taxonomies.phylums.service';
-import { UserAuthMeta } from './api.service';
 import { UserType } from './users.service';
 
 export interface TaxonomySpecies extends BaseModelInterface {
@@ -117,6 +117,7 @@ const publicPopulate = ['class', 'conventions'];
             populate: 'parent',
           },
         },
+        deepQuery: 'conventions',
       },
 
       conventionsText: {
