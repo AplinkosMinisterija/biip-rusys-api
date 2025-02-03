@@ -14,6 +14,7 @@ import {
   EndpointType,
   throwUnauthorizedError,
   throwNotFoundError,
+  DeepQuery,
 } from '../types';
 import { TenantUserRole } from './tenantUsers.service';
 import { Tenant } from './tenants.service';
@@ -156,6 +157,17 @@ export const USERS_DEFAULT_SCOPES = [
           response.rejectedForms = value.filter((i) => i.status === FormStatus.REJECTED).length;
 
           return response;
+        },
+      },
+
+      tenantUsers: {
+        virtual: true,
+        deepQuery: {
+          service: 'tenantUsers',
+          handler({ leftJoinService }: DeepQuery) {
+            // column1 - current "users" table field, column2 - remote "tenantUsers" field
+            leftJoinService('tenantUsers', 'id', 'userId');
+          },
         },
       },
 
