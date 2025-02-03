@@ -50,6 +50,7 @@
     "ts-node": "^10.5.0"
   },
   "dependencies": {
+    "@aplinkosministerija/moleculer-accounts": "^1.5.0",
     "@faker-js/faker": "^6.0.0-alpha.7",
     "@moleculer/database": "github:ambrazasp/moleculerjs-database",
     "@r2d2bzh/moleculer-cron": "^0.1.4",
