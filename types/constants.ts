@@ -1,7 +1,6 @@
 import _ from 'lodash';
 import Moleculer, { Context, Errors } from 'moleculer';
 import { UserAuthMeta } from '../services/api.service';
-import { UserType } from '../services/users.service';
 import { FieldHookCallback } from './';
 
 export type GenericObject<T> = { [key: string]: T };

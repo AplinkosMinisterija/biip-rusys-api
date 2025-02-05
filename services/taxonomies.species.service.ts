@@ -117,7 +117,6 @@ const publicPopulate = ['class', 'conventions'];
             populate: 'parent',
           },
         },
-        deepQuery: 'conventions',
       },
 
       conventionsText: {

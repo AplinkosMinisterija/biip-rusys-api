@@ -1,7 +1,7 @@
 'use strict';
 
 import moleculer, { Context } from 'moleculer';
-import { Method, Service } from 'moleculer-decorators';
+import { Action, Method, Service } from 'moleculer-decorators';
 
 import DbConnection, { PopulateHandlerFn } from '../mixins/database.mixin';
 import {
@@ -132,6 +132,16 @@ function conventionToText(convention: Convention, append: string = ''): string {
   },
 })
 export default class ConventionsService extends moleculer.Service {
+  @Action({
+    rest: 'GET /listAll',
+  })
+  listAll(ctx: Context<{}>) {
+    return ctx.call('conventions.list', {
+      ...ctx.params,
+      scope: '-noParent',
+    });
+  }
+
   @Method
   async validateParent({ value, entity }: FieldHookCallback) {
     if (entity && entity.parent != value) {
