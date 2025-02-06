@@ -1082,11 +1082,12 @@ export default class FormsService extends moleculer.Service {
         species: number;
         activity?: string;
         isInformational: boolean;
+        quantity: number;
       },
       UserAuthMeta
     >,
   ) {
-    const { species, activity } = ctx.params;
+    const { species, activity, quantity } = ctx.params;
 
     ctx.params.isInformational = false;
 
@@ -1099,6 +1100,7 @@ export default class FormsService extends moleculer.Service {
       const isInformational: boolean = await this.broker.call('forms.types.isInformational', {
         type: taxonomy.formType,
         activity,
+        quantity,
       });
 
       if (isInformational) {
@@ -1112,11 +1114,11 @@ export default class FormsService extends moleculer.Service {
   @Method
   async validateStatusChange(
     ctx: Context<
-      { id: number; species: number; isInformational?: boolean; quantity?: number },
+      { id: number; species: number; isInformational?: boolean },
       UserAuthMeta & FormAutoApprove & FormStatusChanged
     >,
   ) {
-    const { id, species, isInformational, quantity } = ctx.params;
+    const { id, species, isInformational } = ctx.params;
 
     if (!!id) {
       const doNotChangeStatus = Object.keys(ctx.params).every((key) =>
@@ -1124,7 +1126,7 @@ export default class FormsService extends moleculer.Service {
       );
 
       ctx.meta.statusChanged = !doNotChangeStatus;
-    } else if (isInformational && !!quantity) {
+    } else if (isInformational) {
       ctx.meta.autoApprove = true;
     } else if (!id && ctx?.meta?.user?.isExpert) {
       ctx.meta.autoApprove = ctx.meta.user.expertSpecies.includes(Number(species));
