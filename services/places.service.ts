@@ -91,6 +91,7 @@ export interface Place extends BaseModelInterface {
         columnType: 'integer',
         columnName: 'speciesId',
         populate: 'taxonomies.species.resolve',
+        deepQuery: 'taxonomies.species',
       },
 
       geom: {

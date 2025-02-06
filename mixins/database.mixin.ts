@@ -2,6 +2,7 @@
 
 import _ from 'lodash';
 const DbService = require('@moleculer/database').Service;
+import { DeepQueryMixin } from '@aplinkosministerija/moleculer-accounts';
 import config from '../knexfile';
 import filtersMixin from 'moleculer-knex-filters';
 import { Context } from 'moleculer';
@@ -109,7 +110,7 @@ export default function (opts: any = {}) {
   }
 
   const schema = {
-    mixins: [DbService(opts), filtersMixin()],
+    mixins: [DeepQueryMixin(), DbService(opts), filtersMixin()],
 
     async started() {
       await this.getAdapter();

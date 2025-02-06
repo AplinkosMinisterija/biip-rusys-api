@@ -53,6 +53,7 @@ export interface TenantUser extends BaseModelInterface {
         columnName: 'tenantId',
         immutable: true,
         populate: 'tenants.resolve',
+        deepQuery: 'tenants',
       },
 
       user: {
@@ -60,6 +61,7 @@ export interface TenantUser extends BaseModelInterface {
         columnName: 'userId',
         immutable: true,
         populate: 'users.resolve',
+        deepQuery: 'users',
       },
 
       role: {

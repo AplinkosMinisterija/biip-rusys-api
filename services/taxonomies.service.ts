@@ -69,7 +69,10 @@ const updateTaxonomies = async function () {
 
   settings: {
     fields: {
-      speciesId: 'number',
+      speciesId: {
+        type: 'number',
+        primaryKey: true,
+      },
       speciesName: 'string',
       speciesNameLatin: 'string',
       speciesType: 'string',
