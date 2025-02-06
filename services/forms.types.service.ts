@@ -105,8 +105,10 @@ export default class FormTypesService extends moleculer.Service {
   isInformational(ctx: Context<{ type: string; activity: string; quantity: number }>) {
     const { type, activity, quantity } = ctx.params;
 
+    if (!quantity) return false;
+
     let isInformational = false;
-    if (type === FormType.ENDANGERED_ANIMAL && !!quantity) {
+    if (type === FormType.ENDANGERED_ANIMAL) {
       isInformational = !EndangeredFormActivitiesNonInformational.includes(activity);
     }
 
