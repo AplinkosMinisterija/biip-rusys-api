@@ -377,7 +377,6 @@ export default class RequestsService extends moleculer.Service {
       },
       showHidden: true,
       populate: 'inheritedSpecies',
-      showHidden: true,
       scope: WITHOUT_AUTH_SCOPES,
     });
 
@@ -501,7 +500,6 @@ export default class RequestsService extends moleculer.Service {
       },
       showHidden: true,
       populate: 'inheritedSpecies',
-      showHidden: true,
       scope: WITHOUT_AUTH_SCOPES,
     });
 
