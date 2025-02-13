@@ -38,7 +38,7 @@
   <div>Radavietės / augavietės stebėjimų duomenys:</div>
 
   <%- include('forms/table', {forms: place.forms, showCoordinates: false, translates: translates[species.speciesId],
-  hasEvolution: place.hasEvolution, hasActivity: place.hasActivity, hasMethod: place.hasMethod}); %> <% if
+  hasEvolution: place.hasEvolution, hasActivity: place.hasActivity, hasMethod: place.hasMethod, hasArea:place.hasArea }); %> <% if
   (showCoordinates) { %>
   <div>Radavietės / augavietės koordinatės (LKS-94 koordinačių sistema):</div>
   <div class="text-sm mt-2">
