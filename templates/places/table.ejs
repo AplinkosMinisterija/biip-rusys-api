@@ -5,6 +5,7 @@
       <th class="px-4 py-2">Pavadinimas</th>
       <th class="px-4 py-2">Lot. pavadinimas</th>
       <th class="px-4 py-2">Radavietės kodas</th>
+      <th class="px-4 py-2">Plotas</th>
       <th class="px-4 py-2">Paskutinio stebėjimo data</th>
     </tr>
   </thead>
@@ -16,6 +17,7 @@
       <td class="px-4 py-2"><%= speciesById[place.species].speciesName %></td>
       <td class="px-4 py-2 font-italic"><%= speciesById[place.species].speciesNameLatin %></td>
       <td class="px-4 py-2"><%= place.placeCode %></td>
+      <td class="px-4 py-2"><%= place.placeArea %></td>
       <td class="px-4 py-2"><%= place.placeLastObservedAt %></td>
     </tr>
     <% }); %>
