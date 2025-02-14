@@ -160,6 +160,7 @@ export interface Form extends BaseModelInterface {
   isRelevant: boolean;
   source: number | FormSettingSource;
   geom: any;
+  area: number;
   photos?: { url: string }[];
   observedBy: string;
   noQuantityReason: string;

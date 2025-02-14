@@ -14,8 +14,8 @@ import { Place, PlaceStatusTranslates } from '../../services/places.service';
 import { Request } from '../../services/requests.service';
 import { Taxonomy } from '../../services/taxonomies.service';
 import { TaxonomySpeciesType } from '../../services/taxonomies.species.service';
-import { toMD5Hash } from '../functions';
 import { getFormsByDateAndPlaceIds } from '../db.queries';
+import { toMD5Hash } from '../functions';
 
 const dateFormat = 'YYYY-MM-DD';
 const dateFormatFull = `${dateFormat} HH:mm`;
@@ -37,15 +37,26 @@ function formatDate(date?: Date | string | Moment, full: boolean = false) {
     .format(full ? dateFormatFull : dateFormat);
 }
 
+function formatAreaText(area?: number): string {
+  const areaValue = Number(area) || 0;
+  const isSquareKilometers = areaValue >= 10000;
+
+  return `${(isSquareKilometers ? areaValue / 1000000 : areaValue).toFixed(2)} ${
+    isSquareKilometers ? 'km²' : 'm²'
+  }`;
+}
+
 function getFormData(form: Form, translates?: any) {
   const speciesId = (form.species || (form as any).speciesId) as number;
   const formTranslates = translates?.[`${speciesId}`];
+
   return {
     id: form.id,
     evolution: form.evolution,
     activity: form.activity,
     method: form.method,
     geom: form.geom,
+    areaText: formatAreaText(form.area),
     observedAt: formatDate(form.observedAt),
     observedBy: form.observedBy,
     createdAt: formatDate(form.createdAt),
@@ -167,6 +178,7 @@ async function getPlaces(ctx: Context, requestId: number, date: string, translat
           item.geom = getFeatureCollection(item.geom);
           return item;
         });
+
       return {
         id: p.id,
         species: p.species as number,
@@ -174,11 +186,13 @@ async function getPlaces(ctx: Context, requestId: number, date: string, translat
         placeLastObservedAt: formatDate(moment.max(placeForms.map((f) => moment(f.observedAt)))),
         placeFirstObservedAt: formatDate(moment.min(placeForms.map((f) => moment(f.observedAt)))),
         placeArea: p.area,
+        placeAreaText: formatAreaText(p.area),
         placeStatusTranslate: PlaceStatusTranslates[p.status],
         placeCreatedAt: formatDate(p.createdAt),
         screenshot: '',
         hash: toMD5Hash(`place=${p.id}`),
         hasEvolution: placeForms.some((f) => !!f.evolution),
+        hasArea: placeForms.some((f) => !!f.area),
         hasActivity: placeForms.some((f) => !!f.activity),
         hasMethod: placeForms.some((f) => !!f.method),
         coordinates: getGeometryWithTranslates(placesGeomByPlaceId[p.id]),

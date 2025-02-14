@@ -9,7 +9,9 @@
       <th class="px-4 py-2">Vystymosi stadija</th>
       <% }; %> <% if (hasMethod) { %>
       <th class="px-4 py-2">Metodas</th>
-      <% }; %>
+      <% }; %> <% if (hasArea) { %>
+        <th class="px-4 py-2">Plotas</th>
+        <% }; %>
     </tr>
   </thead>
   <% if (forms.length) { %>
@@ -24,7 +26,9 @@
       <td class="px-4 py-2"><%= form.evolutionTranslate || '-' %></td>
       <% }; %> <% if (hasMethod) { %>
       <td class="px-4 py-2"><%= form.methodTranslate || '-' %></td>
-      <% }; %>
+      <% }; %> <% if (hasArea) { %>
+        <td class="px-4 py-2"><%= form.areaText || '-' %></td>
+        <% }; %>
     </tr>
     <% if (showCoordinates) { %>
     <tr>

@@ -20,6 +20,10 @@
         <td class="w-1/2 text-right font-bold px-4 py-2">Įtraukta į sąrašus</td>
         <td class="w-1/2 px-4 py-2"><%= species.speciesConventionsText || '-' %></td>
       </tr>
+      <tr>
+        <td class="w-1/2 text-right font-bold px-4 py-2">Plotas</td>
+        <td class="w-1/2 px-4 py-2"><%= place.placeAreaText || '-' %></td>
+      </tr>
     </tbody>
   </table>
   <div>Radavietės / augavietės žemėlapis:</div>
@@ -34,7 +38,7 @@
   <div>Radavietės / augavietės stebėjimų duomenys:</div>
 
   <%- include('forms/table', {forms: place.forms, showCoordinates: false, translates: translates[species.speciesId],
-  hasEvolution: place.hasEvolution, hasActivity: place.hasActivity, hasMethod: place.hasMethod}); %> <% if
+  hasEvolution: place.hasEvolution, hasActivity: place.hasActivity, hasMethod: place.hasMethod, hasArea: place.hasArea }); %> <% if
   (showCoordinates) { %>
   <div>Radavietės / augavietės koordinatės (LKS-94 koordinačių sistema):</div>
   <div class="text-sm mt-2">
