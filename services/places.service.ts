@@ -150,6 +150,9 @@ export interface Place extends BaseModelInterface {
   },
 
   actions: {
+    list: {
+      rest: null,
+    },
     create: {
       types: [EndpointType.ADMIN, EndpointType.EXPERT],
     },
@@ -167,6 +170,23 @@ export interface Place extends BaseModelInterface {
   },
 })
 export default class PlacesService extends moleculer.Service {
+  @Action({
+    rest: 'GET /',
+  })
+  async getList(ctx: Context) {
+    return ctx.call('placesWithTaxonomies.list', ctx.params);
+  }
+
+  @Action({
+    rest: 'GET /deleted',
+  })
+  listDeleted(ctx: Context<{}>) {
+    return ctx.call('placesWithTaxonomies.list', {
+      ...ctx.params,
+      scope: COMMON_DELETED_SCOPES,
+    });
+  }
+
   @Action({
     rest: 'GET /:id/history',
     params: {
@@ -262,16 +282,6 @@ export default class PlacesService extends moleculer.Service {
     ctx.emit('places.changed', { id, comment });
 
     return { success: true };
-  }
-
-  @Action({
-    rest: 'GET /deleted',
-  })
-  listDeleted(ctx: Context<{}>) {
-    return ctx.call('places.list', {
-      ...ctx.params,
-      scope: COMMON_DELETED_SCOPES,
-    });
   }
 
   @Method
