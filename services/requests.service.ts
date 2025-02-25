@@ -53,6 +53,11 @@ export const RequestStatus = {
   SUBMITTED: 'SUBMITTED',
 };
 
+export const RequestDocumentType = {
+  PDF: 'PDF',
+  GEOJSON: 'GEOJSON',
+};
+
 const TaxonomyTypes = {
   CLASS: 'CLASS',
   PHYLUM: 'PHYLUM',
@@ -270,6 +275,20 @@ const populatePermissions = (field: string) => {
         onCreate: ({ ctx, value }: FieldHookCallback) => {
           const { user } = ctx?.meta;
           return value || user?.email;
+        },
+      },
+
+      documentTypes: {
+        type: 'array',
+        columnType: 'json',
+        items: {
+          type: 'string',
+          enum: Object.values(RequestDocumentType),
+        },
+        get({ value, entity }: any) {
+          if (entity.type !== RequestType.GET_ONCE) return;
+
+          return Array.isArray(value) && value?.length ? value : [RequestDocumentType.PDF];
         },
       },
 
