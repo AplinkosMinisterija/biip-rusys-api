@@ -53,6 +53,11 @@ export const RequestStatus = {
   SUBMITTED: 'SUBMITTED',
 };
 
+export const RequestDocumentType = {
+  PDF: 'PDF',
+  GEOJSON: 'GEOJSON',
+};
+
 const TaxonomyTypes = {
   CLASS: 'CLASS',
   PHYLUM: 'PHYLUM',
@@ -81,6 +86,8 @@ export interface Request extends BaseModelInterface {
   type: string;
   data: any;
   geom: any;
+  documentTypes?: string[];
+  notifyEmail?: string;
 }
 
 const populatePermissions = (field: string) => {
@@ -270,6 +277,20 @@ const populatePermissions = (field: string) => {
         onCreate: ({ ctx, value }: FieldHookCallback) => {
           const { user } = ctx?.meta;
           return value || user?.email;
+        },
+      },
+
+      documentTypes: {
+        type: 'array',
+        columnType: 'json',
+        items: {
+          type: 'string',
+          enum: Object.values(RequestDocumentType),
+        },
+        get({ value, entity }: any) {
+          if (entity.type !== RequestType.GET_ONCE) return;
+
+          return Array.isArray(value) && value?.length ? value : [RequestDocumentType.PDF];
         },
       },
 
@@ -974,7 +995,11 @@ export default class RequestsService extends moleculer.Service {
   async generatePdfIfNeeded(request: Request) {
     if (!request || !request.id) return;
 
-    if (request.status !== RequestStatus.APPROVED || request.type !== RequestType.GET_ONCE) {
+    if (
+      request.status !== RequestStatus.APPROVED ||
+      request.type !== RequestType.GET_ONCE ||
+      !request.documentTypes?.includes(RequestDocumentType.PDF)
+    ) {
       return;
     }
 
@@ -1060,10 +1085,11 @@ export default class RequestsService extends moleculer.Service {
     const approvedGetOnceRequest =
       request.status === RequestStatus.APPROVED && request.type === RequestType.GET_ONCE;
 
-    if (!user?.email || approvedGetOnceRequest) return;
+    const email = request.notifyEmail || user?.email;
+    if (!email || approvedGetOnceRequest) return;
 
     notifyOnRequestUpdate(
-      user.email,
+      email,
       request.status,
       request.id,
       request.type,
@@ -1172,6 +1198,35 @@ export default class RequestsService extends moleculer.Service {
     await this.broker.cacher?.clean(`${this.fullName}.**`);
   }
 
+  @Method
+  async sendNotificationOnFileGenerated(ctx: Context, request: Request, documentType: string) {
+    const documentTypeTranslates = {
+      [RequestDocumentType.PDF]: 'PDF',
+      [RequestDocumentType.GEOJSON]: 'GeoJSON',
+    };
+    const translate = documentTypeTranslates[documentType];
+    const text = translate ? `Paruoštas išrašas ${translate} formatu` : '';
+    await this.createRequestHistory(request.id, null, RequestHistoryTypes.FILE_GENERATED, text);
+
+    if (!emailCanBeSent()) return;
+
+    const user: User = await ctx.call('users.resolve', {
+      id: request.createdBy,
+      scope: USERS_DEFAULT_SCOPES,
+    });
+
+    const isExpert = await ctx.call('requests.isExpertUser', {
+      userId: user.id,
+    });
+
+    notifyOnFileGenerated(
+      request.notifyEmail || user.email,
+      request.id,
+      !!(!request.tenant && isExpert),
+      user.type === UserType.ADMIN,
+    );
+  }
+
   @Event()
   async 'requests.updated'(ctx: Context<EntityChangedParams<Request>>) {
     const { oldData: prevRequest, data: request } = ctx.params;
@@ -1189,28 +1244,20 @@ export default class RequestsService extends moleculer.Service {
 
       await this.generatePdfIfNeeded(request);
       this.sendNotificationOnStatusChange(request);
+
+      // Send notification that GeoJSON is prepared
+      if (
+        request.status === RequestStatus.APPROVED &&
+        request.type === RequestType.GET_ONCE &&
+        request.documentTypes?.includes(RequestDocumentType.GEOJSON)
+      ) {
+        await this.sendNotificationOnFileGenerated(ctx, request, RequestDocumentType.GEOJSON);
+      }
     }
 
+    // Send notification that PDF is prepared
     if (prevRequest?.generatedFile !== request.generatedFile && !!request.generatedFile) {
-      await this.createRequestHistory(request.id, null, RequestHistoryTypes.FILE_GENERATED);
-
-      if (emailCanBeSent()) {
-        const user: User = await ctx.call('users.resolve', {
-          id: request.createdBy,
-          scope: USERS_DEFAULT_SCOPES,
-        });
-
-        const isExpert = await ctx.call('requests.isExpertUser', {
-          userId: user.id,
-        });
-
-        notifyOnFileGenerated(
-          user.email,
-          request.id,
-          !!(!request.tenant && isExpert),
-          user.type === UserType.ADMIN,
-        );
-      }
+      await this.sendNotificationOnFileGenerated(ctx, request, RequestDocumentType.PDF);
     }
   }
 
