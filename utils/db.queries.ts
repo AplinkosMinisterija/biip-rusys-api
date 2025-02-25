@@ -1,9 +1,9 @@
 import knex, { Knex } from 'knex';
 import _, { snakeCase } from 'lodash';
+import { areaQuery, asGeoJsonQuery } from 'moleculer-postgis';
+import moment from 'moment';
 import config from '../knexfile';
 import { queryBooleanPlain } from '../types';
-import { asGeoJsonQuery } from 'moleculer-postgis';
-import moment from 'moment';
 
 let knexAdapter: Knex;
 const getAdapter = () => {
@@ -171,6 +171,7 @@ export function getFormsByDateAndPlaceIds(ids: number[], date: string) {
           options: 0,
         }),
       ),
+      knex.raw(areaQuery(`${snakeCase(formsTable)}.geom`, 'area', 3346)),
     )
     .from(formsTable)
     .whereIn(`${formsTable}.placeId`, ids)
