@@ -33,3 +33,4 @@ export function parseToObject(data: object | string) {
 
   return data;
 }
+export const isPositive = (number: number) => number > 0;
