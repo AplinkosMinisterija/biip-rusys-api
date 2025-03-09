@@ -12,6 +12,7 @@ import moment from 'moment';
 
 import {
   BaseModelInterface,
+  CommonPopulates,
   COMMON_DEFAULT_SCOPES,
   COMMON_FIELDS,
   COMMON_SCOPES,
@@ -21,6 +22,7 @@ import {
   EntityChangedParams,
   FieldHookCallback,
   queryBoolean,
+  Table,
   TENANT_FIELD,
   throwValidationError,
   USER_PUBLIC_GET,
@@ -142,15 +144,15 @@ async function validateMethod({ ctx, params, entity, value }: FieldHookCallback)
   return value;
 }
 
-export interface Form extends BaseModelInterface {
+export interface Fields extends BaseModelInterface {
   status: string;
   state: string;
-  assignee: number | User;
-  place: number | Place;
+  assignee: User['id'];
+  place: Place['id'];
   quantity: number;
   description: string;
-  species: number | Taxonomy;
-  tenant: number | Tenant;
+  species: Taxonomy['speciesId'];
+  tenant: Tenant['id'];
   observedAt: Date | string;
   activity?: string;
   evolution?: string;
@@ -158,13 +160,25 @@ export interface Form extends BaseModelInterface {
   geomBufferSize?: number;
   isInformational: boolean;
   isRelevant: boolean;
-  source: number | FormSettingSource;
+  source: FormSettingSource['id'];
   geom: any;
   area: number;
   photos?: { url: string }[];
   observedBy: string;
   noQuantityReason: string;
 }
+
+interface Populates extends CommonPopulates {
+  species: Taxonomy;
+  place: Place;
+  tenant: Tenant;
+  source: FormSettingSource;
+}
+
+export type Form<
+  P extends keyof Populates = never,
+  F extends keyof (Fields & Populates) = keyof Fields,
+> = Table<Fields, Populates, P, F>;
 
 @Service({
   name: 'forms',
@@ -343,6 +357,7 @@ export interface Form extends BaseModelInterface {
           action: 'taxonomies.findBySpeciesId',
           params: {
             showHidden: true,
+            populate: 'conventionsText',
           },
         },
       },

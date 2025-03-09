@@ -1,9 +1,23 @@
 import _ from 'lodash';
 import Moleculer, { Context, Errors } from 'moleculer';
 import { UserAuthMeta } from '../services/api.service';
+import { User } from '../services/users.service';
 import { FieldHookCallback } from './';
 
 export type GenericObject<T> = { [key: string]: T };
+
+export type Table<
+  Fields = {},
+  Populates = {},
+  P extends keyof Populates = never,
+  F extends keyof (Fields & Populates) = keyof Fields,
+> = Pick<Omit<Fields, P> & Pick<Populates, P>, Extract<P | Exclude<keyof Fields, P>, F>>;
+
+export interface CommonPopulates {
+  createdBy: User;
+  updatedBy: User;
+  deletedBy: User;
+}
 
 export enum EndpointType {
   ADMIN = 'ADMIN',

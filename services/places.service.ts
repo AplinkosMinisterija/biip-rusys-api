@@ -90,7 +90,12 @@ export interface Place extends BaseModelInterface {
         type: 'number',
         columnType: 'integer',
         columnName: 'speciesId',
-        populate: 'taxonomies.species.resolve',
+        populate: {
+          action: 'taxonomies.species.resolve',
+          params: {
+            populate: 'conventionsText',
+          },
+        },
         deepQuery: 'taxonomies.species',
       },
 
