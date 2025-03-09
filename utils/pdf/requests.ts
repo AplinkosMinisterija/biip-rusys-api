@@ -46,7 +46,7 @@ function formatAreaText(area?: number): string {
   }`;
 }
 
-function getFormData(form: Form<'species'>, translates?: any) {
+function getFormData(form: Form, translates?: any) {
   const speciesId = (form.species || (form as any).speciesId) as number;
   const formTranslates = translates?.[`${speciesId}`];
 
@@ -230,17 +230,17 @@ async function getInformationalForms(
     {},
   );
 
-  const forms: Form<'species'>[] = await ctx.call('forms.find', {
+  const forms: Form[] = await ctx.call('forms.find', {
     query: {
       id: {
         $in: informationalForms.map((i) => i.formId),
       },
     },
-    populate: ['source', 'species'],
+    populate: ['source'],
   });
 
   const mappedForms = forms.reduce((acc: { [key: string]: any }, form) => {
-    acc[`${form.species.speciesId}`] = acc[`${form.species.speciesId}`] || {
+    acc[`${form.species}`] = acc[`${form.species}`] || {
       hasEvolution: false,
       screenshot: '',
       hash: '',
@@ -249,7 +249,7 @@ async function getInformationalForms(
       hasMethod: false,
     };
 
-    const item = acc[`${form.species.speciesId}`];
+    const item = acc[`${form.species}`];
 
     item.forms.push({
       ...getFormData(form, translates),
@@ -298,6 +298,7 @@ export async function getRequestData(ctx: Context, id: number) {
     id: speciesIds,
     showHidden: true,
     mapping: true,
+    populate: 'speciesConventionsText',
   });
 
   const places = await getPlaces(ctx, id, requestDate, translates);
