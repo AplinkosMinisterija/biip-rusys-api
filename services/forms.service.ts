@@ -357,7 +357,7 @@ export type Form<
           action: 'taxonomies.findBySpeciesId',
           params: {
             showHidden: true,
-            populate: 'conventionsText',
+            populate: 'speciesConventionsText',
           },
         },
       },
