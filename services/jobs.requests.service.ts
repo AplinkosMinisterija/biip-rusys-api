@@ -12,6 +12,7 @@ import { AuthType } from './api.service';
 import { Request } from './requests.service';
 import { Tenant } from './tenants.service';
 import { User } from './users.service';
+import { TaxonomySpeciesType, TaxonomySpeciesTypeTranslate } from './taxonomies.species.service';
 
 export function getRequestSecret(request: Request) {
   return toMD5Hash(`id=${request.id}&date=${moment(request.createdAt).format('YYYYMMDDHHmmss')}`);
@@ -135,6 +136,135 @@ export default class JobsRequestsService extends moleculer.Service {
   }
 
   @Action({
+    queue: true,
+    params: {
+      id: 'number',
+    },
+    timeout: 0,
+  })
+  async generateAndSaveGeojson(ctx: Context<{ id: number }>) {
+    const { id } = ctx.params;
+    const { job } = ctx.locals;
+
+    const request: Request = await ctx.call('requests.resolve', {
+      id,
+      populate: 'createdBy,tenant',
+      throwIfNotExist: true,
+    });
+
+    const requestData = await getRequestData(ctx, id);
+
+    const geojson: any = {
+      type: 'FeatureCollection',
+      features: [],
+    };
+
+    function getSpeciesData(id: number) {
+      const species = requestData.speciesById[`${id}`];
+
+      if (!species?.speciesId) return {};
+
+      return {
+        'Rūšies tipas': TaxonomySpeciesTypeTranslate[species.speciesType],
+        'Rūšies pavadinimas': species.speciesName,
+        'Rūšies lotyniškas pavadinimas': species.speciesNameLatin,
+        'Rūšies sinonimai': species.speciesSynonyms?.join(', ') || '',
+        'Klasės pavadinimas': species.className,
+        'Klasės lotyniškas pavadinimas': species.classNameLatin,
+        'Tipo pavadinimas': species.phylumName,
+        'Tipo lotyniškas pavadinimas': species.phylumNameLatin,
+        'Karalystės pavadinimas': species.kingdomName,
+        'Karalystės lotyniškas pavadinimas': species.kingdomNameLatin,
+      };
+    }
+
+    function getTitle(speciesId: number) {
+      const species = requestData.speciesById[`${speciesId}`];
+      const isInvasive = [TaxonomySpeciesType.INTRODUCED, TaxonomySpeciesType.INVASIVE].includes(
+        species?.speciesType,
+      );
+
+      return isInvasive ? 'Įvedimo į INVA data' : 'Įvedimo į SRIS data';
+    }
+
+    requestData.places?.forEach((place) => {
+      const speciesInfo = getSpeciesData(place.species);
+      place.forms?.forEach((form) => {
+        let { features } = form.geom || [];
+        const featuresToInsert = features.map((f: any) => {
+          f.geometry.crs = { type: 'name', properties: { name: 'EPSG:3346' } };
+          f.properties = {
+            'Anketos ID': form.id,
+            'Radavietės ID': place.id,
+            'Radavietės kodas': place.placeCode,
+            ...speciesInfo,
+            'Individų skaičius (gausumas)': form.quantity,
+            'Buveinė, elgsena, ūkinė veikla ir kita informacija': form.description,
+            [getTitle(place.species)]: form.createdAt,
+            'Stebėjimo data': form.observedAt,
+            Šaltinis: form.source,
+            'Veiklos požymiai': form.activityTranslate,
+            'Vystymosi stadija': form.evolutionTranslate,
+          };
+          return f;
+        });
+
+        geojson.features.push(...featuresToInsert);
+      });
+    });
+
+    Object.values(requestData.informationalForms)?.forEach((item) => {
+      item?.forms?.forEach((form: any) => {
+        let { features } = form.geom || [];
+        const featuresToInsert = features.map((f: any) => {
+          f.geometry.crs = { type: 'name', properties: { name: 'EPSG:3346' } };
+          f.properties = {
+            'Anketos ID': form.id,
+            'Radavietės ID': '-',
+            'Radavietės kodas': '-',
+            ...getSpeciesData(form.species),
+            'Individų skaičius (gausumas)': form.quantity,
+            'Buveinė, elgsena, ūkinė veikla ir kita informacija': form.description,
+            [getTitle(form.species)]: form.createdAt,
+            'Stebėjimo data': form.observedAt,
+            Šaltinis: form.source,
+            'Veiklos požymiai': form.activityTranslate,
+            'Vystymosi stadija': form.evolutionTranslate,
+          };
+          return f;
+        });
+
+        geojson.features.push(...featuresToInsert);
+      });
+    });
+
+    const folder = this.getFolderName(request.createdBy as any as User, request.tenant as Tenant);
+
+    const result: any = await ctx.call(
+      'minio.uploadFile',
+      {
+        payload: JSON.stringify(geojson),
+        folder,
+        isPrivate: true,
+        types: FILE_TYPES,
+      },
+      {
+        meta: {
+          mimetype: 'application/geo+json',
+          filename: `israsas-${request.id}.geojson`,
+        },
+      },
+    );
+
+    await ctx.call('requests.saveGeneratedGeojson', {
+      id,
+      url: result.url,
+    });
+
+    return { job: job.id, url: result.url };
+  }
+
+  @Action({
     params: {
       id: 'number',
     },
@@ -204,6 +334,17 @@ export default class JobsRequestsService extends moleculer.Service {
       childrenJobs,
       { removeDependencyOnFailure: true },
     );
+  }
+
+  @Action({
+    params: {
+      id: 'number',
+    },
+    timeout: 0,
+  })
+  async initiateGeojsonGenerate(ctx: Context<{ id: number }>) {
+    const { id } = ctx.params;
+    return this.queue(ctx, 'jobs.requests', 'generateAndSaveGeojson', { id });
   }
 
   @Action({

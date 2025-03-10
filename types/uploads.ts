@@ -3,7 +3,7 @@ import Moleculer, { Errors } from 'moleculer';
 
 export const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg'];
 
-export const FILE_TYPES = ['application/pdf'];
+export const FILE_TYPES = ['application/pdf', 'application/geo+json'];
 
 export const ALL_FILE_TYPES = [...IMAGE_TYPES, ...FILE_TYPES];
 
