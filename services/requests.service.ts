@@ -21,6 +21,7 @@ import {
   FieldHookCallback,
   TENANT_FIELD,
   throwNotFoundError,
+  throwUnauthorizedError,
 } from '../types';
 import { UserAuthMeta } from './api.service';
 import { RequestHistoryTypes } from './requests.histories.service';
@@ -549,6 +550,19 @@ export default class RequestsService extends moleculer.Service {
     timeout: 0,
   })
   async generatePdf(ctx: Context<{ id: number }>) {
+    const request: Request = await ctx.call('requests.resolve', {
+      id: ctx.params.id,
+      throwIfNotExist: true,
+    });
+
+    if (
+      request.status !== RequestStatus.APPROVED ||
+      request.type !== RequestType.GET_ONCE ||
+      !request.documentTypes?.includes(RequestDocumentType.PDF)
+    ) {
+      throwUnauthorizedError('Cannot generate PDF');
+    }
+
     const flow: any = await ctx.call('jobs.requests.initiatePdfGenerate', {
       id: ctx.params.id,
     });
@@ -770,6 +784,19 @@ export default class RequestsService extends moleculer.Service {
     timeout: 0,
   })
   async generateGeojson(ctx: Context<{ id: number }>) {
+    const request: Request = await ctx.call('requests.resolve', {
+      id: ctx.params.id,
+      throwIfNotExist: true,
+    });
+
+    if (
+      request.status !== RequestStatus.APPROVED ||
+      request.type !== RequestType.GET_ONCE ||
+      !request.documentTypes?.includes(RequestDocumentType.GEOJSON)
+    ) {
+      throwUnauthorizedError('Cannot generate geojson');
+    }
+
     const job: any = await ctx.call('jobs.requests.initiateGeojsonGenerate', {
       id: ctx.params.id,
     });
@@ -1031,17 +1058,7 @@ export default class RequestsService extends moleculer.Service {
 
   @Method
   async generatePdfIfNeeded(request: Request) {
-    if (!request || !request.id) return;
-
-    if (
-      request.status !== RequestStatus.APPROVED ||
-      request.type !== RequestType.GET_ONCE ||
-      !request.documentTypes?.includes(RequestDocumentType.PDF)
-    ) {
-      return;
-    }
-
-    if (request.generatedFile) return;
+    if (!request?.id || request?.generatedFile) return;
 
     this.broker.call('requests.generatePdf', { id: request.id });
     return request;
@@ -1049,17 +1066,7 @@ export default class RequestsService extends moleculer.Service {
 
   @Method
   async generateGeojsonIfNeeded(request: Request) {
-    if (!request || !request.id) return;
-
-    if (
-      request.status !== RequestStatus.APPROVED ||
-      request.type !== RequestType.GET_ONCE ||
-      !request.documentTypes?.includes(RequestDocumentType.GEOJSON)
-    ) {
-      return;
-    }
-
-    if (request.generatedFileGeojson) return;
+    if (!request?.id || request?.generatedFileGeojson) return;
 
     this.broker.call('requests.generateGeojson', { id: request.id });
     return request;
