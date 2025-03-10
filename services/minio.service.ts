@@ -116,15 +116,20 @@ export default class MinioService extends Moleculer.Service {
             'Content-Type': mimetype,
           },
         },
+        timeout: 0,
       });
     } catch (_e) {
       throwUnableToUploadError();
     }
 
-    const { size }: { size: number } = await ctx.call('minio.statObject', {
-      objectName: objectFileName,
-      bucketName,
-    });
+    const { size }: { size: number } = await ctx.call(
+      'minio.statObject',
+      {
+        objectName: objectFileName,
+        bucketName,
+      },
+      { timeout: 0 },
+    );
 
     const url = await ctx.call('minio.getUrl', {
       objectName: objectFileName,
