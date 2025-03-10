@@ -49,9 +49,12 @@ function formatAreaText(area?: number): string {
 
 function getFormData(form: Form, translatesAndFormTypes?: any) {
   const speciesId = (form.species || (form as any).speciesId) as number;
-  const formTranslatesAndFormType = translatesAndFormTypes?.[`${speciesId}`];
+  const formTranslatesAndFormType = translatesAndFormTypes?.[speciesId];
   const formType = formTranslatesAndFormType?.formType;
   const isInvasivePlant = formType === FormType.INVASIVE_PLANT;
+
+  const getTranslate = (key: string, value: any) =>
+    formTranslatesAndFormType?.[key]?.[value] ?? '-';
 
   return {
     id: form.id,
@@ -66,12 +69,12 @@ function getFormData(form: Form, translatesAndFormTypes?: any) {
     source: (form.source as any)?.name || form.source || '',
     photos: form.photos?.map((p) => p.url) || [],
     description: form.description,
-    quantity: isInvasivePlant
-      ? formTranslatesAndFormType?.METHOD?.[form.method] || '-'
-      : form.quantity,
-    activityTranslate: formTranslatesAndFormType?.ACTIVITY?.[form.activity] || '-',
-    methodTranslate: formTranslatesAndFormType?.METHOD?.[form.method] || '-',
-    evolutionTranslate: formTranslatesAndFormType?.EVOLUTION?.[form.evolution] || '-',
+    quantity: isInvasivePlant ? getTranslate('METHOD', form.method) : form.quantity,
+    activityTranslate: getTranslate('ACTIVITY', form.activity),
+    ...(!isInvasivePlant && {
+      methodTranslate: getTranslate('METHOD', form.method),
+    }),
+    evolutionTranslate: getTranslate('EVOLUTION', form.evolution),
     status: '',
   };
 }
