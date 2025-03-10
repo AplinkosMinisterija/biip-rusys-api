@@ -1337,6 +1337,7 @@ export default class RequestsService extends moleculer.Service {
         'Automatiškai patvirtintas prašymas.',
       );
       await this.generatePdfIfNeeded(request);
+      await this.generateGeojsonIfNeeded(request);
     } else {
       this.sendNotificationOnStatusChange(request);
     }
