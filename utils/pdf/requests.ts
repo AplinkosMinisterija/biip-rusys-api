@@ -298,6 +298,7 @@ export async function getRequestData(ctx: Context, id: number) {
     id: speciesIds,
     showHidden: true,
     mapping: true,
+    populate: 'speciesConventionsText',
   });
 
   const places = await getPlaces(ctx, id, requestDate, translates);
