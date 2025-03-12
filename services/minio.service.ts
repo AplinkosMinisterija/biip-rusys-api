@@ -164,7 +164,7 @@ export default class MinioService extends Moleculer.Service {
           convert: true,
         },
       },
-      download: 'string|convert',
+      download: 'string|convert|optional',
     },
     auth: AuthType.PUBLIC,
     rest: 'GET /:bucket/:name+',
