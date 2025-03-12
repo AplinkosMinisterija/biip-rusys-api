@@ -164,13 +164,14 @@ export default class MinioService extends Moleculer.Service {
           convert: true,
         },
       },
+      download: 'string|convert|optional',
     },
     auth: AuthType.PUBLIC,
     rest: 'GET /:bucket/:name+',
   })
   async getFile(
     ctx: Context<
-      { bucket: string; name: string[] },
+      { bucket: string; name: string[]; download?: string },
       {
         $responseHeaders: any;
         $statusCode: number;
@@ -191,6 +192,12 @@ export default class MinioService extends Moleculer.Service {
       const mimetype = getMimetype(filename);
       if (mimetype) {
         ctx.meta.$responseType = mimetype;
+      }
+
+      if (ctx.params.download) {
+        ctx.meta.$responseHeaders = {
+          'Content-Disposition': `attachment; filename="${ctx.params.download}"`,
+        };
       }
 
       return reader;

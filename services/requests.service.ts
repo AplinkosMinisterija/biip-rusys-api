@@ -641,13 +641,17 @@ export default class RequestsService extends moleculer.Service {
         type: 'string',
         optional: true,
       },
+      limit: 'number|convert|optional',
+      offset: 'number|convert|optional',
     },
     // cache: {
     //   keys: ['id', 'date'],
     // },
   })
-  async getPlacesByRequest(ctx: Context<{ id: number | number[]; date: string }>) {
-    const { id, date } = ctx.params;
+  async getPlacesByRequest(
+    ctx: Context<{ id: number | number[]; date: string; offset?: number; limit?: number }>,
+  ) {
+    const { id, date, limit, offset } = ctx.params;
     const ids = Array.isArray(id) ? id : [id];
 
     const requests: Request[] = await ctx.call('requests.resolve', {
@@ -657,7 +661,7 @@ export default class RequestsService extends moleculer.Service {
 
     const result = await Promise.all(
       requests.map((request) =>
-        getPlacesByRequestIds([request.id], request.inheritedSpecies, date),
+        getPlacesByRequestIds([request.id], request.inheritedSpecies, date, { limit, offset }),
       ),
     );
 
@@ -698,13 +702,17 @@ export default class RequestsService extends moleculer.Service {
         type: 'string',
         optional: true,
       },
+      limit: 'number|convert|optional',
+      offset: 'number|convert|optional',
     },
     // cache: {
     //   keys: ['id', 'date'],
     // },
   })
-  async getInfomationalFormsByRequest(ctx: Context<{ id: number | number[]; date: string }>) {
-    const { id, date } = ctx.params;
+  async getInfomationalFormsByRequest(
+    ctx: Context<{ id: number | number[]; date: string; limit?: number; offset?: number }>,
+  ) {
+    const { id, date, offset, limit } = ctx.params;
     const ids = Array.isArray(id) ? id : [id];
 
     const requests: Request[] = await ctx.call('requests.resolve', {
@@ -714,7 +722,10 @@ export default class RequestsService extends moleculer.Service {
 
     const result = await Promise.all(
       requests.map((request) =>
-        getInformationalFormsByRequestIds([request.id], request.inheritedSpecies, date),
+        getInformationalFormsByRequestIds([request.id], request.inheritedSpecies, date, {
+          offset,
+          limit,
+        }),
       ),
     );
 
