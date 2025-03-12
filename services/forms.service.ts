@@ -795,10 +795,12 @@ export default class FormsService extends moleculer.Service {
     rest: 'GET /tasks',
     types: [EndpointType.ADMIN, EndpointType.EXPERT],
   })
-  async getTasks(ctx: Context<{}>) {
+  async getTasks(ctx: Context<any>) {
+    const sort = ctx.params.sort || 'deadlineAt,createdAt';
+
     return ctx.call('forms.list', {
       ...ctx.params,
-      sort: 'deadlineAt,createdAt',
+      sort,
       scope: 'tasks',
     });
   }

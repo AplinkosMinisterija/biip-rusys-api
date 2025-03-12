@@ -93,6 +93,7 @@ const publicPopulate = ['class', 'conventions'];
             populate: 'phylum',
           },
         },
+        deepQuery: 'taxonomies.classes',
       },
 
       type: {

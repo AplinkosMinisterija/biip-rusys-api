@@ -57,6 +57,7 @@ export interface TaxonomyClass extends BaseModelInterface {
             fields: ['id', 'name', 'nameLatin', 'kingdom'],
           },
         },
+        deepQuery: 'taxonomies.phylums',
       },
 
       species: {
