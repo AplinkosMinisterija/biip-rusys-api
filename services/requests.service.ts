@@ -985,7 +985,6 @@ export default class RequestsService extends moleculer.Service {
     >,
   ) {
 
-    console.log('validate status change');
     const { id, type, speciesTypes } = ctx.params;
 
     const { user } = ctx.meta;
