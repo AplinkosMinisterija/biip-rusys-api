@@ -171,7 +171,7 @@ export default class MinioService extends Moleculer.Service {
   })
   async getFile(
     ctx: Context<
-      { bucket: string; name: string[]; download?: boolean },
+      { bucket: string; name: string[]; download?: string },
       {
         $responseHeaders: any;
         $statusCode: number;
