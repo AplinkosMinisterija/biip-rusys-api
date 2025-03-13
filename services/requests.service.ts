@@ -880,7 +880,7 @@ export default class RequestsService extends moleculer.Service {
     requestData.places?.forEach((place) => {
       const speciesInfo = getSpeciesData(place.species);
       place.forms?.forEach((form) => {
-        let { features } = form.geom || [];
+        const { features } = form.geom || [];
         const featuresToInsert = features.map((f: any) => {
           f.geometry.crs = { type: 'name', properties: { name: 'EPSG:3346' } };
           f.properties = {
@@ -905,7 +905,7 @@ export default class RequestsService extends moleculer.Service {
 
     Object.values(requestData.informationalForms)?.forEach((item) => {
       item?.forms?.forEach((form: any) => {
-        let { features } = form.geom || [];
+        const { features } = form.geom || [];
         const featuresToInsert = features.map((f: any) => {
           f.geometry.crs = { type: 'name', properties: { name: 'EPSG:3346' } };
           f.properties = {
