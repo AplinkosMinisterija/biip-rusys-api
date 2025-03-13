@@ -95,6 +95,12 @@ export async function getPlacesAndFromsByRequestsIds(requestIds?: number[]): Pro
   }));
 }
 
+export function getPlacesByRequestIdsCount(ids: number[], species?: number[], date?: string) {
+  const knex = getAdapter();
+
+  return knex.count('*').from(getPlacesByRequestIds(ids, species, date)).first();
+}
+
 export function getPlacesByRequestIds(
   ids: number[],
   species?: number[],
@@ -192,6 +198,15 @@ export function getFormsByDateAndPlaceIds(ids: number[], date: string) {
   return query;
 }
 
+export function getInformationalFormsByRequestIdsCount(
+  ids: number[],
+  species?: number[],
+  date?: string,
+) {
+  const knex = getAdapter();
+
+  return knex.count('*').from(getInformationalFormsByRequestIds(ids, species, date)).first();
+}
 export function getInformationalFormsByRequestIds(
   ids: number[],
   species?: number[],
