@@ -1,25 +1,25 @@
 'use strict';
 
 import moleculer, { Context } from 'moleculer';
-import { Action, Event, Method, Service } from 'moleculer-decorators';
+import { Action, Event, Service } from 'moleculer-decorators';
 
-import { UserAuthMeta } from './api.service';
 import DbConnection, { PopulateHandlerFn } from '../mixins/database.mixin';
 import {
-  COMMON_FIELDS,
-  COMMON_DEFAULT_SCOPES,
-  COMMON_SCOPES,
-  FieldHookCallback,
   BaseModelInterface,
-  EndpointType,
-  throwUnauthorizedError,
-  throwNotFoundError,
+  COMMON_DEFAULT_SCOPES,
+  COMMON_FIELDS,
+  COMMON_SCOPES,
   DeepQuery,
+  EndpointType,
+  FieldHookCallback,
+  throwNotFoundError,
+  throwUnauthorizedError,
 } from '../types';
-import { TenantUserRole } from './tenantUsers.service';
-import { Tenant } from './tenants.service';
-import { FormStatus } from './forms.service';
 import { parseToObject } from '../utils/functions';
+import { UserAuthMeta } from './api.service';
+import { FormStatus } from './forms.service';
+import { Tenant } from './tenants.service';
+import { TenantUserRole } from './tenantUsers.service';
 
 export enum UserType {
   ADMIN = 'ADMIN',
@@ -176,8 +176,11 @@ export const USERS_DEFAULT_SCOPES = [
 
     scopes: {
       ...COMMON_SCOPES,
-      notAdmins(query: any) {
-        query.type = UserType.USER;
+      notAdmins(query: any, ctx: Context<null, UserAuthMeta>) {
+        if (ctx?.meta?.user?.type !== UserType.ADMIN) {
+          query.type = UserType.USER;
+        }
+
         return query;
       },
       async tenant(query: any, ctx: Context<null, UserAuthMeta>, params: any) {
