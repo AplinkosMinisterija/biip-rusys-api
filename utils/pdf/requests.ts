@@ -17,6 +17,7 @@ import { Taxonomy } from '../../services/taxonomies.service';
 import { TaxonomySpeciesType } from '../../services/taxonomies.species.service';
 import { getFormsByDateAndPlaceIds } from '../db.queries';
 import { toMD5Hash } from '../functions';
+import _ from 'lodash';
 
 const dateFormat = 'YYYY-MM-DD';
 const dateFormatFull = `${dateFormat} HH:mm`;
@@ -152,18 +153,24 @@ function getGeometryWithTranslates(geom: FeatureCollection | Feature) {
   });
 }
 
-async function getPlaces(
+export async function getPlaces(
   ctx: Context,
   requestId: number,
-  date: string,
-  translatesAndFormTypes?: any,
+  opts: {
+    date: string;
+    translatesAndFormTypes?: any;
+    limit?: number;
+    offset?: number;
+  },
 ) {
-  date = formatDate(date);
+  const date = formatDate(opts.date);
   const placesData: Array<{ placeId: number; geom: FeatureCollection }> = await ctx.call(
     'requests.getPlacesByRequest',
     {
       id: requestId,
       date,
+      limit: opts.limit,
+      offset: opts.offset,
     },
     { timeout: 0 },
   );
@@ -212,7 +219,7 @@ async function getPlaces(
         coordinates: getGeometryWithTranslates(placesGeomByPlaceId[p.id]),
         geom: placesGeomByPlaceId[p.id],
         forms: placeForms
-          .map((f) => getFormData(f, translatesAndFormTypes))
+          .map((f) => getFormData(f, opts.translatesAndFormTypes))
           .sort((f1: any, f2: any) => {
             return moment(f2.observedAt).diff(moment(f1.observedAt));
           }),
@@ -225,18 +232,19 @@ async function getPlaces(
   return mappedPlaces;
 }
 
-async function getInformationalForms(
+export async function getInformationalForms(
   ctx: Context,
   requestId: number,
-  date: string,
-  translatesAndFormTypes?: any,
+  opts: { date: string; translatesAndFormTypes?: any; offset?: number; limit?: number },
 ) {
   const informationalForms: Array<{
     formId: number;
     geom: FeatureCollection;
   }> = await ctx.call('requests.getInfomationalFormsByRequest', {
     id: requestId,
-    date: formatDate(date),
+    date: formatDate(opts.date),
+    offset: opts.offset,
+    limit: opts.limit,
   });
 
   const formsGeomByFormId: any = informationalForms.reduce(
@@ -265,7 +273,7 @@ async function getInformationalForms(
     const item = acc[`${form.species}`];
 
     item.forms.push({
-      ...getFormData(form, translatesAndFormTypes),
+      ...getFormData(form, opts.translatesAndFormTypes),
       coordinates: getGeometryWithTranslates(formsGeomByFormId[form.id]),
       geom: formsGeomByFormId[form.id],
       species: form.species,
@@ -296,7 +304,16 @@ async function getInformationalForms(
   return mappedForms;
 }
 
-export async function getRequestData(ctx: Context, id: number) {
+export async function getRequestData(
+  ctx: Context,
+  id: number,
+  opts: {
+    loadLegend?: boolean;
+    loadPlaces?: boolean;
+    loadInformationalForms?: boolean;
+  } = {},
+) {
+  opts = _.merge({}, { loadLegend: true, loadPlaces: true, loadInformationalForms: true }, opts);
   const request: Request = await ctx.call('requests.resolve', {
     id,
     populate: 'inheritedSpecies,tenant,createdBy',
@@ -313,13 +330,16 @@ export async function getRequestData(ctx: Context, id: number) {
     populate: 'speciesConventionsText',
   });
 
-  const places = await getPlaces(ctx, id, requestDate, translatesAndFormTypes);
-  const informationalForms = await getInformationalForms(
-    ctx,
-    id,
-    requestDate,
-    translatesAndFormTypes,
-  );
+  let places, informationalForms;
+  if (opts.loadPlaces) {
+    places = await getPlaces(ctx, id, { date: requestDate, translatesAndFormTypes });
+  }
+  if (opts.loadInformationalForms) {
+    informationalForms = await getInformationalForms(ctx, id, {
+      date: requestDate,
+      translatesAndFormTypes,
+    });
+  }
 
   const previewScreenshotHash = toMD5Hash(`request=${request.id}`);
 
@@ -327,16 +347,19 @@ export async function getRequestData(ctx: Context, id: number) {
     request?.speciesTypes?.includes(TaxonomySpeciesType.INTRODUCED) ||
     request?.speciesTypes?.includes(TaxonomySpeciesType.INVASIVE);
 
-  const legendData: any[] = await ctx.call('maps.getDefaultLegendData');
+  let legendData: any[];
+  if (opts.loadLegend) {
+    legendData = await ctx.call('maps.getDefaultLegendData');
 
-  if (isInvasive) {
-    const invaLegendData: any[] = await ctx.call('maps.getInvaLegendData', {
-      all: request?.speciesTypes?.includes(TaxonomySpeciesType.INTRODUCED),
-    });
-    legendData.push(...invaLegendData);
-  } else {
-    const srisLegendData: any[] = await ctx.call('maps.getSrisLegendData');
-    legendData.push(...srisLegendData);
+    if (isInvasive) {
+      const invaLegendData: any[] = await ctx.call('maps.getInvaLegendData', {
+        all: request?.speciesTypes?.includes(TaxonomySpeciesType.INTRODUCED),
+      });
+      legendData.push(...invaLegendData);
+    } else {
+      const srisLegendData: any[] = await ctx.call('maps.getSrisLegendData');
+      legendData.push(...srisLegendData);
+    }
   }
 
   return {
