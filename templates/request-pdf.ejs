@@ -172,29 +172,33 @@
           <u><b>nerasta</b></u>.
         </div>
         <%}; %>
-        <% if (Object.keys(informationalForms).length) { %>
-          <div class="mt-8">
-            Teritorijoje aptinkamų prašytų <%= systemNameShort %> radavietės (pavieniai stebėjimai):
-          </div>
-          <%- include('forms/listTable', {informationalForms: informationalForms}); %>
-          <% } else { %>
-          <div class="mt-8">
-            Teritorijoje aptinkamų prašytų <%= systemNameShort %> radaviečių (pavienių stebėjimų)
-            <u><b>nerasta</b></u>.
-          </div>
-          <%}; %>
-      
+        <% if (!isInvasive) { %>
+            <% if (Object.keys(informationalForms).length) { %>
+              <div class="mt-8">
+                Teritorijoje aptinkamų prašytų <%= systemNameShort %> radavietės (pavieniai stebėjimai):
+              </div>
+              <%- include('forms/listTable', {informationalForms: informationalForms}); %>
+              <% } else { %>
+              <div class="mt-8">
+                Teritorijoje aptinkamų prašytų <%= systemNameShort %> radaviečių (pavienių stebėjimų)
+                <u><b>nerasta</b></u>.
+              </div>
+            <%} %>
+        <% } %>
       </div>
       <div class="page-break"></div>
-      <h1 >Radavietės</h1>
+      <h1>Radavietės</h1>
       <% places.forEach(function(place, index) { %>
         <%- include('places/single', {place: place, index: index + 1, species: speciesById[place.species]}); %>
         <div class="page-break"></div>
       <% }); %>
+    <% if (!isInvasive) { %>
       <h1>Radavietės (pavieniai stebėjimai)</h1>
       <% Object.keys(informationalForms).forEach(function(speciesId, index) { %>
         <%- include('forms/informational', {item: informationalForms[speciesId], index: index + 1, species: speciesById[speciesId]}); %>
         <div class="page-break"></div>
       <% }); %>
+    <% } %>
+    </div>
   </body>
 </html>
