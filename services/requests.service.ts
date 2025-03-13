@@ -255,9 +255,10 @@ const populatePermissions = (field: string) => {
         type: 'date',
         columnType: 'datetime',
         readonly: true,
-        set: ({ ctx }: FieldHookCallback & ContextMeta<RequestStatusChanged>) => {
-          const { user, statusChanged } = ctx?.meta;
-          if (user?.type !== UserType.ADMIN || !statusChanged) return;
+        set: ({ ctx }: FieldHookCallback & ContextMeta<RequestStatusChanged & RequestAutoApprove>) => {
+          const { user, statusChanged, autoApprove } = ctx?.meta;
+          const adminApprove = user?.type === UserType.ADMIN && statusChanged;
+          if (!adminApprove && !autoApprove) return;
           return new Date();
         },
       },
@@ -641,13 +642,17 @@ export default class RequestsService extends moleculer.Service {
         type: 'string',
         optional: true,
       },
+      limit: 'number|convert|optional',
+      offset: 'number|convert|optional',
     },
     // cache: {
     //   keys: ['id', 'date'],
     // },
   })
-  async getPlacesByRequest(ctx: Context<{ id: number | number[]; date: string }>) {
-    const { id, date } = ctx.params;
+  async getPlacesByRequest(
+    ctx: Context<{ id: number | number[]; date: string; offset?: number; limit?: number }>,
+  ) {
+    const { id, date, limit, offset } = ctx.params;
     const ids = Array.isArray(id) ? id : [id];
 
     const requests: Request[] = await ctx.call('requests.resolve', {
@@ -657,7 +662,7 @@ export default class RequestsService extends moleculer.Service {
 
     const result = await Promise.all(
       requests.map((request) =>
-        getPlacesByRequestIds([request.id], request.inheritedSpecies, date),
+        getPlacesByRequestIds([request.id], request.inheritedSpecies, date, { limit, offset }),
       ),
     );
 
@@ -698,13 +703,17 @@ export default class RequestsService extends moleculer.Service {
         type: 'string',
         optional: true,
       },
+      limit: 'number|convert|optional',
+      offset: 'number|convert|optional',
     },
     // cache: {
     //   keys: ['id', 'date'],
     // },
   })
-  async getInfomationalFormsByRequest(ctx: Context<{ id: number | number[]; date: string }>) {
-    const { id, date } = ctx.params;
+  async getInfomationalFormsByRequest(
+    ctx: Context<{ id: number | number[]; date: string; limit?: number; offset?: number }>,
+  ) {
+    const { id, date, offset, limit } = ctx.params;
     const ids = Array.isArray(id) ? id : [id];
 
     const requests: Request[] = await ctx.call('requests.resolve', {
@@ -714,7 +723,10 @@ export default class RequestsService extends moleculer.Service {
 
     const result = await Promise.all(
       requests.map((request) =>
-        getInformationalFormsByRequestIds([request.id], request.inheritedSpecies, date),
+        getInformationalFormsByRequestIds([request.id], request.inheritedSpecies, date, {
+          offset,
+          limit,
+        }),
       ),
     );
 
@@ -983,6 +995,7 @@ export default class RequestsService extends moleculer.Service {
       UserAuthMeta & RequestAutoApprove & RequestStatusChanged
     >,
   ) {
+
     const { id, type, speciesTypes } = ctx.params;
 
     const { user } = ctx.meta;
@@ -1337,6 +1350,7 @@ export default class RequestsService extends moleculer.Service {
         'Automatiškai patvirtintas prašymas.',
       );
       await this.generatePdfIfNeeded(request);
+      await this.generateGeojsonIfNeeded(request);
     } else {
       this.sendNotificationOnStatusChange(request);
     }
