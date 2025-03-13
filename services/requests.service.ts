@@ -260,9 +260,10 @@ const populatePermissions = (field: string) => {
         type: 'date',
         columnType: 'datetime',
         readonly: true,
-        set: ({ ctx }: FieldHookCallback & ContextMeta<RequestStatusChanged>) => {
-          const { user, statusChanged } = ctx?.meta;
-          if (user?.type !== UserType.ADMIN || !statusChanged) return;
+        set: ({ ctx }: FieldHookCallback & ContextMeta<RequestStatusChanged & RequestAutoApprove>) => {
+          const { user, statusChanged, autoApprove } = ctx?.meta;
+          const adminApprove = user?.type === UserType.ADMIN && statusChanged;
+          if (!adminApprove && !autoApprove) return;
           return new Date();
         },
       },
@@ -1043,6 +1044,7 @@ export default class RequestsService extends moleculer.Service {
       UserAuthMeta & RequestAutoApprove & RequestStatusChanged
     >,
   ) {
+
     const { id, type, speciesTypes } = ctx.params;
 
     const { user } = ctx.meta;
