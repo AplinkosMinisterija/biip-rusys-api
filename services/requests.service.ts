@@ -40,11 +40,10 @@ import {
 import { parseToObject, toReadableStream } from '../utils/functions';
 import { getTemplateHtml } from '../utils/html';
 import { emailCanBeSent, notifyOnFileGenerated, notifyOnRequestUpdate } from '../utils/mails';
-import { getPlaces, getRequestData } from '../utils/pdf/requests';
+import { getRequestData } from '../utils/pdf/requests';
 import { getRequestSecret } from './jobs.requests.service';
 import { Taxonomy } from './taxonomies.service';
 import { TaxonomySpeciesType, TaxonomySpeciesTypeTranslate } from './taxonomies.species.service';
-import knex from 'knex';
 
 export const RequestType = {
   GET: 'GET',
