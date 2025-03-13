@@ -255,7 +255,9 @@ const populatePermissions = (field: string) => {
         type: 'date',
         columnType: 'datetime',
         readonly: true,
-        set: ({ ctx }: FieldHookCallback & ContextMeta<RequestStatusChanged & RequestAutoApprove>) => {
+        set: ({
+          ctx,
+        }: FieldHookCallback & ContextMeta<RequestStatusChanged & RequestAutoApprove>) => {
           const { user, statusChanged, autoApprove } = ctx?.meta;
           const adminApprove = user?.type === UserType.ADMIN && statusChanged;
           if (!adminApprove && !autoApprove) return;
@@ -995,7 +997,6 @@ export default class RequestsService extends moleculer.Service {
       UserAuthMeta & RequestAutoApprove & RequestStatusChanged
     >,
   ) {
-
     const { id, type, speciesTypes } = ctx.params;
 
     const { user } = ctx.meta;
@@ -1071,7 +1072,15 @@ export default class RequestsService extends moleculer.Service {
 
   @Method
   async generatePdfIfNeeded(request: Request) {
-    if (!request?.id || request?.generatedFile) return;
+    if (
+      !request?.id ||
+      request?.generatedFile ||
+      request?.status !== RequestStatus.APPROVED ||
+      request?.type !== RequestType.GET_ONCE ||
+      !request?.documentTypes?.includes(RequestDocumentType.PDF)
+    ) {
+      return;
+    }
 
     this.broker.call('requests.generatePdf', { id: request.id });
     return request;
@@ -1079,7 +1088,15 @@ export default class RequestsService extends moleculer.Service {
 
   @Method
   async generateGeojsonIfNeeded(request: Request) {
-    if (!request?.id || request?.generatedFileGeojson) return;
+    if (
+      !request?.id ||
+      request?.generatedFileGeojson ||
+      request?.status !== RequestStatus.APPROVED ||
+      request?.type !== RequestType.GET_ONCE ||
+      !request?.documentTypes?.includes(RequestDocumentType.GEOJSON)
+    ) {
+      return;
+    }
 
     this.broker.call('requests.generateGeojson', { id: request.id });
     return request;
