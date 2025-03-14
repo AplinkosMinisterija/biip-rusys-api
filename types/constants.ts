@@ -121,6 +121,7 @@ export const COMMON_FIELDS = {
     populate: USER_PUBLIC_POPULATE,
     get: USER_PUBLIC_GET,
     onCreate: ({ ctx }: FieldHookCallback) => ctx.meta.user?.id,
+    deepQuery: 'users',
   },
 
   createdAt: {
@@ -136,6 +137,7 @@ export const COMMON_FIELDS = {
     populate: USER_PUBLIC_POPULATE,
     get: USER_PUBLIC_GET,
     onUpdate: ({ ctx }: FieldHookCallback) => ctx.meta.user?.id,
+    deepQuery: 'users',
   },
 
   updatedAt: {
@@ -151,6 +153,7 @@ export const COMMON_FIELDS = {
     hidden: 'byDefault',
     populate: USER_PUBLIC_POPULATE,
     onRemove: ({ ctx }: FieldHookCallback) => ctx.meta.user?.id,
+    deepQuery: 'users',
   },
 
   deletedAt: {
