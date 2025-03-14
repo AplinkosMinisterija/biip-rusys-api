@@ -7,11 +7,18 @@ import BullMqMixin from '../mixins/bullmq.mixin';
 import { FILE_TYPES, throwNotFoundError, throwValidationError } from '../types';
 import { toMD5Hash, toReadableStream } from '../utils/functions';
 import { getTemplateHtml } from '../utils/html';
-import { getMapsSearchParams, getRequestData } from '../utils/pdf/requests';
+import {
+  getInformationalForms,
+  getMapsSearchParams,
+  getPlaces,
+  getRequestData,
+} from '../utils/pdf/requests';
 import { AuthType } from './api.service';
 import { Request } from './requests.service';
 import { Tenant } from './tenants.service';
 import { User } from './users.service';
+import { TaxonomySpeciesType, TaxonomySpeciesTypeTranslate } from './taxonomies.species.service';
+import { PassThrough, Readable } from 'stream';
 
 export function getRequestSecret(request: Request) {
   return toMD5Hash(`id=${request.id}&date=${moment(request.createdAt).format('YYYYMMDDHHmmss')}`);
@@ -135,6 +142,195 @@ export default class JobsRequestsService extends moleculer.Service {
   }
 
   @Action({
+    queue: true,
+    params: {
+      id: 'number',
+    },
+    timeout: 0,
+  })
+  async generateAndSaveGeojson(ctx: Context<{ id: number }>) {
+    const { id } = ctx.params;
+    const { job } = ctx.locals;
+
+    const request: Request = await ctx.call('requests.resolve', {
+      id,
+      populate: 'createdBy,tenant',
+      throwIfNotExist: true,
+    });
+
+    const requestData = await getRequestData(ctx, id, {
+      loadPlaces: false,
+      loadLegend: false,
+      loadInformationalForms: false,
+    });
+
+    function getSpeciesData(id: number) {
+      const species = requestData.speciesById[`${id}`];
+
+      if (!species?.speciesId) return {};
+
+      return {
+        'Rūšies tipas': TaxonomySpeciesTypeTranslate[species.speciesType],
+        'Rūšies pavadinimas': species.speciesName,
+        'Rūšies lotyniškas pavadinimas': species.speciesNameLatin,
+        'Rūšies sinonimai': species.speciesSynonyms?.join(', ') || '',
+        'Klasės pavadinimas': species.className,
+        'Klasės lotyniškas pavadinimas': species.classNameLatin,
+        'Tipo pavadinimas': species.phylumName,
+        'Tipo lotyniškas pavadinimas': species.phylumNameLatin,
+        'Karalystės pavadinimas': species.kingdomName,
+        'Karalystės lotyniškas pavadinimas': species.kingdomNameLatin,
+      };
+    }
+
+    function getTitle(speciesId: number) {
+      const species = requestData.speciesById[`${speciesId}`];
+      const isInvasive = [TaxonomySpeciesType.INTRODUCED, TaxonomySpeciesType.INVASIVE].includes(
+        species?.speciesType,
+      );
+
+      return isInvasive ? 'Įvedimo į INVA data' : 'Įvedimo į SRIS data';
+    }
+
+    function getPlacesFeatures(places: any[]) {
+      const result: any[] = [];
+      places?.forEach((place) => {
+        const speciesInfo = getSpeciesData(place.species);
+        place.forms?.forEach((form: any) => {
+          let { features } = form.geom || [];
+          const featuresToInsert = features.map((f: any) => {
+            f.geometry.crs = { type: 'name', properties: { name: 'EPSG:3346' } };
+            f.properties = {
+              'Anketos ID': form.id,
+              'Radavietės ID': place.id,
+              'Radavietės kodas': place.placeCode,
+              ...speciesInfo,
+              'Individų skaičius (gausumas)': form.quantity,
+              'Buveinė, elgsena, ūkinė veikla ir kita informacija': form.description,
+              [getTitle(place.species)]: form.createdAt,
+              'Stebėjimo data': form.observedAt,
+              Šaltinis: form.source,
+              'Veiklos požymiai': form.activityTranslate,
+              'Vystymosi stadija': form.evolutionTranslate,
+            };
+            return f;
+          });
+
+          result.push(...featuresToInsert);
+        });
+      });
+
+      return result;
+    }
+
+    function getInformationalFormsFeatures(informationalForms: { [key: string]: any }) {
+      const result: any[] = [];
+
+      Object.values(informationalForms)?.forEach((item) => {
+        item?.forms?.forEach((form: any) => {
+          let { features } = form.geom || [];
+          const featuresToInsert = features.map((f: any) => {
+            f.geometry.crs = { type: 'name', properties: { name: 'EPSG:3346' } };
+            f.properties = {
+              'Anketos ID': form.id,
+              'Radavietės ID': '-',
+              'Radavietės kodas': '-',
+              ...getSpeciesData(form.species),
+              'Individų skaičius (gausumas)': form.quantity,
+              'Buveinė, elgsena, ūkinė veikla ir kita informacija': form.description,
+              [getTitle(form.species)]: form.createdAt,
+              'Stebėjimo data': form.observedAt,
+              Šaltinis: form.source,
+              'Veiklos požymiai': form.activityTranslate,
+              'Vystymosi stadija': form.evolutionTranslate,
+            };
+            return f;
+          });
+
+          result.push(...featuresToInsert);
+        });
+      });
+      return result;
+    }
+
+    async function* fetchGeoJSONChunks(batchSize: number = 100) {
+      let offset = 0;
+      let isFirstChunk = true;
+      const stats = {
+        noPlaces: false,
+        noInformationForms: false,
+      };
+
+      yield `{"type":"FeatureCollection","features":[`; // Open GeoJSON structure
+
+      while (true) {
+        const places = stats.noPlaces
+          ? []
+          : await getPlaces(ctx, id, {
+              date: requestData.requestDate,
+              translates: requestData.translates,
+              limit: batchSize,
+              offset,
+            });
+
+        const informationalForms = stats.noInformationForms
+          ? {}
+          : await getInformationalForms(ctx, id, {
+              date: requestData.requestDate,
+              translates: requestData.translates,
+              limit: batchSize,
+              offset,
+            });
+
+        const placesFeatures = getPlacesFeatures(places);
+        const informationalFormsFeatures = getInformationalFormsFeatures(informationalForms);
+        stats.noInformationForms = !informationalFormsFeatures.length;
+        stats.noPlaces = !placesFeatures.length;
+
+        if (stats.noInformationForms && stats.noPlaces) break; // Stop when no more data
+
+        // Yield features as JSON (prepend a comma if it's not the first chunk)
+        yield (isFirstChunk ? '' : ',') +
+          JSON.stringify([...placesFeatures, ...informationalFormsFeatures]).slice(1, -1);
+
+        isFirstChunk = false;
+        offset += batchSize;
+      }
+
+      yield `]}`; // Close GeoJSON structure
+    }
+
+    const folder = this.getFolderName(request.createdBy as any as User, request.tenant as Tenant);
+
+    const stream = Readable.from(fetchGeoJSONChunks(100));
+    const pass = new PassThrough();
+    stream.pipe(pass);
+
+    const result: any = await ctx.call(
+      'minio.uploadFile',
+      {
+        payload: pass,
+        folder,
+        isPrivate: true,
+        types: FILE_TYPES,
+      },
+      {
+        meta: {
+          mimetype: 'application/geo+json',
+          filename: `israsas-${request.id}.geojson`,
+        },
+      },
+    );
+
+    await ctx.call('requests.saveGeneratedGeojson', {
+      id,
+      url: result.url,
+    });
+
+    return { job: job?.id, url: result?.url };
+  }
+
+  @Action({
     params: {
       id: 'number',
     },
@@ -204,6 +400,17 @@ export default class JobsRequestsService extends moleculer.Service {
       childrenJobs,
       { removeDependencyOnFailure: true },
     );
+  }
+
+  @Action({
+    params: {
+      id: 'number',
+    },
+    timeout: 0,
+  })
+  async initiateGeojsonGenerate(ctx: Context<{ id: number }>) {
+    const { id } = ctx.params;
+    return this.queue(ctx, 'jobs.requests', 'generateAndSaveGeojson', { id });
   }
 
   @Action({

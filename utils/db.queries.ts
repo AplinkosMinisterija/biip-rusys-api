@@ -95,7 +95,15 @@ export async function getPlacesAndFromsByRequestsIds(requestIds?: number[]): Pro
   }));
 }
 
-export function getPlacesByRequestIds(ids: number[], species?: number[], date?: string) {
+export function getPlacesByRequestIds(
+  ids: number[],
+  species?: number[],
+  date?: string,
+  opts?: {
+    limit?: number;
+    offset?: number;
+  },
+) {
   const knex = getAdapter();
   const requestsTable = 'requests';
   const placesTable = 'places';
@@ -105,7 +113,8 @@ export function getPlacesByRequestIds(ids: number[], species?: number[], date?: 
     .from(requestsTable)
     .whereIn(`${requestsTable}.id`, ids)
     .where(knex.raw(`${placesTable}.species_id in ('${species.join("','")}')`))
-    .whereNull(`${placesTable}.deletedAt`);
+    .whereNull(`${placesTable}.deletedAt`)
+    .orderBy(`${placesTable}.id`, 'asc');
 
   const intersectsQuery = (tableName: string) => {
     return knex.raw(`st_intersects(${requestsTable}.geom, ${tableName}.geom)`);
@@ -154,6 +163,9 @@ export function getPlacesByRequestIds(ids: number[], species?: number[], date?: 
       .join(placesTable, `${matchesTable}.placeId`, `${placesTable}.id`);
   }
 
+  if (opts?.offset) query.offset(opts.offset);
+  if (opts?.limit) query.limit(opts.limit);
+
   return query;
 }
 
@@ -184,6 +196,10 @@ export function getInformationalFormsByRequestIds(
   ids: number[],
   species?: number[],
   date?: string,
+  opts?: {
+    limit?: number;
+    offset?: number;
+  },
 ) {
   const requestsTable = 'requests';
   const formsTable = 'approvedForms';
@@ -213,12 +229,16 @@ export function getInformationalFormsByRequestIds(
     .join(requestsGeom.as(requestsTable), intersectsQuery(formsTable))
     .where(knex.raw(`${snakeCase(formsTable)}.${queryBooleanPlain('isInformational', true)}`))
     .where(knex.raw(`${snakeCase(formsTable)}.${queryBooleanPlain('isRelevant', true)}`))
-    .whereIn(`${formsTable}.speciesId`, species);
+    .whereIn(`${formsTable}.speciesId`, species)
+    .orderBy(`${formsTable}.id`, 'asc');
 
   if (date) {
     date = moment(date).endOf('day').format();
     query.where(`${formsTable}.createdAt`, '<=', date);
   }
+
+  if (opts?.offset) query.offset(opts.offset);
+  if (opts?.limit) query.limit(opts.limit);
 
   return query;
 }
