@@ -282,6 +282,7 @@ export interface Form extends BaseModelInterface {
         columnType: 'integer',
         columnName: 'assigneeId',
         populate: USER_PUBLIC_POPULATE,
+        deepQuery: 'users',
         validate: 'validateAssignee',
         get: USER_PUBLIC_GET,
         async onCreate({ ctx, params }: FieldHookCallback & ContextMeta<FormAutoApprove>) {
@@ -345,6 +346,7 @@ export interface Form extends BaseModelInterface {
             showHidden: true,
           },
         },
+        deepQuery: 'taxonomies',
       },
 
       source: {
@@ -796,7 +798,9 @@ export default class FormsService extends moleculer.Service {
     types: [EndpointType.ADMIN, EndpointType.EXPERT],
   })
   async getTasks(ctx: Context<any>) {
-    const sort = ctx.params.sort || 'deadlineAt,createdAt';
+    const sort = ctx.params.sort
+      ? ctx.params.sort + ',deadlineAt,createdAt'
+      : 'deadlineAt,createdAt';
 
     return ctx.call('forms.list', {
       ...ctx.params,
