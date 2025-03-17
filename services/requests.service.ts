@@ -31,7 +31,12 @@ import { User, USERS_DEFAULT_SCOPES, UserType } from './users.service';
 import { getFeatureCollection } from 'geojsonjs';
 import PostgisMixin, { GeometryType } from 'moleculer-postgis';
 import moment from 'moment';
-import { getInformationalFormsByRequestIds, getPlacesByRequestIds } from '../utils/db.queries';
+import {
+  getInformationalFormsByRequestIds,
+  getInformationalFormsByRequestIdsCount,
+  getPlacesByRequestIds,
+  getPlacesByRequestIdsCount,
+} from '../utils/db.queries';
 import { parseToObject, toReadableStream } from '../utils/functions';
 import { getTemplateHtml } from '../utils/html';
 import { emailCanBeSent, notifyOnFileGenerated, notifyOnRequestUpdate } from '../utils/mails';
@@ -255,7 +260,9 @@ const populatePermissions = (field: string) => {
         type: 'date',
         columnType: 'datetime',
         readonly: true,
-        set: ({ ctx }: FieldHookCallback & ContextMeta<RequestStatusChanged & RequestAutoApprove>) => {
+        set: ({
+          ctx,
+        }: FieldHookCallback & ContextMeta<RequestStatusChanged & RequestAutoApprove>) => {
           const { user, statusChanged, autoApprove } = ctx?.meta;
           const adminApprove = user?.type === UserType.ADMIN && statusChanged;
           if (!adminApprove && !autoApprove) return;
@@ -786,6 +793,50 @@ export default class RequestsService extends moleculer.Service {
   }
 
   @Action({
+    types: [EndpointType.ADMIN],
+    params: {
+      id: 'number|convert',
+    },
+    rest: '/:id/stats',
+    timeout: 0,
+  })
+  async requestStats(ctx: Context<{ id: number }>) {
+    const { id } = ctx.params;
+    const request: Request = await ctx.call('requests.resolve', {
+      id,
+      throwIfNotExist: true,
+      populate: 'inheritedSpecies',
+    });
+
+    if (request.type !== RequestType.GET_ONCE) {
+      throwUnauthorizedError('Cannot see stats for this request');
+    }
+
+    const requestData = await getRequestData(ctx, id, {
+      loadPlaces: false,
+      loadLegend: false,
+      loadInformationalForms: false,
+    });
+
+    const { count: placesCount } = await getPlacesByRequestIdsCount(
+      [request.id],
+      request.inheritedSpecies,
+      requestData.requestDate,
+    );
+
+    const { count: informationalFormsCount } = await getInformationalFormsByRequestIdsCount(
+      [request.id],
+      request.inheritedSpecies,
+      requestData.requestDate,
+    );
+
+    return {
+      placesCount: Number(placesCount) || 0,
+      informationalFormsCount: Number(informationalFormsCount) || 0,
+    };
+  }
+
+  @Action({
     params: {
       id: {
         type: 'number',
@@ -995,7 +1046,6 @@ export default class RequestsService extends moleculer.Service {
       UserAuthMeta & RequestAutoApprove & RequestStatusChanged
     >,
   ) {
-
     const { id, type, speciesTypes } = ctx.params;
 
     const { user } = ctx.meta;
@@ -1071,7 +1121,15 @@ export default class RequestsService extends moleculer.Service {
 
   @Method
   async generatePdfIfNeeded(request: Request) {
-    if (!request?.id || request?.generatedFile) return;
+    if (
+      !request?.id ||
+      request?.generatedFile ||
+      request?.status !== RequestStatus.APPROVED ||
+      request?.type !== RequestType.GET_ONCE ||
+      !request?.documentTypes?.includes(RequestDocumentType.PDF)
+    ) {
+      return;
+    }
 
     this.broker.call('requests.generatePdf', { id: request.id });
     return request;
@@ -1079,7 +1137,15 @@ export default class RequestsService extends moleculer.Service {
 
   @Method
   async generateGeojsonIfNeeded(request: Request) {
-    if (!request?.id || request?.generatedFileGeojson) return;
+    if (
+      !request?.id ||
+      request?.generatedFileGeojson ||
+      request?.status !== RequestStatus.APPROVED ||
+      request?.type !== RequestType.GET_ONCE ||
+      !request?.documentTypes?.includes(RequestDocumentType.GEOJSON)
+    ) {
+      return;
+    }
 
     this.broker.call('requests.generateGeojson', { id: request.id });
     return request;
