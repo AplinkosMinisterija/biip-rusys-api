@@ -898,13 +898,27 @@ export default class FormsService extends moleculer.Service {
         type: 'number',
         convert: true,
       },
+      sort: {
+        type: 'string',
+        optional: true,
+        default: 'distance',
+        empty: false,
+      },
     },
   })
-  async getPlaces(ctx: Context<{ id: number }, UserAuthMeta>) {
+  async getPlaces(ctx: Context<{ id: number; sort: string }, UserAuthMeta>) {
     const adapter = await this.getAdapter(ctx);
     const table = adapter.getTable();
     const formsTable = 'forms';
     const placesTable = 'places';
+    const parsedSort = ctx.params.sort?.split(',').map((item) => {
+      const desc = item.startsWith('-'); // Check if it starts with '-'
+      const field = desc ? item.slice(1) : item; // Remove '-' if present
+      return {
+        column: field,
+        order: desc ? 'desc' : 'asc',
+      };
+    });
 
     const allPlacesBySpecies = table
       .select(
@@ -924,7 +938,7 @@ export default class FormsService extends moleculer.Service {
       .select('*')
       .from(allPlacesBySpecies.as('allPlaces'))
       .where('distance', '<=', 1000)
-      .orderBy('distance')
+      .orderBy(parsedSort)
       .limit(10);
   }
 
