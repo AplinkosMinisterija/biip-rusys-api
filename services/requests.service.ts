@@ -31,7 +31,12 @@ import { User, USERS_DEFAULT_SCOPES, UserType } from './users.service';
 import { getFeatureCollection } from 'geojsonjs';
 import PostgisMixin, { GeometryType } from 'moleculer-postgis';
 import moment from 'moment';
-import { getInformationalFormsByRequestIds, getPlacesByRequestIds } from '../utils/db.queries';
+import {
+  getInformationalFormsByRequestIds,
+  getInformationalFormsByRequestIdsCount,
+  getPlacesByRequestIds,
+  getPlacesByRequestIdsCount,
+} from '../utils/db.queries';
 import { parseToObject, toReadableStream } from '../utils/functions';
 import { getTemplateHtml } from '../utils/html';
 import { emailCanBeSent, notifyOnFileGenerated, notifyOnRequestUpdate } from '../utils/mails';
@@ -786,6 +791,50 @@ export default class RequestsService extends moleculer.Service {
 
     ctx.meta.$responseType = 'application/pdf';
     return toReadableStream(pdf);
+  }
+
+  @Action({
+    types: [EndpointType.ADMIN],
+    params: {
+      id: 'number|convert',
+    },
+    rest: '/:id/stats',
+    timeout: 0,
+  })
+  async requestStats(ctx: Context<{ id: number }>) {
+    const { id } = ctx.params;
+    const request: Request = await ctx.call('requests.resolve', {
+      id,
+      throwIfNotExist: true,
+      populate: 'inheritedSpecies',
+    });
+
+    if (request.type !== RequestType.GET_ONCE) {
+      throwUnauthorizedError('Cannot see stats for this request');
+    }
+
+    const requestData = await getRequestData(ctx, id, {
+      loadPlaces: false,
+      loadLegend: false,
+      loadInformationalForms: false,
+    });
+
+    const { count: placesCount } = await getPlacesByRequestIdsCount(
+      [request.id],
+      request.inheritedSpecies,
+      requestData.requestDate,
+    );
+
+    const { count: informationalFormsCount } = await getInformationalFormsByRequestIdsCount(
+      [request.id],
+      request.inheritedSpecies,
+      requestData.requestDate,
+    );
+
+    return {
+      placesCount: Number(placesCount) || 0,
+      informationalFormsCount: Number(informationalFormsCount) || 0,
+    };
   }
 
   @Action({
