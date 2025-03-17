@@ -899,24 +899,25 @@ export default class FormsService extends moleculer.Service {
         convert: true,
       },
       sort: {
-        type: 'string',
+        type: 'array',
+        items: { type: 'string' },
         optional: true,
-        default: 'distance',
+        default: ['distance'],
         empty: false,
       },
     },
   })
-  async getPlaces(ctx: Context<{ id: number; sort: string }, UserAuthMeta>) {
+  async getPlaces(ctx: Context<{ id: number; sort: any }, UserAuthMeta>) {
     const adapter = await this.getAdapter(ctx);
     const table = adapter.getTable();
     const formsTable = 'forms';
     const placesTable = 'places';
-    const parsedSort = ctx.params.sort?.split(',').map((item) => {
-      const desc = item.startsWith('-'); // Check if it starts with '-'
+    const parsedSort = ctx.params.sort?.map((item: string) => {
+      const desc = item.startsWith('-');
       const field = desc ? item.slice(1) : item; // Remove '-' if present
       return {
         column: field,
-        order: desc ? 'desc' : 'asc',
+        order: desc ? 'desc' : 'asc', // Set order based on the presence of '-'
       };
     });
 
