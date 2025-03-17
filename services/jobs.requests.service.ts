@@ -19,6 +19,7 @@ import { Tenant } from './tenants.service';
 import { User } from './users.service';
 import { TaxonomySpeciesType, TaxonomySpeciesTypeTranslate } from './taxonomies.species.service';
 import { PassThrough, Readable } from 'stream';
+import { PDFDocument as PDFLibDocument } from 'pdf-lib';
 
 export function getRequestSecret(request: Request) {
   return toMD5Hash(`id=${request.id}&date=${moment(request.createdAt).format('YYYYMMDDHHmmss')}`);
@@ -139,6 +140,240 @@ export default class JobsRequestsService extends moleculer.Service {
     });
 
     return { job: job.id, url: result.url };
+  }
+
+  @Action({
+    queue: true,
+    params: {
+      id: 'number',
+    },
+    timeout: 0,
+  })
+  async initiateGeneratePartialPdf(ctx: Context<{ id: number }>) {
+    const { id } = ctx.params;
+
+    const stats: any = await ctx.call('requests.requestStats', { id });
+
+    const limit = 100;
+
+    const childrenJobs: any[] = [];
+    let index = 0;
+
+    for (let i = 0; i < Math.ceil(stats.placesCount / limit); i++) {
+      childrenJobs.push({
+        params: { offset: limit * i, limit, id, type: 'places', index },
+        name: 'jobs.requests',
+        action: 'generatePartialPdf',
+      });
+      index++;
+    }
+
+    for (let i = 0; i < Math.ceil(stats.informationalFormsCount / limit); i++) {
+      childrenJobs.push({
+        params: { offset: limit * i, limit, id, type: 'forms', index },
+        name: 'jobs.requests',
+        action: 'generatePartialPdf',
+      });
+      index++;
+    }
+
+    return this.flow(
+      ctx,
+      'jobs.requests',
+      'mergePartialPdfsAndSave',
+      {
+        id,
+      },
+      childrenJobs,
+      { removeDependencyOnFailure: true },
+    );
+
+    return stats;
+  }
+
+  @Method
+  async uploadPartialHtml(ctx: Context, url: string, folder: string, name: string) {
+    const htmlResult = await new Promise(async (resolve, reject) => {
+      fetch(url, {
+        headers: {
+          'Cache-Control': 'no-cache',
+        },
+      })
+        .then((r) => r.body?.getReader())
+        .then(resolve)
+        .catch((err) => {
+          console.error(err);
+          reject(err?.message || 'Error while getting html');
+        });
+    });
+
+    return ctx.call(
+      'minio.uploadFile',
+      {
+        payload: toReadableStream(htmlResult),
+        folder: folder,
+        types: FILE_TYPES,
+        name,
+        isPrivate: true,
+        presign: true,
+      },
+      {
+        meta: {
+          mimetype: 'text/html',
+          filename: `${name}.html`,
+        },
+      },
+    );
+  }
+
+  @Action({
+    params: {
+      id: 'number',
+    },
+    queue: true,
+    timeout: 0,
+  })
+  async mergePartialPdfsAndSave(ctx: Context<{ id: number }>) {
+    const { id } = ctx.params;
+    const { job } = ctx.locals;
+
+    const childrenValues = await job.getChildrenValues();
+    const items: any[] = Object.values(childrenValues).sort((a: any, b: any) => a.index - b.index);
+
+    const request: Request = await ctx.call('requests.resolve', {
+      id,
+      populate: 'createdBy,tenant',
+      throwIfNotExist: true,
+    });
+
+    const pass = new PassThrough();
+
+    const folder = this.getFolderName(request.createdBy as any as User, request.tenant as Tenant);
+
+    // DO NOT WAIT
+    ctx.call(
+      'minio.uploadFile',
+      {
+        payload: pass,
+        folder,
+        isPrivate: true,
+        types: FILE_TYPES,
+      },
+      {
+        meta: {
+          mimetype: 'application/pdf',
+          filename: `israsas-${id}.pdf`,
+        },
+      },
+    );
+
+    let globalPageNumber = 1;
+
+    const mergedPdf = await PDFLibDocument.create();
+
+    for (const file of items) {
+      const pdfBuffer = await fetch(file.url)
+        .then((r) => r.arrayBuffer())
+        .then((r) => Buffer.from(r));
+
+      const pdf = await PDFLibDocument.load(pdfBuffer);
+      const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
+      pages.forEach((page) => mergedPdf.addPage(page));
+
+      // Flush to MinIO every 1000 pages to avoid RAM issues
+      if (globalPageNumber / 1000 > 0) {
+        const partialBuffer = Buffer.from(await mergedPdf.save());
+        pass.write(partialBuffer);
+
+        // Remove all pages from the merged PDF to avoid memory buildup
+        while (mergedPdf.getPageCount() > 0) {
+          mergedPdf.removePage(0);
+        }
+      }
+
+      globalPageNumber += pdf.getPageCount();
+    }
+
+    // Save final batch
+    const finalBuffer = Buffer.from(await mergedPdf.save());
+    pass.write(finalBuffer);
+    pass.end();
+  }
+
+  @Action({
+    queue: true,
+    params: {
+      id: 'number',
+      limit: 'number|convert|optional|default:100',
+      offset: 'number|convert|optional|default:0',
+      type: {
+        type: 'string',
+        enum: ['intro', 'forms', 'places'],
+      },
+      index: 'number|convert|default:0',
+    },
+    timeout: 0,
+  })
+  async generatePartialPdf(
+    ctx: Context<{ id: number; type: string; offset?: number; limit: number; index: number }>,
+  ) {
+    const { id, type, limit, offset } = ctx.params;
+
+    const request: Request = await ctx.call('requests.resolve', {
+      id,
+      populate: 'createdBy,tenant',
+      throwIfNotExist: true,
+    });
+
+    const secret = getRequestSecret(request);
+
+    const searchParams = new URLSearchParams({
+      skey: 'admin_preview',
+      secret,
+      limit: `${limit}`,
+      offset: `${offset}`,
+    });
+
+    const partialFolder = `temp/requests/pdf/${request.id}`;
+    const partialFileName = type === 'intro' ? type : `${type}-${offset}-${offset + limit}`;
+
+    const partialHtmlUrl = `${
+      process.env.SERVER_HOST
+    }/jobs/requests/${id}/html/${type}?${searchParams.toString()}`;
+
+    const uploadedHtml: any = await this.uploadPartialHtml(
+      ctx,
+      partialHtmlUrl,
+      partialFolder,
+      partialFileName,
+    );
+
+    const pdf = await ctx.call('tools.makePdf', {
+      url: uploadedHtml.presignedUrl,
+    });
+
+    const result: any = await ctx.call(
+      'minio.uploadFile',
+      {
+        payload: toReadableStream(pdf),
+        folder: partialFolder,
+        name: partialFileName,
+        isPrivate: true,
+        presign: true,
+        types: FILE_TYPES,
+      },
+      {
+        meta: {
+          mimetype: 'application/pdf',
+          filename: `${partialFileName}.pdf`,
+        },
+      },
+    );
+
+    return {
+      url: result.presignedUrl,
+      index: ctx.params.index,
+    };
   }
 
   @Action({
@@ -464,6 +699,88 @@ export default class JobsRequestsService extends moleculer.Service {
     requestData.previewScreenshot = screenshotsByHash[requestData.previewScreenshotHash] || '';
 
     const html = getTemplateHtml('request-pdf.ejs', requestData);
+
+    return html;
+  }
+
+  @Action({
+    params: {
+      id: {
+        type: 'number',
+        convert: true,
+      },
+      secret: 'string',
+      skey: 'string',
+      offset: 'number|convert|optional',
+      limit: 'number|convert|optional',
+      type: {
+        type: 'string',
+        enum: ['places', 'forms', 'intro'],
+      },
+    },
+    rest: 'GET /:id/html/:type',
+    auth: AuthType.PUBLIC,
+    timeout: 0,
+  })
+  async getRequestHtmlPartial(
+    ctx: Context<
+      { id: number; secret: string; skey: string; offset?: number; limit?: number; type: string },
+      { $responseType: string; $responseHeaders: any }
+    >,
+  ) {
+    ctx.meta.$responseType = 'text/html';
+
+    const { id, secret, skey: screenshotsRedisKey, offset, limit, type } = ctx.params;
+
+    const request: Request = await ctx.call('requests.resolve', { id });
+
+    const secretToApprove = getRequestSecret(request);
+    if (!request?.id || !secret || secret !== secretToApprove) {
+      return throwNotFoundError('Invalid secret!');
+    }
+
+    const requestData = await getRequestData(ctx, id, {
+      loadPlaces: false,
+      loadLegend: true,
+      loadInformationalForms: false,
+    });
+
+    let screenshotsByHash: any = {};
+
+    if (screenshotsRedisKey !== 'admin_preview') {
+      screenshotsByHash = await this.broker.cacher.get(`screenshots.${screenshotsRedisKey}`);
+    }
+
+    if (type === 'places') {
+      requestData.places = await getPlaces(ctx, id, {
+        date: requestData.requestDate,
+        translates: requestData.translates,
+        limit: limit || 100,
+        offset,
+      });
+
+      // set screenshots for places
+      requestData?.places.forEach((p) => {
+        p.screenshot = screenshotsByHash[p.hash] || '';
+      });
+    } else if (type === 'forms') {
+      requestData.informationalForms = await getInformationalForms(ctx, id, {
+        date: requestData.requestDate,
+        translates: requestData.translates,
+        limit: limit || 100,
+        offset,
+      });
+
+      // set screenshots for informational forms
+      Object.entries(requestData?.informationalForms).forEach(([key, value]) => {
+        requestData.informationalForms[key].screenshot = screenshotsByHash[value.hash] || '';
+      });
+    } else if (type === 'intro') {
+      // TODO: setup
+      requestData.previewScreenshot = screenshotsByHash[requestData.previewScreenshotHash] || '';
+    }
+
+    const html = getTemplateHtml(`partials/${type}.ejs`, requestData);
 
     return html;
   }

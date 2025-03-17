@@ -1,0 +1,14 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <%- include('styles'); %>
+  </head>
+  <body>
+    <h1>Radavietės</h1>
+    <% places.forEach(function(place, index) { %> <%- include('places/single', {place: place, index:
+    index + 1, species: speciesById[place.species]}); %>
+    <div class="page-break"></div>
+    <% }); %>
+  </body>
+</html>
