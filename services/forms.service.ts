@@ -798,13 +798,25 @@ export default class FormsService extends moleculer.Service {
     types: [EndpointType.ADMIN, EndpointType.EXPERT],
   })
   async getTasks(ctx: Context<any>) {
-    const sort = ctx.params.sort
-      ? ctx.params.sort + ',deadlineAt,createdAt'
-      : 'deadlineAt,createdAt';
+    let parsedSort;
+
+    if (typeof ctx.params.sort === 'string') {
+      try {
+        parsedSort = JSON.parse(ctx.params.sort);
+      } catch (e) {
+        parsedSort = ctx.params.sort;
+      }
+    } else {
+      parsedSort = ctx.params.sort;
+    }
+
+    const sortingFields = Array.isArray(parsedSort) ? parsedSort : parsedSort?.split(',') || [];
+
+    sortingFields.push('deadlineAt', 'createdAt');
 
     return ctx.call('forms.list', {
       ...ctx.params,
-      sort,
+      sort: sortingFields,
       scope: 'tasks',
     });
   }
@@ -902,25 +914,59 @@ export default class FormsService extends moleculer.Service {
         type: 'array',
         items: { type: 'string' },
         optional: true,
-        default: ['distance'],
         empty: false,
+        convert: true,
       },
     },
   })
-  async getPlaces(ctx: Context<{ id: number; sort: any }, UserAuthMeta>) {
+  async getPlaces(ctx: Context<{ id: number; sort: string[] }, UserAuthMeta>) {
     const adapter = await this.getAdapter(ctx);
     const table = adapter.getTable();
     const formsTable = 'forms';
     const placesTable = 'places';
-    const parsedSort = ctx.params.sort?.map((item: string) => {
+
+    let parsePlacesSort;
+
+    if (typeof ctx.params.sort === 'string') {
+      try {
+        parsePlacesSort = JSON.parse(ctx.params.sort);
+      } catch (e) {
+        parsePlacesSort = ctx.params.sort;
+      }
+    } else {
+      parsePlacesSort = ctx.params.sort;
+    }
+
+    const getSortObject = (item = '') => {
       const desc = item.startsWith('-');
       const field = desc ? item.slice(1) : item; // Remove '-' if present
       return {
-        column: field,
+        column: field || 'distance', // Default sort by distance
         order: desc ? 'desc' : 'asc', // Set order based on the presence of '-'
       };
-    });
+    };
 
+    const sortingObject: { column: string; order: string }[] = [];
+
+    const parseSortItems = (items: string[]) => {
+      items.forEach((item: string) => {
+        sortingObject.push(getSortObject(item));
+      });
+    };
+
+    if (Array.isArray(parsePlacesSort)) {
+      try {
+        parsePlacesSort.forEach((item: string) => {
+          parseSortItems(JSON.parse(item));
+        });
+      } catch (e) {
+        parseSortItems(parsePlacesSort);
+      }
+    } else {
+      //default sort
+      sortingObject.push(getSortObject());
+    }
+    
     const allPlacesBySpecies = table
       .select(
         `${placesTable}.id`,
@@ -939,7 +985,7 @@ export default class FormsService extends moleculer.Service {
       .select('*')
       .from(allPlacesBySpecies.as('allPlaces'))
       .where('distance', '<=', 1000)
-      .orderBy(parsedSort)
+      .orderBy(sortingObject)
       .limit(10);
   }
 
