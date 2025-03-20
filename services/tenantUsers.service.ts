@@ -118,11 +118,54 @@ export default class TenantUsersService extends moleculer.Service {
         type: 'any',
         optional: true,
       },
+      sort: {
+        type: 'array',
+        items: { type: 'string' },
+        default: ['firstName', 'lastName'],
+        optional: true,
+        empty: false,
+        convert: true,
+      },
     },
     types: [EndpointType.ADMIN, EndpointType.EXPERT, EndpointType.TENANT_ADMIN],
   })
-  async findByTenant(ctx: Context<{ id: number; query?: any; filter?: any }, UserAuthMeta>) {
-    const { id, query, filter } = ctx.params;
+  async findByTenant(
+    ctx: Context<{ id: number; query?: any; filter?: any; sort?: string[] }, UserAuthMeta>,
+  ) {
+    const { id, query, filter, sort } = ctx.params;
+
+    let parsedSort;
+
+    if (typeof sort === 'string') {
+      try {
+        parsedSort = JSON.parse(sort);
+      } catch (e) {
+        parsedSort = sort;
+      }
+    } else {
+      parsedSort = sort;
+    }
+
+    const sorting = [];
+
+    const parseSortItems = (items: string[]) => {
+      items.forEach((item: string) => {
+        sorting.push(item);
+      });
+    };
+
+    if (Array.isArray(parsedSort)) {
+      try {
+        parsedSort.forEach((item: string) => {
+          parseSortItems(JSON.parse(item));
+        });
+      } catch (e) {
+        parseSortItems(parsedSort);
+      }
+    } else {
+      sorting.push(parsedSort);
+    }
+
     const tenant: Tenant = await ctx.call('tenants.get', { id });
     if (!tenant || !tenant.id) {
       return throwNotFoundError('Tenant not found.');
@@ -133,6 +176,7 @@ export default class TenantUsersService extends moleculer.Service {
       {
         query,
         filter,
+        sort: sorting,
         populate: 'role',
       },
       {

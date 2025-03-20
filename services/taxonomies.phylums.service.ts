@@ -56,6 +56,7 @@ export interface TaxonomyPhylum extends BaseModelInterface {
             fields: ['id', 'name', 'nameLatin'],
           },
         },
+        deepQuery: 'taxonomies.kingdoms',
       },
 
       classes: {

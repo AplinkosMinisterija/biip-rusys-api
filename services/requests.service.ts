@@ -422,10 +422,11 @@ export default class RequestsService extends moleculer.Service {
     rest: 'GET /tasks',
     types: [EndpointType.ADMIN],
   })
-  async getTasks(ctx: Context<{}>) {
+  async getTasks(ctx: Context<any>) {
+    const sort = ctx.params.sort || 'updatedAt,createdAt';
     return ctx.call('requests.list', {
       ...ctx.params,
-      sort: 'updatedAt,createdAt',
+      sort,
       scope: 'tasks',
     });
   }
