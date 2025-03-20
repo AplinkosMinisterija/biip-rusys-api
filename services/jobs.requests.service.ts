@@ -236,7 +236,7 @@ export default class JobsRequestsService extends moleculer.Service {
               'Radavietės ID': '-',
               'Radavietės kodas': '-',
               ...getSpeciesData(form.species),
-              'Individų skaičius (gausumas)': form.quantity,
+              'Individų skaičius (gausumas)': form.quantityTranslate,
               'Buveinė, elgsena, ūkinė veikla ir kita informacija': form.description,
               [getTitle(form.species)]: form.createdAt,
               'Stebėjimo data': form.observedAt,

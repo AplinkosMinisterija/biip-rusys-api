@@ -70,11 +70,10 @@ function getFormData(form: Form, translatesAndFormTypes?: any) {
     source: (form.source as any)?.name || form.source || '',
     photos: form.photos?.map((p) => p.url) || [],
     description: form.description,
-    quantity: isInvasivePlant ? getTranslate('METHOD', form.method) : form.quantity,
+    quantity: form.quantity,
+    quantityTranslate: isInvasivePlant ? getTranslate('METHOD', form.method) : `${form.quantity}`,
     activityTranslate: getTranslate('ACTIVITY', form.activity),
-    ...(!isInvasivePlant && {
-      methodTranslate: getTranslate('METHOD', form.method),
-    }),
+    methodTranslate: getTranslate('METHOD', form.method),
     evolutionTranslate: getTranslate('EVOLUTION', form.evolution),
     status: '',
   };

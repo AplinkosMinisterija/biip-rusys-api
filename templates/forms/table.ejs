@@ -3,12 +3,12 @@
     <tr>
       <th class="px-4 py-2">Nr.</th>
       <th class="px-4 py-2">Stebėjimo data</th>
+      <th class="px-4 py-2">Gausumas</th>
       <% if (hasActivity) { %>
       <th class="px-4 py-2">Veiklos požymiai</th>
       <% }; %> <% if (hasEvolution) { %>
       <th class="px-4 py-2">Vystymosi stadija</th>
       <% }; %>
-      <th class="px-4 py-2">Gausumas</th>
       <% if (hasArea) { %>
         <th class="px-4 py-2">Plotas</th>
       <% }; %>
@@ -20,12 +20,12 @@
     <tr>
       <td class="px-4 py-2"><%= index+1 %>.</td>
       <td class="px-4 py-2"><%= form.observedAt %></td>
+      <td class="px-4 py-2"><%= form.quantityTranslate || '0' %></td>
       <% if (hasActivity) { %>
       <td class="px-4 py-2"><%= form.activityTranslate || '-' %></td>
       <% }; %> <% if (hasEvolution) { %>
       <td class="px-4 py-2"><%= form.evolutionTranslate || '-' %></td>
       <% }; %>
-      <td class="px-4 py-2"><%= form.quantity || '0' %></td>
       <% if (hasArea) { %>
         <td class="px-4 py-2"><%= form.areaText || '-' %></td>
       <% }; %>
