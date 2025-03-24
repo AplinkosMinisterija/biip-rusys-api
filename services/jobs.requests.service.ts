@@ -3,6 +3,7 @@
 import moleculer, { Context } from 'moleculer';
 import { Action, Method, Service } from 'moleculer-decorators';
 import moment from 'moment';
+import { PassThrough, Readable } from 'stream';
 import BullMqMixin from '../mixins/bullmq.mixin';
 import { FILE_TYPES, throwNotFoundError, throwValidationError } from '../types';
 import { toMD5Hash, toReadableStream } from '../utils/functions';
@@ -15,10 +16,9 @@ import {
 } from '../utils/pdf/requests';
 import { AuthType } from './api.service';
 import { Request } from './requests.service';
+import { TaxonomySpeciesType, TaxonomySpeciesTypeTranslate } from './taxonomies.species.service';
 import { Tenant } from './tenants.service';
 import { User } from './users.service';
-import { TaxonomySpeciesType, TaxonomySpeciesTypeTranslate } from './taxonomies.species.service';
-import { PassThrough, Readable } from 'stream';
 
 export function getRequestSecret(request: Request) {
   return toMD5Hash(`id=${request.id}&date=${moment(request.createdAt).format('YYYYMMDDHHmmss')}`);
@@ -205,7 +205,7 @@ export default class JobsRequestsService extends moleculer.Service {
               'Radavietės ID': place.id,
               'Radavietės kodas': place.placeCode,
               ...speciesInfo,
-              'Individų skaičius (gausumas)': form.quantity,
+              'Individų skaičius (gausumas)': form.quantityTranslate || '0',
               'Buveinė, elgsena, ūkinė veikla ir kita informacija': form.description,
               [getTitle(place.species)]: form.createdAt,
               'Stebėjimo data': form.observedAt,
@@ -236,7 +236,7 @@ export default class JobsRequestsService extends moleculer.Service {
               'Radavietės ID': '-',
               'Radavietės kodas': '-',
               ...getSpeciesData(form.species),
-              'Individų skaičius (gausumas)': form.quantity,
+              'Individų skaičius (gausumas)': form.quantityTranslate || '0',
               'Buveinė, elgsena, ūkinė veikla ir kita informacija': form.description,
               [getTitle(form.species)]: form.createdAt,
               'Stebėjimo data': form.observedAt,
@@ -268,7 +268,7 @@ export default class JobsRequestsService extends moleculer.Service {
           ? []
           : await getPlaces(ctx, id, {
               date: requestData.requestDate,
-              translates: requestData.translates,
+              translatesAndFormTypes: requestData.translates,
               limit: batchSize,
               offset,
             });
@@ -277,7 +277,7 @@ export default class JobsRequestsService extends moleculer.Service {
           ? {}
           : await getInformationalForms(ctx, id, {
               date: requestData.requestDate,
-              translates: requestData.translates,
+              translatesAndFormTypes: requestData.translates,
               limit: batchSize,
               offset,
             });

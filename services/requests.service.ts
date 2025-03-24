@@ -929,7 +929,7 @@ export default class RequestsService extends moleculer.Service {
     requestData.places?.forEach((place) => {
       const speciesInfo = getSpeciesData(place.species);
       place.forms?.forEach((form) => {
-        let { features } = form.geom || [];
+        const { features } = form.geom || [];
         const featuresToInsert = features.map((f: any) => {
           f.geometry.crs = { type: 'name', properties: { name: 'EPSG:3346' } };
           f.properties = {
@@ -937,7 +937,7 @@ export default class RequestsService extends moleculer.Service {
             'Radavietės ID': place.id,
             'Radavietės kodas': place.placeCode,
             ...speciesInfo,
-            'Individų skaičius (gausumas)': form.quantity,
+            'Individų skaičius (gausumas)': form.quantityTranslate || '0',
             'Buveinė, elgsena, ūkinė veikla ir kita informacija': form.description,
             [getTitle(place.species)]: form.createdAt,
             'Stebėjimo data': form.observedAt,
@@ -954,7 +954,7 @@ export default class RequestsService extends moleculer.Service {
 
     Object.values(requestData.informationalForms)?.forEach((item) => {
       item?.forms?.forEach((form: any) => {
-        let { features } = form.geom || [];
+        const { features } = form.geom || [];
         const featuresToInsert = features.map((f: any) => {
           f.geometry.crs = { type: 'name', properties: { name: 'EPSG:3346' } };
           f.properties = {
@@ -962,7 +962,7 @@ export default class RequestsService extends moleculer.Service {
             'Radavietės ID': '-',
             'Radavietės kodas': '-',
             ...getSpeciesData(form.species),
-            'Individų skaičius (gausumas)': form.quantity,
+            'Individų skaičius (gausumas)': form.quantityTranslate || '0',
             'Buveinė, elgsena, ūkinė veikla ir kita informacija': form.description,
             [getTitle(form.species)]: form.createdAt,
             'Stebėjimo data': form.observedAt,
