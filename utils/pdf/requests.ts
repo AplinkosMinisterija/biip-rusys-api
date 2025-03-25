@@ -10,6 +10,7 @@ import { Context } from 'moleculer';
 import { Moment } from 'moment';
 import moment from 'moment-timezone';
 import { Form } from '../../services/forms.service';
+import { FormType } from '../../services/forms.types.service';
 import { Place, PlaceStatusTranslates } from '../../services/places.service';
 import { Request } from '../../services/requests.service';
 import { Taxonomy } from '../../services/taxonomies.service';
@@ -47,9 +48,14 @@ function formatAreaText(area?: number): string {
   }`;
 }
 
-function getFormData(form: Form, translates?: any) {
+function getFormData(form: Form, translatesAndFormTypes?: any) {
   const speciesId = (form.species || (form as any).speciesId) as number;
-  const formTranslates = translates?.[`${speciesId}`];
+  const formTranslatesAndFormType = translatesAndFormTypes?.[speciesId];
+  const formType = formTranslatesAndFormType?.formType;
+  const isInvasivePlant = formType === FormType.INVASIVE_PLANT;
+
+  const getTranslate = (key: string, value: any) =>
+    formTranslatesAndFormType?.[key]?.[value] ?? '-';
 
   return {
     id: form.id,
@@ -65,14 +71,15 @@ function getFormData(form: Form, translates?: any) {
     photos: form.photos?.map((p) => p.url) || [],
     description: form.description,
     quantity: form.quantity,
-    activityTranslate: formTranslates?.ACTIVITY?.[form.activity] || '-',
-    methodTranslate: formTranslates?.METHOD?.[form.method] || '-',
-    evolutionTranslate: formTranslates?.EVOLUTION?.[form.evolution] || '-',
+    quantityTranslate: isInvasivePlant ? getTranslate('METHOD', form.method) : `${form.quantity}`,
+    activityTranslate: getTranslate('ACTIVITY', form.activity),
+    methodTranslate: getTranslate('METHOD', form.method),
+    evolutionTranslate: getTranslate('EVOLUTION', form.evolution),
     status: '',
   };
 }
 
-async function getTranslates(ctx: Context, speciesIds: number[]) {
+async function getTranslatesAndFormTypes(ctx: Context, speciesIds: number[]) {
   const species: any[] = await ctx.call('taxonomies.findBySpeciesId', {
     id: speciesIds,
     showHidden: true,
@@ -92,7 +99,9 @@ async function getTranslates(ctx: Context, speciesIds: number[]) {
     if (!item.formType || !item.speciesId) return acc;
     return {
       ...acc,
-      [item.speciesId]: translatesByFromType[item.formType] || {},
+      [item.speciesId]: translatesByFromType[item.formType]
+        ? { ...translatesByFromType[item.formType], formType: item.formType }
+        : {},
     };
   }, {});
 }
@@ -148,7 +157,7 @@ export async function getPlaces(
   requestId: number,
   opts: {
     date: string;
-    translates?: any;
+    translatesAndFormTypes?: any;
     limit?: number;
     offset?: number;
   },
@@ -206,11 +215,10 @@ export async function getPlaces(
         hasEvolution: placeForms.some((f) => !!f.evolution),
         hasArea: placeForms.some((f) => !!f.area),
         hasActivity: placeForms.some((f) => !!f.activity),
-        hasMethod: placeForms.some((f) => !!f.method),
         coordinates: getGeometryWithTranslates(placesGeomByPlaceId[p.id]),
         geom: placesGeomByPlaceId[p.id],
         forms: placeForms
-          .map((f) => getFormData(f, opts.translates))
+          .map((f) => getFormData(f, opts.translatesAndFormTypes))
           .sort((f1: any, f2: any) => {
             return moment(f2.observedAt).diff(moment(f1.observedAt));
           }),
@@ -226,7 +234,7 @@ export async function getPlaces(
 export async function getInformationalForms(
   ctx: Context,
   requestId: number,
-  opts: { date: string; translates?: any; offset?: number; limit?: number },
+  opts: { date: string; translatesAndFormTypes?: any; offset?: number; limit?: number },
 ) {
   const informationalForms: Array<{
     formId: number;
@@ -259,19 +267,17 @@ export async function getInformationalForms(
       hash: '',
       forms: [],
       hasActivity: false,
-      hasMethod: false,
     };
 
     const item = acc[`${form.species}`];
 
     item.forms.push({
-      ...getFormData(form, opts.translates),
+      ...getFormData(form, opts.translatesAndFormTypes),
       coordinates: getGeometryWithTranslates(formsGeomByFormId[form.id]),
       geom: formsGeomByFormId[form.id],
       species: form.species,
     });
     item.hasActivity = item.hasActivity || !!form.activity;
-    item.hasMethod = item.hasMethod || !!form.method;
     item.hasEvolution = item.hasEvolution || !!form.evolution;
     return acc;
   }, {});
@@ -315,7 +321,7 @@ export async function getRequestData(
   const requestDate = formatDate(request.data?.receiveDate);
 
   const speciesIds = request.inheritedSpecies || [];
-  const translates = await getTranslates(ctx, speciesIds);
+  const translatesAndFormTypes = await getTranslatesAndFormTypes(ctx, speciesIds);
   const speciesById: { [key: string]: Taxonomy } = await ctx.call('taxonomies.findBySpeciesId', {
     id: speciesIds,
     showHidden: true,
@@ -325,10 +331,13 @@ export async function getRequestData(
 
   let places, informationalForms;
   if (opts.loadPlaces) {
-    places = await getPlaces(ctx, id, { date: requestDate, translates });
+    places = await getPlaces(ctx, id, { date: requestDate, translatesAndFormTypes });
   }
   if (opts.loadInformationalForms) {
-    informationalForms = await getInformationalForms(ctx, id, { date: requestDate, translates });
+    informationalForms = await getInformationalForms(ctx, id, {
+      date: requestDate,
+      translatesAndFormTypes,
+    });
   }
 
   const previewScreenshotHash = toMD5Hash(`request=${request.id}`);
@@ -356,7 +365,7 @@ export async function getRequestData(
     id: request.id,
     speciesById,
     requestDate,
-    translates,
+    translates: translatesAndFormTypes,
     createdAt: formatDate(request.createdAt),
     legendData,
     places,
