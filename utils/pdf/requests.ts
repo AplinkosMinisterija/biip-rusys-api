@@ -160,6 +160,7 @@ export async function getPlaces(
     translatesAndFormTypes?: any;
     limit?: number;
     offset?: number;
+    justInfo?: boolean;
   },
 ) {
   const date = formatDate(opts.date);
@@ -212,16 +213,20 @@ export async function getPlaces(
         placeCreatedAt: formatDate(p.createdAt),
         screenshot: '',
         hash: toMD5Hash(`place=${p.id}`),
-        hasEvolution: placeForms.some((f) => !!f.evolution),
-        hasArea: placeForms.some((f) => !!f.area),
-        hasActivity: placeForms.some((f) => !!f.activity),
-        coordinates: getGeometryWithTranslates(placesGeomByPlaceId[p.id]),
-        geom: placesGeomByPlaceId[p.id],
-        forms: placeForms
-          .map((f) => getFormData(f, opts.translatesAndFormTypes))
-          .sort((f1: any, f2: any) => {
-            return moment(f2.observedAt).diff(moment(f1.observedAt));
-          }),
+        ...(opts?.justInfo
+          ? {}
+          : {
+              hasEvolution: placeForms.some((f) => !!f.evolution),
+              hasArea: placeForms.some((f) => !!f.area),
+              hasActivity: placeForms.some((f) => !!f.activity),
+              coordinates: getGeometryWithTranslates(placesGeomByPlaceId[p.id]),
+              geom: placesGeomByPlaceId[p.id],
+              forms: placeForms
+                .map((f) => getFormData(f, opts.translatesAndFormTypes))
+                .sort((f1: any, f2: any) => {
+                  return moment(f2.observedAt).diff(moment(f1.observedAt));
+                }),
+            }),
       };
     })
     .sort((p1: any, p2: any) => {

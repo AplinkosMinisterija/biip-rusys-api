@@ -19,7 +19,7 @@ import { Request } from './requests.service';
 import { TaxonomySpeciesType, TaxonomySpeciesTypeTranslate } from './taxonomies.species.service';
 import { Tenant } from './tenants.service';
 import { User } from './users.service';
-import { PDFDocument as PDFLibDocument } from 'pdf-lib';
+import muhammara from 'muhammara';
 
 export function getRequestSecret(request: Request) {
   return toMD5Hash(`id=${request.id}&date=${moment(request.createdAt).format('YYYYMMDDHHmmss')}`);
@@ -38,6 +38,110 @@ export function getRequestSecret(request: Request) {
   },
 })
 export default class JobsRequestsService extends moleculer.Service {
+  // @Action({
+  //   queue: true,
+  //   params: {
+  //     id: 'number',
+  //   },
+  //   timeout: 0,
+  // })
+  // async generateAndSavePdf(ctx: Context<{ id: number }>) {
+  //   const { id } = ctx.params;
+  //   const { job } = ctx.locals;
+
+  //   const request: Request = await ctx.call('requests.resolve', {
+  //     id,
+  //     populate: 'createdBy,tenant',
+  //   });
+
+  //   const childrenValues = await job.getChildrenValues();
+
+  //   const screenshotsByHash: any = Object.values(childrenValues).reduce(
+  //     (acc: any, item: any) => ({
+  //       ...acc,
+  //       [item.hash]: item.url,
+  //     }),
+  //     {},
+  //   );
+
+  //   const requestData = await getRequestData(ctx, id);
+
+  //   const emptyScreenshots: any = {};
+
+  //   const placesCount = requestData?.places?.length || 0;
+  //   const informationalFormsCount = Object.keys(requestData?.informationalForms)?.length || 0;
+
+  //   // general preview screenshot should be in place when there are places
+  //   if (!!placesCount && !screenshotsByHash[requestData.previewScreenshotHash]) {
+  //     emptyScreenshots.request = id;
+  //   }
+
+  //   requestData?.places.forEach((p) => {
+  //     if (!screenshotsByHash[p.hash]) {
+  //       emptyScreenshots.places = emptyScreenshots.places || [];
+  //       emptyScreenshots.places.push(p.id);
+  //     }
+  //   });
+
+  //   Object.values(requestData?.informationalForms).forEach((value) => {
+  //     if (!screenshotsByHash[value.hash]) {
+  //       emptyScreenshots.informationalForms = emptyScreenshots.informationalForms || [];
+  //       emptyScreenshots.informationalForms.push(value.forms?.map((f: any) => f.id));
+  //     }
+  //   });
+
+  //   if (Object.keys(emptyScreenshots).length) {
+  //     throwValidationError('Empty screenshots', {
+  //       request: id,
+  //       emptyScreenshots,
+  //       screenshotsCount: placesCount + informationalFormsCount + placesCount ? 1 : 0,
+  //     });
+  //   }
+
+  //   const screenshotsHash = toMD5Hash(`id=${id}&date=${moment().format('YYYYMMDDHHmmsss')}`);
+
+  //   const redisKey = `screenshots.${screenshotsHash}`;
+
+  //   await this.broker.cacher.set(redisKey, screenshotsByHash);
+
+  //   const secret = getRequestSecret(request);
+
+  //   const footerHtml = getTemplateHtml('footer.ejs', {
+  //     id,
+  //     systemName: requestData.systemNameFooter,
+  //   });
+
+  //   const pdf = await ctx.call('tools.makePdf', {
+  //     url: `${process.env.SERVER_HOST}/jobs/requests/${id}/html?secret=${secret}&skey=${screenshotsHash}`,
+  //     footer: footerHtml,
+  //   });
+
+  //   const folder = this.getFolderName(request.createdBy as any as User, request.tenant as Tenant);
+
+  //   const result: any = await ctx.call(
+  //     'minio.uploadFile',
+  //     {
+  //       payload: toReadableStream(pdf),
+  //       folder,
+  //       isPrivate: true,
+  //       types: FILE_TYPES,
+  //     },
+  //     {
+  //       meta: {
+  //         mimetype: 'application/pdf',
+  //         filename: `israsas-${request.id}.pdf`,
+  //       },
+  //     },
+  //   );
+
+  //   await ctx.call('requests.saveGeneratedPdf', {
+  //     id,
+  //     url: result.url,
+  //   });
+
+  //   return { job: job.id, url: result.url };
+  // }
+
   @Action({
     queue: true,
     params: {
@@ -48,120 +152,41 @@ export default class JobsRequestsService extends moleculer.Service {
   async generateAndSavePdf(ctx: Context<{ id: number }>) {
     const { id } = ctx.params;
     const { job } = ctx.locals;
-
-    const request: Request = await ctx.call('requests.resolve', {
-      id,
-      populate: 'createdBy,tenant',
-    });
-
-    const childrenValues = await job.getChildrenValues();
-
-    const screenshotsByHash: any = Object.values(childrenValues).reduce(
-      (acc: any, item: any) => ({
-        ...acc,
-        [item.hash]: item.url,
-      }),
-      {},
-    );
-
-    const requestData = await getRequestData(ctx, id);
-
-    const emptyScreenshots: any = {};
-
-    const placesCount = requestData?.places?.length || 0;
-    const informationalFormsCount = Object.keys(requestData?.informationalForms)?.length || 0;
-
-    // general preview screenshot should be in place when there are places
-    if (!!placesCount && !screenshotsByHash[requestData.previewScreenshotHash]) {
-      emptyScreenshots.request = id;
-    }
-
-    requestData?.places.forEach((p) => {
-      if (!screenshotsByHash[p.hash]) {
-        emptyScreenshots.places = emptyScreenshots.places || [];
-        emptyScreenshots.places.push(p.id);
-      }
-    });
-
-    Object.values(requestData?.informationalForms).forEach((value) => {
-      if (!screenshotsByHash[value.hash]) {
-        emptyScreenshots.informationalForms = emptyScreenshots.informationalForms || [];
-        emptyScreenshots.informationalForms.push(value.forms?.map((f: any) => f.id));
-      }
-    });
-
-    if (Object.keys(emptyScreenshots).length) {
-      throwValidationError('Empty screenshots', {
-        request: id,
-        emptyScreenshots,
-        screenshotsCount: placesCount + informationalFormsCount + placesCount ? 1 : 0,
-      });
-    }
-
-    const screenshotsHash = toMD5Hash(`id=${id}&date=${moment().format('YYYYMMDDHHmmsss')}`);
-
-    const redisKey = `screenshots.${screenshotsHash}`;
-
-    await this.broker.cacher.set(redisKey, screenshotsByHash);
-
-    const secret = getRequestSecret(request);
-
-    const footerHtml = getTemplateHtml('footer.ejs', {
-      id,
-      systemName: requestData.systemNameFooter,
-    });
-
-    const pdf = await ctx.call('tools.makePdf', {
-      url: `${process.env.SERVER_HOST}/jobs/requests/${id}/html?secret=${secret}&skey=${screenshotsHash}`,
-      footer: footerHtml,
-    });
-
-    const folder = this.getFolderName(request.createdBy as any as User, request.tenant as Tenant);
-
-    const result: any = await ctx.call(
-      'minio.uploadFile',
-      {
-        payload: toReadableStream(pdf),
-        folder,
-        isPrivate: true,
-        types: FILE_TYPES,
-      },
-      {
-        meta: {
-          mimetype: 'application/pdf',
-          filename: `israsas-${request.id}.pdf`,
-        },
-      },
-    );
-
-    await ctx.call('requests.saveGeneratedPdf', {
-      id,
-      url: result.url,
-    });
-
-    return { job: job.id, url: result.url };
-  }
-
-  @Action({
-    queue: true,
-    params: {
-      id: 'number',
-    },
-    timeout: 0,
-  })
-  async initiateGeneratePartialPdf(ctx: Context<{ id: number }>) {
-    const { id } = ctx.params;
-
     const stats: any = await ctx.call('requests.requestStats', { id });
+
+    let screenshotsHash = '';
+    if (job?.id) {
+      const childrenValues = await job.getChildrenValues();
+
+      const screenshotsByHash: any = Object.values(childrenValues).reduce(
+        (acc: any, item: any) => ({
+          ...acc,
+          [item.hash]: item.url,
+        }),
+        {},
+      );
+
+      screenshotsHash = toMD5Hash(`id=${id}&date=${moment().format('YYYYMMDDHHmmsss')}`);
+
+      const redisKey = `screenshots.${screenshotsHash}`;
+
+      await this.broker.cacher.set(redisKey, screenshotsByHash, 60 * 60 * 24);
+    }
 
     const limit = 100;
 
     const childrenJobs: any[] = [];
     let index = 0;
 
+    childrenJobs.push({
+      params: { id, type: 'intro', screenshotsHash },
+      name: 'jobs.requests',
+      action: 'generatePartialPdf',
+    });
+
     for (let i = 0; i < Math.ceil(stats.placesCount / limit); i++) {
       childrenJobs.push({
-        params: { offset: limit * i, limit, id, type: 'places', index },
+        params: { offset: limit * i, limit, id, type: 'places', index, screenshotsHash },
         name: 'jobs.requests',
         action: 'generatePartialPdf',
       });
@@ -170,7 +195,7 @@ export default class JobsRequestsService extends moleculer.Service {
 
     for (let i = 0; i < Math.ceil(stats.informationalFormsCount / limit); i++) {
       childrenJobs.push({
-        params: { offset: limit * i, limit, id, type: 'forms', index },
+        params: { offset: limit * i, limit, id, type: 'forms', index, screenshotsHash },
         name: 'jobs.requests',
         action: 'generatePartialPdf',
       });
@@ -247,11 +272,10 @@ export default class JobsRequestsService extends moleculer.Service {
     });
 
     const pass = new PassThrough();
-
+    const pdfWriter = muhammara.createWriter(new muhammara.PDFStreamForResponse(pass));
     const folder = this.getFolderName(request.createdBy as any as User, request.tenant as Tenant);
 
-    // DO NOT WAIT
-    ctx.call(
+    const uploadPromise = ctx.call(
       'minio.uploadFile',
       {
         payload: pass,
@@ -267,37 +291,21 @@ export default class JobsRequestsService extends moleculer.Service {
       },
     );
 
-    let globalPageNumber = 1;
-
-    const mergedPdf = await PDFLibDocument.create();
-
     for (const file of items) {
       const pdfBuffer = await fetch(file.url)
         .then((r) => r.arrayBuffer())
-        .then((r) => Buffer.from(r));
+        .then((arrayBuffer) => Buffer.from(arrayBuffer));
 
-      const pdf = await PDFLibDocument.load(pdfBuffer);
-      const pages = await mergedPdf.copyPages(pdf, pdf.getPageIndices());
-      pages.forEach((page) => mergedPdf.addPage(page));
-
-      // Flush to MinIO every 1000 pages to avoid RAM issues
-      if (globalPageNumber / 1000 > 0) {
-        const partialBuffer = Buffer.from(await mergedPdf.save());
-        pass.write(partialBuffer);
-
-        // Remove all pages from the merged PDF to avoid memory buildup
-        while (mergedPdf.getPageCount() > 0) {
-          mergedPdf.removePage(0);
-        }
-      }
-
-      globalPageNumber += pdf.getPageCount();
+      const pdfReader = new muhammara.PDFRStreamForBuffer(pdfBuffer);
+      pdfWriter.appendPDFPagesFromPDF(pdfReader);
     }
 
-    // Save final batch
-    const finalBuffer = Buffer.from(await mergedPdf.save());
-    pass.write(finalBuffer);
+    pdfWriter.end();
     pass.end();
+
+    await uploadPromise;
+
+    return { success: true };
   }
 
   @Action({
@@ -311,13 +319,21 @@ export default class JobsRequestsService extends moleculer.Service {
         enum: ['intro', 'forms', 'places'],
       },
       index: 'number|convert|default:0',
+      screenshotsHash: 'string|optional|default:admin_preview',
     },
     timeout: 0,
   })
   async generatePartialPdf(
-    ctx: Context<{ id: number; type: string; offset?: number; limit: number; index: number }>,
+    ctx: Context<{
+      id: number;
+      type: string;
+      offset?: number;
+      limit: number;
+      index: number;
+      screenshotsHash: string;
+    }>,
   ) {
-    const { id, type, limit, offset } = ctx.params;
+    const { id, type, limit, offset, screenshotsHash } = ctx.params;
 
     const request: Request = await ctx.call('requests.resolve', {
       id,
@@ -328,7 +344,7 @@ export default class JobsRequestsService extends moleculer.Service {
     const secret = getRequestSecret(request);
 
     const searchParams = new URLSearchParams({
-      skey: 'admin_preview',
+      skey: screenshotsHash,
       secret,
       limit: `${limit}`,
       offset: `${offset}`,
@@ -350,6 +366,7 @@ export default class JobsRequestsService extends moleculer.Service {
 
     const pdf = await ctx.call('tools.makePdf', {
       url: uploadedHtml.presignedUrl,
+      // url: uploadedHtml.url.replace('localhost', 'host.docker.internal'),
     });
 
     const result: any = await ctx.call(
@@ -741,7 +758,7 @@ export default class JobsRequestsService extends moleculer.Service {
 
     const requestData = await getRequestData(ctx, id, {
       loadPlaces: false,
-      loadLegend: true,
+      loadLegend: type === 'intro',
       loadInformationalForms: false,
     });
 
@@ -776,11 +793,21 @@ export default class JobsRequestsService extends moleculer.Service {
         requestData.informationalForms[key].screenshot = screenshotsByHash[value.hash] || '';
       });
     } else if (type === 'intro') {
-      // TODO: setup
+      requestData.places = await getPlaces(ctx, id, {
+        date: requestData.requestDate,
+        translatesAndFormTypes: requestData.translates,
+        justInfo: true,
+      });
+
+      requestData.informationalForms = await getInformationalForms(ctx, id, {
+        date: requestData.requestDate,
+        translatesAndFormTypes: requestData.translates,
+      });
+
       requestData.previewScreenshot = screenshotsByHash[requestData.previewScreenshotHash] || '';
     }
 
-    const html = getTemplateHtml(`partials/${type}.ejs`, requestData);
+    const html = getTemplateHtml(`partials/${type}.ejs`, { ...requestData, offset });
 
     return html;
   }

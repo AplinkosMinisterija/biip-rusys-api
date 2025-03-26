@@ -172,18 +172,19 @@
           <u><b>nerasta</b></u>.
         </div>
         <%}; %>
-        <% if (Object.keys(informationalForms).length) { %>
-          <div class="mt-8">
-            Teritorijoje aptinkamų prašytų <%= systemNameShort %> radavietės (pavieniai stebėjimai):
-          </div>
-          <%- include('forms/listTable', {informationalForms: informationalForms}); %>
-          <% } else { %>
-          <div class="mt-8">
-            Teritorijoje aptinkamų prašytų <%= systemNameShort %> radaviečių (pavienių stebėjimų)
-            <u><b>nerasta</b></u>.
-          </div>
-          <%}; %>
-      
+        <% if (!isInvasive) { %>
+            <% if (Object.keys(informationalForms).length) { %>
+              <div class="mt-8">
+                Teritorijoje aptinkamų prašytų <%= systemNameShort %> radavietės (pavieniai stebėjimai):
+              </div>
+              <%- include('forms/listTable', {informationalForms: informationalForms}); %>
+              <% } else { %>
+              <div class="mt-8">
+                Teritorijoje aptinkamų prašytų <%= systemNameShort %> radaviečių (pavienių stebėjimų)
+                <u><b>nerasta</b></u>.
+              </div>
+            <%} %>
+        <% } %>
       </div>
   </body>
 </html>
