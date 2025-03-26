@@ -557,6 +557,30 @@ export interface Form extends BaseModelInterface {
 })
 export default class FormsService extends moleculer.Service {
   @Method
+  parseSort(sort?: string | string[]) {
+    if (!sort) {
+      return;
+    }
+
+    let parseSorting;
+
+    if (typeof sort === 'string') {
+      try {
+        parseSorting = JSON.parse(sort);
+      } catch (e) {
+        parseSorting = sort;
+      }
+    } else {
+      parseSorting = sort;
+    }
+
+    const sortingFields = Array.isArray(parseSorting)
+      ? parseSorting
+      : parseSorting?.split(',') || [];
+
+    return sortingFields;
+  }
+  @Method
   async speciesTypeFilter(ctx: any) {
     ctx.params.query = parseToObject(ctx.params.query);
 
@@ -796,23 +820,22 @@ export default class FormsService extends moleculer.Service {
   @Action({
     rest: 'GET /tasks',
     types: [EndpointType.ADMIN, EndpointType.EXPERT],
+    params: {
+      sort: [
+        { type: 'string', optional: true },
+        { type: 'array', optional: true, items: 'string' },
+      ],
+    },
   })
   async getTasks(ctx: Context<any>) {
-    let parsedSort;
+    const sortingFields = this.parseSort(ctx.params.sort);
 
-    if (typeof ctx.params.sort === 'string') {
-      try {
-        parsedSort = JSON.parse(ctx.params.sort);
-      } catch (e) {
-        parsedSort = ctx.params.sort;
-      }
-    } else {
-      parsedSort = ctx.params.sort;
+    if (!sortingFields.some((field: string) => field === 'deadlineAt' || field === '-deadlineAt')) {
+      sortingFields.push('deadlineAt');
     }
-
-    const sortingFields = Array.isArray(parsedSort) ? parsedSort : parsedSort?.split(',') || [];
-
-    sortingFields.push('deadlineAt', 'createdAt');
+    if (!sortingFields.some((field: string) => field === 'createdAt' || field === '-createdAt')) {
+      sortingFields.push('createdAt');
+    }
 
     return ctx.call('forms.list', {
       ...ctx.params,
@@ -910,32 +933,18 @@ export default class FormsService extends moleculer.Service {
         type: 'number',
         convert: true,
       },
-      sort: {
-        type: 'array',
-        items: { type: 'string' },
-        optional: true,
-        empty: false,
-        convert: true,
-      },
+      sort: [
+        { type: 'string', optional: true },
+        { type: 'array', optional: true, items: 'string' },
+      ],
     },
   })
-  async getPlaces(ctx: Context<{ id: number; sort: string[] }, UserAuthMeta>) {
+  async getPlaces(ctx: Context<{ id: number; sort: string[] | string }, UserAuthMeta>) {
     const adapter = await this.getAdapter(ctx);
     const table = adapter.getTable();
     const formsTable = 'forms';
     const placesTable = 'places';
-
-    let parsePlacesSort;
-
-    if (typeof ctx.params.sort === 'string') {
-      try {
-        parsePlacesSort = JSON.parse(ctx.params.sort);
-      } catch (e) {
-        parsePlacesSort = ctx.params.sort;
-      }
-    } else {
-      parsePlacesSort = ctx.params.sort;
-    }
+    const parsePlacesSort = this.parseSort(ctx.params.sort);
 
     const getSortObject = (item = '') => {
       const desc = item.startsWith('-');
@@ -955,18 +964,12 @@ export default class FormsService extends moleculer.Service {
     };
 
     if (Array.isArray(parsePlacesSort)) {
-      try {
-        parsePlacesSort.forEach((item: string) => {
-          parseSortItems(JSON.parse(item));
-        });
-      } catch (e) {
-        parseSortItems(parsePlacesSort);
-      }
+      parseSortItems(parsePlacesSort);
     } else {
       //default sort
       sortingObject.push(getSortObject());
     }
-    
+
     const allPlacesBySpecies = table
       .select(
         `${placesTable}.id`,
