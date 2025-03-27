@@ -3,7 +3,7 @@
 import moleculer, { Context, RestSchema } from 'moleculer';
 import { Action, Event, Method, Service } from 'moleculer-decorators';
 
-import DbConnection, { MaterializedView } from '../mixins/database.mixin';
+import DbConnection, { MaterializedView, parseSort } from '../mixins/database.mixin';
 import { TaxonomySpeciesType } from './taxonomies.species.service';
 
 import PostgisMixin, { areaQuery, distanceQuery } from 'moleculer-postgis';
@@ -557,30 +557,6 @@ export interface Form extends BaseModelInterface {
 })
 export default class FormsService extends moleculer.Service {
   @Method
-  parseSort(sort?: string | string[]) {
-    if (!sort) {
-      return;
-    }
-
-    let parseSorting;
-
-    if (typeof sort === 'string') {
-      try {
-        parseSorting = JSON.parse(sort);
-      } catch (e) {
-        parseSorting = sort;
-      }
-    } else {
-      parseSorting = sort;
-    }
-
-    const sortingFields = Array.isArray(parseSorting)
-      ? parseSorting
-      : parseSorting?.split(',') || [];
-
-    return sortingFields;
-  }
-  @Method
   async speciesTypeFilter(ctx: any) {
     ctx.params.query = parseToObject(ctx.params.query);
 
@@ -828,7 +804,7 @@ export default class FormsService extends moleculer.Service {
     },
   })
   async getTasks(ctx: Context<{ sort?: string | string[] }>) {
-    const sortingFields = this.parseSort(ctx.params.sort);
+    const sortingFields = parseSort(ctx.params.sort);
 
     if (!sortingFields.some((field: string) => field === 'deadlineAt' || field === '-deadlineAt')) {
       sortingFields.push('deadlineAt');
@@ -944,7 +920,7 @@ export default class FormsService extends moleculer.Service {
     const table = adapter.getTable();
     const formsTable = 'forms';
     const placesTable = 'places';
-    const parsePlacesSort = this.parseSort(ctx.params.sort);
+    const parsePlacesSort = parseSort(ctx.params.sort);
 
     const getSortObject = (item = '') => {
       const desc = item.startsWith('-');

@@ -4,7 +4,7 @@ import moleculer, { Context } from 'moleculer';
 import { Action, Event, Method, Service } from 'moleculer-decorators';
 
 import { UserAuthMeta } from './api.service';
-import DbConnection from '../mixins/database.mixin';
+import DbConnection, { parseSort } from '../mixins/database.mixin';
 import {
   COMMON_FIELDS,
   COMMON_DEFAULT_SCOPES,
@@ -81,30 +81,6 @@ export interface TenantUser extends BaseModelInterface {
   },
 })
 export default class TenantUsersService extends moleculer.Service {
-  @Method
-  parseSort(sort?: string | string[]) {
-    if (!sort) {
-      return;
-    }
-
-    let parseSorting;
-
-    if (typeof sort === 'string') {
-      try {
-        parseSorting = JSON.parse(sort);
-      } catch (e) {
-        parseSorting = sort;
-      }
-    } else {
-      parseSorting = sort;
-    }
-
-    const sortingFields = Array.isArray(parseSorting)
-      ? parseSorting
-      : parseSorting?.split(',') || [];
-
-    return sortingFields;
-  }
   @Action({
     params: {
       tenant: {
@@ -153,7 +129,7 @@ export default class TenantUsersService extends moleculer.Service {
     ctx: Context<{ id: number; query?: any; filter?: any; sort?: string[] | string }, UserAuthMeta>,
   ) {
     const { id, query, filter, sort } = ctx.params;
-    const sortingFields = this.parseSort(sort);
+    const sortingFields = parseSort(sort);
 
     const tenant: Tenant = await ctx.call('tenants.get', { id });
     if (!tenant || !tenant.id) {
