@@ -2,15 +2,14 @@
 
 import moleculer, { Context } from 'moleculer';
 import { Action, Service } from 'moleculer-decorators';
-import _ from 'lodash';
 import DbConnection, { MaterializedView } from '../mixins/database.mixin';
-import { TaxonomySpeciesType } from './taxonomies.species.service';
-import { FormType } from './forms.types.service';
-import { Convention } from './conventions.service';
-import { AuthType, UserAuthMeta } from './api.service';
 import { ADDITIONAL_CACHE_KEYS, queryBoolean, throwNotFoundError } from '../types';
-import { UserType } from './users.service';
 import { parseToObject } from '../utils/functions';
+import { AuthType, UserAuthMeta } from './api.service';
+import { Convention } from './conventions.service';
+import { FormType } from './forms.types.service';
+import { TaxonomySpeciesType } from './taxonomies.species.service';
+import { UserType } from './users.service';
 
 export interface Taxonomy {
   speciesId: number;
