@@ -827,7 +827,7 @@ export default class FormsService extends moleculer.Service {
       ],
     },
   })
-  async getTasks(ctx: Context<any>) {
+  async getTasks(ctx: Context<{ sort?: string | string[] }>) {
     const sortingFields = this.parseSort(ctx.params.sort);
 
     if (!sortingFields.some((field: string) => field === 'deadlineAt' || field === '-deadlineAt')) {
@@ -939,7 +939,7 @@ export default class FormsService extends moleculer.Service {
       ],
     },
   })
-  async getPlaces(ctx: Context<{ id: number; sort: string[] | string }, UserAuthMeta>) {
+  async getPlaces(ctx: Context<{ id: number; sort?: string[] | string }, UserAuthMeta>) {
     const adapter = await this.getAdapter(ctx);
     const table = adapter.getTable();
     const formsTable = 'forms';

@@ -153,7 +153,7 @@ export default class TenantUsersService extends moleculer.Service {
     ctx: Context<{ id: number; query?: any; filter?: any; sort?: string[] | string }, UserAuthMeta>,
   ) {
     const { id, query, filter, sort } = ctx.params;
-    const sortingFields = this.parseSort(ctx.params.sort);
+    const sortingFields = this.parseSort(sort);
 
     const tenant: Tenant = await ctx.call('tenants.get', { id });
     if (!tenant || !tenant.id) {
