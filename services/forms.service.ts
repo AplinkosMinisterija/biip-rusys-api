@@ -3,7 +3,7 @@
 import moleculer, { Context, RestSchema } from 'moleculer';
 import { Action, Event, Method, Service } from 'moleculer-decorators';
 
-import DbConnection, { MaterializedView, parseSort } from '../mixins/database.mixin';
+import DbConnection, { MaterializedView } from '../mixins/database.mixin';
 import { TaxonomySpeciesType } from './taxonomies.species.service';
 
 import PostgisMixin, { areaQuery, distanceQuery } from 'moleculer-postgis';
@@ -804,7 +804,7 @@ export default class FormsService extends moleculer.Service {
     },
   })
   async getTasks(ctx: Context<{ sort?: string | string[] }>) {
-    const sortingFields = parseSort(ctx.params.sort);
+    const sortingFields = this.parseSort(ctx.params.sort);
 
     if (!sortingFields.some((field: string) => field === 'deadlineAt' || field === '-deadlineAt')) {
       sortingFields.push('deadlineAt');
@@ -920,7 +920,7 @@ export default class FormsService extends moleculer.Service {
     const table = adapter.getTable();
     const formsTable = 'forms';
     const placesTable = 'places';
-    const parsePlacesSort = parseSort(ctx.params.sort);
+    const parsePlacesSort = this.parseSort(ctx.params.sort);
 
     const getSortObject = (item = '') => {
       const desc = item.startsWith('-');

@@ -173,6 +173,28 @@ export default function (opts: any = {}) {
     },
 
     methods: {
+      parseSort(sort?: string | string[]) {
+        if (!sort) {
+          return [];
+        }
+      
+        let parsed;
+      
+        if (typeof sort === 'string') {
+          try {
+            parsed = JSON.parse(sort);
+          } catch (e) {
+            parsed = sort;
+          }
+        } else {
+          parsed = sort;
+        }
+      
+        const sortingFields = Array.isArray(parsed) ? parsed : parsed?.split(',') || [];
+      
+        return sortingFields;
+      },
+
       filterQueryIds(ids: number[], queryIds?: any) {
         if (!queryIds) return ids;
 
@@ -249,26 +271,4 @@ export default function (opts: any = {}) {
   };
 
   return schema;
-}
-
-export function parseSort(sort?: string | string[]) {
-  if (!sort) {
-    return [];
-  }
-
-  let parseSorting;
-
-  if (typeof sort === 'string') {
-    try {
-      parseSorting = JSON.parse(sort);
-    } catch (e) {
-      parseSorting = sort;
-    }
-  } else {
-    parseSorting = sort;
-  }
-
-  const sortingFields = Array.isArray(parseSorting) ? parseSorting : parseSorting?.split(',') || [];
-
-  return sortingFields;
 }
