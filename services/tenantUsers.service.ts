@@ -118,11 +118,19 @@ export default class TenantUsersService extends moleculer.Service {
         type: 'any',
         optional: true,
       },
+      sort: [
+        { type: 'string', optional: true },
+        { type: 'array', optional: true, items: 'string' },
+      ],
     },
     types: [EndpointType.ADMIN, EndpointType.EXPERT, EndpointType.TENANT_ADMIN],
   })
-  async findByTenant(ctx: Context<{ id: number; query?: any; filter?: any }, UserAuthMeta>) {
-    const { id, query, filter } = ctx.params;
+  async findByTenant(
+    ctx: Context<{ id: number; query?: any; filter?: any; sort?: string[] | string }, UserAuthMeta>,
+  ) {
+    const { id, query, filter, sort } = ctx.params;
+    const sortingFields = this.parseSort(sort);
+
     const tenant: Tenant = await ctx.call('tenants.get', { id });
     if (!tenant || !tenant.id) {
       return throwNotFoundError('Tenant not found.');
@@ -133,6 +141,7 @@ export default class TenantUsersService extends moleculer.Service {
       {
         query,
         filter,
+        sort: sortingFields,
         populate: 'role',
       },
       {

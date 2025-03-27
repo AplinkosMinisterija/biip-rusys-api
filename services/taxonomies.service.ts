@@ -130,6 +130,7 @@ const updateTaxonomies = async function () {
       kingdomName: 'string',
       kingdomNameLatin: 'string',
       formType: {
+        virtual: true,
         get: ({ entity }: { entity: Taxonomy }) => {
           if (entity.speciesType === TaxonomySpeciesType.ENDANGERED) {
             if (entity.kingdomName === 'Gyvūnai') {
