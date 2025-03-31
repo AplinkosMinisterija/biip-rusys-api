@@ -741,55 +741,22 @@ export default class RequestsService extends moleculer.Service {
 
     const mapByForm = result
       .reduce((acc, data) => [...acc, ...data], [])
-      .reduce((acc: any, item: any) => ({ ...acc, [item.id]: item.geom }), {});
+      .reduce(
+        (acc: any, item: any) => ({ ...acc, [item.id]: { geom: item.geom, area: item.area } }),
+        {},
+      );
 
     return Object.keys(mapByForm).reduce(
       (acc: any[], key: string) => [
         ...acc,
         {
           formId: Number(key),
-          geom: getFeatureCollection(mapByForm[key]),
+          geom: getFeatureCollection(mapByForm[key].geom),
+          area: mapByForm[key].area,
         },
       ],
       [],
     );
-  }
-
-  @Action({
-    params: {
-      id: {
-        type: 'number',
-        convert: true,
-      },
-    },
-    rest: 'GET /:id/pdf',
-    types: [EndpointType.ADMIN],
-    timeout: 0,
-  })
-  async getRequestPdf(ctx: Context<{ id: number }, { $responseType: string }>) {
-    const { id } = ctx.params;
-
-    const request: Request = await ctx.call('requests.resolve', {
-      id,
-      throwIfNotExist: true,
-    });
-
-    const requestData = await getRequestData(ctx, id);
-
-    const secret = getRequestSecret(request);
-
-    const footerHtml = getTemplateHtml('footer.ejs', {
-      id,
-      systemName: requestData.systemNameFooter,
-    });
-
-    const pdf = await ctx.call('tools.makePdf', {
-      url: `${process.env.SERVER_HOST}/jobs/requests/${id}/html?secret=${secret}&skey=admin_preview`,
-      footer: footerHtml,
-    });
-
-    ctx.meta.$responseType = 'application/pdf';
-    return toReadableStream(pdf);
   }
 
   @Action({
@@ -869,121 +836,6 @@ export default class RequestsService extends moleculer.Service {
     };
   }
 
-  @Action({
-    params: {
-      id: {
-        type: 'number',
-        convert: true,
-      },
-    },
-    rest: 'GET /:id/geojson',
-    timeout: 0,
-  })
-  async getGeojson(ctx: Context<{ id: number }, { $responseType: string; $responseHeaders: any }>) {
-    const { id } = ctx.params;
-
-    const request: Request = await ctx.call('requests.resolve', {
-      id,
-      throwIfNotExist: true,
-    });
-
-    if (request.status !== RequestStatus.APPROVED || request.type !== RequestType.GET_ONCE) {
-      return throwNotFoundError('Cannot download request');
-    }
-
-    const requestData = await getRequestData(ctx, id);
-
-    const geojson: any = {
-      type: 'FeatureCollection',
-      features: [],
-    };
-
-    function getSpeciesData(id: number) {
-      const species = requestData.speciesById[`${id}`];
-
-      if (!species?.speciesId) return {};
-
-      return {
-        'Rūšies tipas': TaxonomySpeciesTypeTranslate[species.speciesType],
-        'Rūšies pavadinimas': species.speciesName,
-        'Rūšies lotyniškas pavadinimas': species.speciesNameLatin,
-        'Rūšies sinonimai': species.speciesSynonyms?.join(', ') || '',
-        'Klasės pavadinimas': species.className,
-        'Klasės lotyniškas pavadinimas': species.classNameLatin,
-        'Tipo pavadinimas': species.phylumName,
-        'Tipo lotyniškas pavadinimas': species.phylumNameLatin,
-        'Karalystės pavadinimas': species.kingdomName,
-        'Karalystės lotyniškas pavadinimas': species.kingdomNameLatin,
-      };
-    }
-
-    function getTitle(speciesId: number) {
-      const species = requestData.speciesById[`${speciesId}`];
-      const isInvasive = [TaxonomySpeciesType.INTRODUCED, TaxonomySpeciesType.INVASIVE].includes(
-        species?.speciesType,
-      );
-
-      return isInvasive ? 'Įvedimo į INVA data' : 'Įvedimo į SRIS data';
-    }
-
-    requestData.places?.forEach((place) => {
-      const speciesInfo = getSpeciesData(place.species);
-      place.forms?.forEach((form) => {
-        const { features } = form.geom || [];
-        const featuresToInsert = features.map((f: any) => {
-          f.geometry.crs = { type: 'name', properties: { name: 'EPSG:3346' } };
-          f.properties = {
-            'Anketos ID': form.id,
-            'Radavietės ID': place.id,
-            'Radavietės kodas': place.placeCode,
-            ...speciesInfo,
-            'Individų skaičius (gausumas)': form.quantityTranslate || '0',
-            'Buveinė, elgsena, ūkinė veikla ir kita informacija': form.description,
-            [getTitle(place.species)]: form.createdAt,
-            'Stebėjimo data': form.observedAt,
-            Šaltinis: form.source,
-            'Veiklos požymiai': form.activityTranslate,
-            'Vystymosi stadija': form.evolutionTranslate,
-          };
-          return f;
-        });
-
-        geojson.features.push(...featuresToInsert);
-      });
-    });
-
-    Object.values(requestData.informationalForms)?.forEach((item) => {
-      item?.forms?.forEach((form: any) => {
-        const { features } = form.geom || [];
-        const featuresToInsert = features.map((f: any) => {
-          f.geometry.crs = { type: 'name', properties: { name: 'EPSG:3346' } };
-          f.properties = {
-            'Anketos ID': form.id,
-            'Radavietės ID': '-',
-            'Radavietės kodas': '-',
-            ...getSpeciesData(form.species),
-            'Individų skaičius (gausumas)': form.quantityTranslate || '0',
-            'Buveinė, elgsena, ūkinė veikla ir kita informacija': form.description,
-            [getTitle(form.species)]: form.createdAt,
-            'Stebėjimo data': form.observedAt,
-            Šaltinis: form.source,
-            'Veiklos požymiai': form.activityTranslate,
-            'Vystymosi stadija': form.evolutionTranslate,
-          };
-          return f;
-        });
-
-        geojson.features.push(...featuresToInsert);
-      });
-    });
-
-    ctx.meta.$responseType = 'application/json';
-    ctx.meta.$responseHeaders = {
-      'Content-Disposition': `attachment; filename="request-${id}-geojson.json"`,
-    };
-
-    return geojson;
-  }
 
   @Method
   async getAdminEmails() {

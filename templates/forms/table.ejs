@@ -1,7 +1,9 @@
 <table class="w-full table-striped my-4" cellspacing="0" cellpadding="0">
   <thead class="text-left">
     <tr>
+      <% if (!locals.hideIndex) { %>
       <th class="px-4 py-2">Nr.</th>
+      <% }; %>
       <th class="px-4 py-2">Stebėjimo data</th>
       <th class="px-4 py-2">Gausumas</th>
       <% if (hasActivity) { %>
@@ -9,7 +11,7 @@
       <% }; %> <% if (hasEvolution) { %>
       <th class="px-4 py-2">Vystymosi stadija</th>
       <% }; %> <% if (hasArea) { %>
-        <th class="px-4 py-2">Plotas</th>
+      <th class="px-4 py-2">Plotas</th>
       <% }; %>
     </tr>
   </thead>
@@ -17,16 +19,17 @@
   <tbody>
     <% forms.forEach(function(form, index){ %>
     <tr>
+      <% if (!locals.hideIndex) { %>
       <td class="px-4 py-2"><%= index+1 %>.</td>
+      <% }; %>
       <td class="px-4 py-2"><%= form.observedAt %></td>
       <td class="px-4 py-2"><%= form.quantityTranslate || '0' %></td>
       <% if (hasActivity) { %>
       <td class="px-4 py-2"><%= form.activityTranslate || '-' %></td>
       <% }; %> <% if (hasEvolution) { %>
       <td class="px-4 py-2"><%= form.evolutionTranslate || '-' %></td>
-      <% }; %>
-      <% if (hasArea) { %>
-        <td class="px-4 py-2"><%= form.areaText || '-' %></td>
+      <% }; %> <% if (hasArea) { %>
+      <td class="px-4 py-2"><%= form.areaText || '-' %></td>
       <% }; %>
     </tr>
     <% if (showCoordinates) { %>

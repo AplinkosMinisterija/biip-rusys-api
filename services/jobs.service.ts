@@ -63,8 +63,9 @@ export default class JobsService extends moleculer.Service {
 
       if (uploadedBeforeDays > 5) return;
 
-      return fileData.presignedUrl;
-      // return fileData.privateUrl?.replace('127.0.0.1', 'host.docker.internal');
+      // TODO: remove
+      // return fileData.presignedUrl;
+      return fileData.privateUrl?.replace('127.0.0.1', 'host.docker.internal');
     }
 
     let screenshotUrl = await getHashedFileUrl();

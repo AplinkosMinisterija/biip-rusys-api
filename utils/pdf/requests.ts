@@ -244,6 +244,7 @@ export async function getInformationalForms(
   const informationalForms: Array<{
     formId: number;
     geom: FeatureCollection;
+    area: number;
   }> = await ctx.call('requests.getInfomationalFormsByRequest', {
     id: requestId,
     date: formatDate(opts.date),
@@ -251,8 +252,14 @@ export async function getInformationalForms(
     limit: opts.limit,
   });
 
-  const formsGeomByFormId: any = informationalForms.reduce(
-    (acc, item) => ({ ...acc, [item.formId]: item.geom }),
+  const formsDataByFormId: any = informationalForms.reduce(
+    (acc, item) => ({
+      ...acc,
+      [item.formId]: {
+        geom: item.geom,
+        area: item.area,
+      },
+    }),
     {},
   );
 
@@ -265,45 +272,17 @@ export async function getInformationalForms(
     populate: ['source'],
   });
 
-  const mappedForms = forms.reduce((acc: { [key: string]: any }, form) => {
-    acc[`${form.species}`] = acc[`${form.species}`] || {
-      hasEvolution: false,
-      screenshot: '',
-      hash: '',
-      forms: [],
-      hasActivity: false,
-    };
-
-    const item = acc[`${form.species}`];
-
-    item.forms.push({
-      ...getFormData(form, opts.translatesAndFormTypes),
-      coordinates: getGeometryWithTranslates(formsGeomByFormId[form.id]),
-      geom: formsGeomByFormId[form.id],
-      species: form.species,
-    });
-    item.hasActivity = item.hasActivity || !!form.activity;
-    item.hasEvolution = item.hasEvolution || !!form.evolution;
-    return acc;
-  }, {});
-
-  const searchParams = await getMapsSearchParams(ctx);
-
-  for (const speciesId of Object.keys(mappedForms)) {
-    searchParams.set(
-      'informationalForm',
-      JSON.stringify({
-        $in: mappedForms[speciesId].forms.map((item: any) => item.id),
-      }),
-    );
-
-    const formsIds = mappedForms[speciesId].forms.map((f: any) => f.id).sort();
-    mappedForms[speciesId].hash = toMD5Hash(`informationalForms=${formsIds.sort().join(',')}`);
-
-    mappedForms[speciesId].forms = mappedForms[speciesId].forms.sort((f1: any, f2: any) => {
-      return moment(f2.observedAt).diff(moment(f1.observedAt));
-    });
-  }
+  const mappedForms = forms.map((form) => ({
+    ...getFormData(form, opts.translatesAndFormTypes),
+    coordinates: getGeometryWithTranslates(formsDataByFormId[form.id].geom),
+    geom: formsDataByFormId[form.id].geom,
+    areaText: formatAreaText(formsDataByFormId[form.id].area),
+    species: form.species,
+    hasEvolution: !!form.evolution,
+    screenshot: '',
+    hash: toMD5Hash(`form=${form.id}`),
+    hasActivity: !!form.activity,
+  }));
 
   return mappedForms;
 }

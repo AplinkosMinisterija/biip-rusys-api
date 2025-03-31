@@ -5,7 +5,7 @@ import { Action, Method, Service } from 'moleculer-decorators';
 import moment from 'moment';
 import { PassThrough, Readable } from 'stream';
 import BullMqMixin from '../mixins/bullmq.mixin';
-import { FILE_TYPES, throwNotFoundError, throwValidationError } from '../types';
+import { FILE_TYPES, getPublicFileName, throwNotFoundError } from '../types';
 import { toMD5Hash, toReadableStream } from '../utils/functions';
 import { getTemplateHtml } from '../utils/html';
 import {
@@ -38,110 +38,6 @@ export function getRequestSecret(request: Request) {
   },
 })
 export default class JobsRequestsService extends moleculer.Service {
-  // @Action({
-  //   queue: true,
-  //   params: {
-  //     id: 'number',
-  //   },
-  //   timeout: 0,
-  // })
-  // async generateAndSavePdf(ctx: Context<{ id: number }>) {
-  //   const { id } = ctx.params;
-  //   const { job } = ctx.locals;
-
-  //   const request: Request = await ctx.call('requests.resolve', {
-  //     id,
-  //     populate: 'createdBy,tenant',
-  //   });
-
-  //   const childrenValues = await job.getChildrenValues();
-
-  //   const screenshotsByHash: any = Object.values(childrenValues).reduce(
-  //     (acc: any, item: any) => ({
-  //       ...acc,
-  //       [item.hash]: item.url,
-  //     }),
-  //     {},
-  //   );
-
-  //   const requestData = await getRequestData(ctx, id);
-
-  //   const emptyScreenshots: any = {};
-
-  //   const placesCount = requestData?.places?.length || 0;
-  //   const informationalFormsCount = Object.keys(requestData?.informationalForms)?.length || 0;
-
-  //   // general preview screenshot should be in place when there are places
-  //   if (!!placesCount && !screenshotsByHash[requestData.previewScreenshotHash]) {
-  //     emptyScreenshots.request = id;
-  //   }
-
-  //   requestData?.places.forEach((p) => {
-  //     if (!screenshotsByHash[p.hash]) {
-  //       emptyScreenshots.places = emptyScreenshots.places || [];
-  //       emptyScreenshots.places.push(p.id);
-  //     }
-  //   });
-
-  //   Object.values(requestData?.informationalForms).forEach((value) => {
-  //     if (!screenshotsByHash[value.hash]) {
-  //       emptyScreenshots.informationalForms = emptyScreenshots.informationalForms || [];
-  //       emptyScreenshots.informationalForms.push(value.forms?.map((f: any) => f.id));
-  //     }
-  //   });
-
-  //   if (Object.keys(emptyScreenshots).length) {
-  //     throwValidationError('Empty screenshots', {
-  //       request: id,
-  //       emptyScreenshots,
-  //       screenshotsCount: placesCount + informationalFormsCount + placesCount ? 1 : 0,
-  //     });
-  //   }
-
-  //   const screenshotsHash = toMD5Hash(`id=${id}&date=${moment().format('YYYYMMDDHHmmsss')}`);
-
-  //   const redisKey = `screenshots.${screenshotsHash}`;
-
-  //   await this.broker.cacher.set(redisKey, screenshotsByHash);
-
-  //   const secret = getRequestSecret(request);
-
-  //   const footerHtml = getTemplateHtml('footer.ejs', {
-  //     id,
-  //     systemName: requestData.systemNameFooter,
-  //   });
-
-  //   const pdf = await ctx.call('tools.makePdf', {
-  //     url: `${process.env.SERVER_HOST}/jobs/requests/${id}/html?secret=${secret}&skey=${screenshotsHash}`,
-  //     footer: footerHtml,
-  //   });
-
-  //   const folder = this.getFolderName(request.createdBy as any as User, request.tenant as Tenant);
-
-  //   const result: any = await ctx.call(
-  //     'minio.uploadFile',
-  //     {
-  //       payload: toReadableStream(pdf),
-  //       folder,
-  //       isPrivate: true,
-  //       types: FILE_TYPES,
-  //     },
-  //     {
-  //       meta: {
-  //         mimetype: 'application/pdf',
-  //         filename: `israsas-${request.id}.pdf`,
-  //       },
-  //     },
-  //   );
-
-  //   await ctx.call('requests.saveGeneratedPdf', {
-  //     id,
-  //     url: result.url,
-  //   });
-
-  //   return { job: job.id, url: result.url };
-  // }
-
   @Action({
     queue: true,
     params: {
@@ -154,7 +50,7 @@ export default class JobsRequestsService extends moleculer.Service {
     const { job } = ctx.locals;
     const stats: any = await ctx.call('requests.requestStats', { id });
 
-    let screenshotsHash = '';
+    let screenshotsHash;
     if (job?.id) {
       const childrenValues = await job.getChildrenValues();
 
@@ -173,7 +69,7 @@ export default class JobsRequestsService extends moleculer.Service {
       await this.broker.cacher.set(redisKey, screenshotsByHash, 60 * 60 * 24);
     }
 
-    const limit = 100;
+    const limit = 50;
 
     const childrenJobs: any[] = [];
     let index = 0;
@@ -212,8 +108,6 @@ export default class JobsRequestsService extends moleculer.Service {
       childrenJobs,
       { removeDependencyOnFailure: true },
     );
-
-    return stats;
   }
 
   @Method
@@ -224,10 +118,13 @@ export default class JobsRequestsService extends moleculer.Service {
           'Cache-Control': 'no-cache',
         },
       })
+        .then((r) => {
+          if (!r.ok) reject(`Error while getting html for ${url}`);
+          return r;
+        })
         .then((r) => r.body?.getReader())
         .then(resolve)
         .catch((err) => {
-          console.error(err);
           reject(err?.message || 'Error while getting html');
         });
     });
@@ -275,7 +172,7 @@ export default class JobsRequestsService extends moleculer.Service {
     const pdfWriter = muhammara.createWriter(new muhammara.PDFStreamForResponse(pass));
     const folder = this.getFolderName(request.createdBy as any as User, request.tenant as Tenant);
 
-    const uploadPromise = ctx.call(
+    const uploadPromise: any = ctx.call(
       'minio.uploadFile',
       {
         payload: pass,
@@ -305,7 +202,12 @@ export default class JobsRequestsService extends moleculer.Service {
 
     await uploadPromise;
 
-    return { success: true };
+    // await ctx.call('requests.saveGeneratedPdf', {
+    //   id,
+    //   url: uploadPromise.url,
+    // });
+
+    return { job: job.id, url: uploadPromise.url };
   }
 
   @Action({
@@ -351,7 +253,8 @@ export default class JobsRequestsService extends moleculer.Service {
     });
 
     const partialFolder = `temp/requests/pdf/${request.id}`;
-    const partialFileName = type === 'intro' ? type : `${type}-${offset}-${offset + limit}`;
+    const partialFileNamePrefix = type === 'intro' ? type : `${type}-${offset}-${offset + limit}`;
+    const partialFileName = `${partialFileNamePrefix}-${getPublicFileName(20)}`;
 
     const partialHtmlUrl = `${
       process.env.SERVER_HOST
@@ -365,8 +268,9 @@ export default class JobsRequestsService extends moleculer.Service {
     );
 
     const pdf = await ctx.call('tools.makePdf', {
-      url: uploadedHtml.presignedUrl,
-      // url: uploadedHtml.url.replace('localhost', 'host.docker.internal'),
+      // url: uploadedHtml.presignedUrl,
+      // TODO: remove
+      url: uploadedHtml.url.replace('localhost', 'host.docker.internal'),
     });
 
     const result: any = await ctx.call(
@@ -475,32 +379,30 @@ export default class JobsRequestsService extends moleculer.Service {
       return result;
     }
 
-    function getInformationalFormsFeatures(informationalForms: { [key: string]: any }) {
+    function getInformationalFormsFeatures(informationalForms: any[]) {
       const result: any[] = [];
 
-      Object.values(informationalForms)?.forEach((item) => {
-        item?.forms?.forEach((form: any) => {
-          let { features } = form.geom || [];
-          const featuresToInsert = features.map((f: any) => {
-            f.geometry.crs = { type: 'name', properties: { name: 'EPSG:3346' } };
-            f.properties = {
-              'Anketos ID': form.id,
-              'Radavietės ID': '-',
-              'Radavietės kodas': '-',
-              ...getSpeciesData(form.species),
-              'Individų skaičius (gausumas)': form.quantityTranslate || '0',
-              'Buveinė, elgsena, ūkinė veikla ir kita informacija': form.description,
-              [getTitle(form.species)]: form.createdAt,
-              'Stebėjimo data': form.observedAt,
-              Šaltinis: form.source,
-              'Veiklos požymiai': form.activityTranslate,
-              'Vystymosi stadija': form.evolutionTranslate,
-            };
-            return f;
-          });
-
-          result.push(...featuresToInsert);
+      informationalForms?.forEach((form: any) => {
+        let { features } = form.geom || [];
+        const featuresToInsert = features.map((f: any) => {
+          f.geometry.crs = { type: 'name', properties: { name: 'EPSG:3346' } };
+          f.properties = {
+            'Anketos ID': form.id,
+            'Radavietės ID': '-',
+            'Radavietės kodas': '-',
+            ...getSpeciesData(form.species),
+            'Individų skaičius (gausumas)': form.quantityTranslate || '0',
+            'Buveinė, elgsena, ūkinė veikla ir kita informacija': form.description,
+            [getTitle(form.species)]: form.createdAt,
+            'Stebėjimo data': form.observedAt,
+            Šaltinis: form.source,
+            'Veiklos požymiai': form.activityTranslate,
+            'Vystymosi stadija': form.evolutionTranslate,
+          };
+          return f;
         });
+
+        result.push(...featuresToInsert);
       });
       return result;
     }
@@ -526,7 +428,7 @@ export default class JobsRequestsService extends moleculer.Service {
             });
 
         const informationalForms = stats.noInformationForms
-          ? {}
+          ? []
           : await getInformationalForms(ctx, id, {
               date: requestData.requestDate,
               translatesAndFormTypes: requestData.translates,
@@ -592,7 +494,11 @@ export default class JobsRequestsService extends moleculer.Service {
     const data: any[] = [];
 
     const { id } = ctx.params;
-    const requestData = await getRequestData(ctx, id);
+    const requestData = await getRequestData(ctx, id, {
+      loadLegend: false,
+      loadPlaces: true,
+      loadInformationalForms: true,
+    });
 
     const params = await getMapsSearchParams(ctx);
 
@@ -611,7 +517,7 @@ export default class JobsRequestsService extends moleculer.Service {
     params.delete('request');
 
     // add all places
-    requestData?.places.forEach((place) => {
+    requestData.places?.forEach((place) => {
       params.set('place', `${place.id}`);
       data.push({
         url: getUrl(params),
@@ -621,20 +527,16 @@ export default class JobsRequestsService extends moleculer.Service {
 
     params.delete('place');
 
-    // add all informational forms by species
-    Object.values(requestData?.informationalForms).forEach((item) => {
-      const formsIds = item.forms.map((item: any) => item.id).sort();
-      params.set(
-        'informationalForm',
-        JSON.stringify({
-          $in: formsIds,
-        }),
-      );
+    // add all forms
+    requestData.informationalForms?.forEach((form) => {
+      params.set('informationalForm', `${form.id}`);
       data.push({
         url: getUrl(params),
-        hash: item.hash,
+        hash: form.hash,
       });
     });
+
+    params.delete('informationalForm');
 
     const childrenJobs = data.map((item) => ({
       params: { ...item, waitFor: '#image-canvas-0' },
@@ -673,61 +575,6 @@ export default class JobsRequestsService extends moleculer.Service {
       },
       secret: 'string',
       skey: 'string',
-    },
-    rest: 'GET /:id/html',
-    auth: AuthType.PUBLIC,
-    timeout: 0,
-  })
-  async getRequestHtml(
-    ctx: Context<
-      { id: number; secret: string; skey: string },
-      { $responseType: string; $responseHeaders: any }
-    >,
-  ) {
-    ctx.meta.$responseType = 'text/html';
-
-    const { id, secret, skey: screenshotsRedisKey } = ctx.params;
-
-    const request: Request = await ctx.call('requests.resolve', { id });
-
-    const secretToApprove = getRequestSecret(request);
-    if (!request?.id || !secret || secret !== secretToApprove) {
-      return throwNotFoundError('Invalid secret!');
-    }
-
-    const requestData = await getRequestData(ctx, id);
-
-    let screenshotsByHash: any = {};
-
-    if (screenshotsRedisKey !== 'admin_preview') {
-      screenshotsByHash = await this.broker.cacher.get(`screenshots.${screenshotsRedisKey}`);
-    }
-
-    // set screenshots for places
-    requestData?.places.forEach((p) => {
-      p.screenshot = screenshotsByHash[p.hash] || '';
-    });
-
-    // set screenshots for informational forms
-    Object.entries(requestData?.informationalForms).forEach(([key, value]) => {
-      requestData.informationalForms[key].screenshot = screenshotsByHash[value.hash] || '';
-    });
-
-    requestData.previewScreenshot = screenshotsByHash[requestData.previewScreenshotHash] || '';
-
-    const html = getTemplateHtml('request-pdf.ejs', requestData);
-
-    return html;
-  }
-
-  @Action({
-    params: {
-      id: {
-        type: 'number',
-        convert: true,
-      },
-      secret: 'string',
-      skey: 'string',
       offset: 'number|convert|optional',
       limit: 'number|convert|optional',
       type: {
@@ -745,8 +592,6 @@ export default class JobsRequestsService extends moleculer.Service {
       { $responseType: string; $responseHeaders: any }
     >,
   ) {
-    ctx.meta.$responseType = 'text/html';
-
     const { id, secret, skey: screenshotsRedisKey, offset, limit, type } = ctx.params;
 
     const request: Request = await ctx.call('requests.resolve', { id });
@@ -788,9 +633,9 @@ export default class JobsRequestsService extends moleculer.Service {
         offset,
       });
 
-      // set screenshots for informational forms
-      Object.entries(requestData?.informationalForms).forEach(([key, value]) => {
-        requestData.informationalForms[key].screenshot = screenshotsByHash[value.hash] || '';
+      // set screenshots for places
+      requestData?.informationalForms.forEach((f) => {
+        f.screenshot = screenshotsByHash[f.hash] || '';
       });
     } else if (type === 'intro') {
       requestData.places = await getPlaces(ctx, id, {
@@ -808,6 +653,8 @@ export default class JobsRequestsService extends moleculer.Service {
     }
 
     const html = getTemplateHtml(`partials/${type}.ejs`, { ...requestData, offset });
+
+    ctx.meta.$responseType = 'text/html';
 
     return html;
   }

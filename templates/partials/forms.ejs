@@ -8,8 +8,8 @@
     <% if (!locals.offset) { %>
       <h1>Radavietės (pavieniai stebėjimai)</h1>
     <%}; %>
-    <% Object.keys(informationalForms).forEach(function(speciesId, index) { %>
-      <%- include('forms/informational', {item: informationalForms[speciesId], index: index + 1, species: speciesById[speciesId]}); %>
+    <% informationalForms.forEach(function(form, index) { %> 
+      <%- include('forms/single', {form: form, index: (locals.offset || 0) + index + 1, species: speciesById[form.species]}); %>
       <div class="page-break"></div>
     <% }); %>
   </body>
