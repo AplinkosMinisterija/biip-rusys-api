@@ -25,10 +25,10 @@
   resolved "https://registry.yarnpkg.com/@aplinkosministerija/eslint-config-biip-api/-/eslint-config-biip-api-1.0.0.tgz#73b5bbe0293613caf9672c0a5d6f3007bed90b2f"
   integrity sha512-pjZUTahsui7NhcDaT/n3n/6R6MGpRJUkFX14rIBLyRpNXqHHWC3ZtKU0IHorrPuceINmZE7mWvemwGAedTu+SA==
 
-"@aplinkosministerija/moleculer-accounts@^1.5.1":
-  version "1.5.1"
-  resolved "https://registry.yarnpkg.com/@aplinkosministerija/moleculer-accounts/-/moleculer-accounts-1.5.1.tgz#a26b2eb7397449b5f4ab1e31e1d304fd7bb14966"
-  integrity sha512-PISAbTWGEHyRPILblF2os8UwGWBh+g68uffI3NMDggaqn3UEh1rdooRM5moS/wJEAh5dr7eIpG+pfKMPku9sTw==
+"@aplinkosministerija/moleculer-accounts@^1.6.0":
+  version "1.6.0"
+  resolved "https://registry.yarnpkg.com/@aplinkosministerija/moleculer-accounts/-/moleculer-accounts-1.6.0.tgz#45cb01cd03ddf627b03eb1bffecfc758adf4fe4a"
+  integrity sha512-2MLv0AjrHatoCMoCBTSYUjBEuH7WcEG2Ic14I/3Ix78KKeUV2uYG9vskM27a8l9nogY8GjxWTgIV2EMqqqyv1w==
   dependencies:
     "@moleculer/database" "github:ambrazasp/moleculerjs-database"
     jsonwebtoken "^9.0.2"
