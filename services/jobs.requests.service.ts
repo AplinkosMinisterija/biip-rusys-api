@@ -148,6 +148,44 @@ export default class JobsRequestsService extends moleculer.Service {
     );
   }
 
+  @Action()
+  async countPagesForEachPdf(ctx: Context) {
+    const { job } = ctx.locals;
+
+    // const childrenValues = await job?.getChildrenValues();
+    // const items: any[] = Object.values(childrenValues).sort((a: any, b: any) => a.index - b.index);
+
+    const items = [
+      {
+        url: 'http://127.0.0.1:3000/rusys/minio/rusys/temp/requests/pdf/182/forms-0-50-IL0BYLVO0xYXTXogcY5v.pdf',
+        index: '',
+      },
+      {
+        url: 'http://127.0.0.1:3000/rusys/minio/rusys/temp/requests/pdf/182/intro-IUcs6V4J7wDnB1XxmXMD.pdf',
+        index: '',
+      },
+    ];
+
+    for (const item of items) {
+      const pdfBuffer = await fetch(item.url)
+        .then((r) => r.arrayBuffer())
+        .then((arrayBuffer) => Buffer.from(arrayBuffer))
+        .catch((err) => {
+          console.log(item.url, err);
+        });
+
+      if (!pdfBuffer) return;
+
+      const pdfReaderStream = new muhammara.PDFRStreamForBuffer(pdfBuffer);
+      const pdfReader = muhammara.createReader(pdfReaderStream);
+      const count = pdfReader.getPagesCount();
+
+      // muhammara.createWriter()
+
+      console.log(item.url, count);
+    }
+  }
+
   @Action({
     params: {
       id: 'number',
