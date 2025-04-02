@@ -1,0 +1,16 @@
+<!DOCTYPE html>
+<html>
+  <head>
+    <meta charset="UTF-8" />
+    <%- include('styles'); %>
+  </head>
+  <body>
+    <% if (!locals.offset) { %>
+      <h1>Radavietės (pavieniai stebėjimai)</h1>
+    <%}; %>
+    <% informationalForms.forEach(function(form, index) { %> 
+      <%- include('forms/single', {form: form, index: (locals.offset || 0) + index + 1, species: speciesById[form.species]}); %>
+      <div class="page-break"></div>
+    <% }); %>
+  </body>
+</html>
