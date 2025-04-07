@@ -244,12 +244,17 @@ export default class MinioService extends Moleculer.Service {
     return response;
   }
 
-  @Action()
-  async cleanTempFolder(ctx: Context) {
+  @Action({
+    params: {
+      prefix: 'string',
+      recursive: 'boolean|default:false',
+    },
+  })
+  async cleanFolder(ctx: Context<{ prefix: string; recursive: boolean }>) {
     const objects: any[] = await ctx.call('minio.listObjectsV2', {
       bucketName: BUCKET_NAME(),
-      prefix: 'temp',
-      recursive: true,
+      prefix: ctx.params.prefix,
+      recursive: ctx.params.recursive,
     });
 
     return ctx.call('minio.removeObjects', {

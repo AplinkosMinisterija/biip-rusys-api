@@ -20,10 +20,21 @@ import { TaxonomySpeciesType, TaxonomySpeciesTypeTranslate } from './taxonomies.
 import { Tenant } from './tenants.service';
 import { User } from './users.service';
 import muhammara from 'muhammara';
+import { PDFDocument, rgb } from 'pdf-lib';
+import fontkit from '@pdf-lib/fontkit';
+import { readFileSync } from 'fs';
 
 export function getRequestSecret(request: Request) {
   return toMD5Hash(`id=${request.id}&date=${moment(request.createdAt).format('YYYYMMDDHHmmss')}`);
 }
+
+type PartialPdfResponse = {
+  filename: string;
+  extention: string;
+  url: string;
+  index: number;
+  pagesCount?: number;
+};
 @Service({
   name: 'jobs.requests',
   mixins: [BullMqMixin],
@@ -72,13 +83,14 @@ export default class JobsRequestsService extends moleculer.Service {
     const limit = 50;
 
     const childrenJobs: any[] = [];
-    let index = 0;
 
     childrenJobs.push({
-      params: { id, type: 'intro', screenshotsHash },
+      params: { id, type: 'intro', screenshotsHash, index: 0 },
       name: 'jobs.requests',
       action: 'generatePartialPdf',
     });
+
+    let index = 1;
 
     for (let i = 0; i < Math.ceil(stats.placesCount / limit); i++) {
       childrenJobs.push({
@@ -101,7 +113,7 @@ export default class JobsRequestsService extends moleculer.Service {
     return this.flow(
       ctx,
       'jobs.requests',
-      'mergePartialPdfsAndSave',
+      'addFooterToPartialPdfs',
       {
         id,
       },
@@ -148,42 +160,145 @@ export default class JobsRequestsService extends moleculer.Service {
     );
   }
 
-  @Action()
-  async countPagesForEachPdf(ctx: Context) {
+  @Action({
+    params: {
+      id: 'number|convert',
+    },
+    queue: true,
+  })
+  async addFooterToPartialPdfs(ctx: Context<{ id: number }>) {
     const { job } = ctx.locals;
+    const { id } = ctx.params;
 
-    // const childrenValues = await job?.getChildrenValues();
-    // const items: any[] = Object.values(childrenValues).sort((a: any, b: any) => a.index - b.index);
+    const childrenValues: { [key: string]: PartialPdfResponse } = await job?.getChildrenValues();
+    const items = Object.values(childrenValues).sort((a: any, b: any) => a.index - b.index);
 
-    const items = [
-      {
-        url: 'http://127.0.0.1:3000/rusys/minio/rusys/temp/requests/pdf/182/forms-0-50-IL0BYLVO0xYXTXogcY5v.pdf',
-        index: '',
-      },
-      {
-        url: 'http://127.0.0.1:3000/rusys/minio/rusys/temp/requests/pdf/182/intro-IUcs6V4J7wDnB1XxmXMD.pdf',
-        index: '',
-      },
-    ];
-
+    const childrenJobs = [];
+    let pagesOffset = 0;
+    const totalPages = items.reduce((acc, i) => acc + i.pagesCount, 0);
     for (const item of items) {
-      const pdfBuffer = await fetch(item.url)
-        .then((r) => r.arrayBuffer())
-        .then((arrayBuffer) => Buffer.from(arrayBuffer))
-        .catch((err) => {
-          console.log(item.url, err);
-        });
-
-      if (!pdfBuffer) return;
-
-      const pdfReaderStream = new muhammara.PDFRStreamForBuffer(pdfBuffer);
-      const pdfReader = muhammara.createReader(pdfReaderStream);
-      const count = pdfReader.getPagesCount();
-
-      // muhammara.createWriter()
-
-      console.log(item.url, count);
+      childrenJobs.push({
+        params: {
+          id,
+          url: item.url,
+          offset: pagesOffset,
+          originalFilename: item.filename,
+          extention: item.extention,
+          totalPages,
+          index: item.index,
+        },
+        name: 'jobs.requests',
+        action: 'addFooterToPartialPdf',
+      });
+      pagesOffset += item.pagesCount;
     }
+
+    return this.flow(ctx, 'jobs.requests', 'mergePartialPdfsAndSave', { id }, childrenJobs, {
+      removeDependencyOnFailure: true,
+    });
+  }
+
+  @Action({
+    params: {
+      id: 'number|convert',
+      url: 'url',
+      totalPages: 'number|convert',
+      offset: 'number|convert|default:0',
+      originalFilename: 'string',
+      extention: 'string',
+      index: 'number|convert',
+    },
+    queue: true,
+  })
+  async addFooterToPartialPdf(
+    ctx: Context<{
+      id: number;
+      url: string;
+      offset?: number;
+      totalPages: number;
+      extension: string;
+      originalFilename: string;
+      index: number;
+    }>,
+  ) {
+    const { offset, totalPages, extension, originalFilename, url, id, index } = ctx.params;
+
+    const partialFileName = `${originalFilename}-with-footer`;
+
+    const pdfBuffer = await fetch(url)
+      .then((r) => r.arrayBuffer())
+      .then((arrayBuffer) => Buffer.from(arrayBuffer))
+      .catch((err) => {
+        console.log(url, err);
+      });
+
+    if (!pdfBuffer) return;
+
+    const pdfDoc = await PDFDocument.load(pdfBuffer);
+    pdfDoc.registerFontkit(fontkit);
+
+    const leftPadding = 40;
+    const rightPadding = 40;
+    const fontSize = 5;
+    const verticalPosition = 20;
+    const color = rgb(0.5, 0.5, 0.5);
+
+    const fontBytes = readFileSync('./templates/fonts/Arial.ttf');
+    const font = await pdfDoc.embedFont(fontBytes);
+    const totalPagesInDoc = pdfDoc.getPageCount();
+    for (let i = 0; i < totalPagesInDoc; i++) {
+      const page = pdfDoc.getPage(i);
+      const { width } = page.getSize();
+
+      const leftText = `Išrašas iš Saugomų rūšių informacinės sistemos Nr. ${id}`;
+      page.drawText(leftText, {
+        x: leftPadding,
+        y: verticalPosition,
+        size: fontSize,
+        font,
+        color,
+      });
+
+      const rightText = `${offset + i + 1} / ${totalPages || totalPagesInDoc}`;
+      const textWidth = font.widthOfTextAtSize(rightText, fontSize);
+
+      page.drawText(rightText, {
+        x: width - rightPadding - textWidth,
+        y: verticalPosition,
+        size: fontSize,
+        font,
+        color,
+      });
+    }
+
+    const pdfBytes = await pdfDoc.save();
+
+    const stream = new PassThrough();
+
+    stream.end(Buffer.from(pdfBytes));
+
+    const result: any = await ctx.call(
+      'minio.uploadFile',
+      {
+        payload: stream,
+        name: partialFileName,
+        folder: this.getTempFolder(id),
+        isPrivate: true,
+        types: FILE_TYPES,
+        presign: true,
+      },
+      {
+        meta: {
+          mimetype: 'application/pdf',
+          filename: `${partialFileName}.${extension}`,
+        },
+      },
+    );
+
+    return {
+      index,
+      url: result.presignedUrl,
+    };
   }
 
   @Action({
@@ -197,8 +312,8 @@ export default class JobsRequestsService extends moleculer.Service {
     const { id } = ctx.params;
     const { job } = ctx.locals;
 
-    const childrenValues = await job.getChildrenValues();
-    const items: any[] = Object.values(childrenValues).sort((a: any, b: any) => a.index - b.index);
+    const childrenValues: { [key: string]: PartialPdfResponse } = await job.getChildrenValues();
+    const items = Object.values(childrenValues).sort((a: any, b: any) => a.index - b.index);
 
     const request: Request = await ctx.call('requests.resolve', {
       id,
@@ -272,7 +387,7 @@ export default class JobsRequestsService extends moleculer.Service {
       index: number;
       screenshotsHash: string;
     }>,
-  ) {
+  ): Promise<PartialPdfResponse> {
     const { id, type, limit, offset, screenshotsHash } = ctx.params;
 
     const request: Request = await ctx.call('requests.resolve', {
@@ -290,9 +405,10 @@ export default class JobsRequestsService extends moleculer.Service {
       offset: `${offset}`,
     });
 
-    const partialFolder = `temp/requests/pdf/${request.id}`;
+    const partialFolder = this.getTempFolder(request.id);
     const partialFileNamePrefix = type === 'intro' ? type : `${type}-${offset}-${offset + limit}`;
     const partialFileName = `${partialFileNamePrefix}-${getPublicFileName(20)}`;
+    const extention = `pdf`;
 
     const partialHtmlUrl = `${
       process.env.SERVER_HOST
@@ -324,15 +440,35 @@ export default class JobsRequestsService extends moleculer.Service {
       {
         meta: {
           mimetype: 'application/pdf',
-          filename: `${partialFileName}.pdf`,
+          filename: `${partialFileName}.${extention}`,
         },
       },
     );
 
-    return {
+    // Lastly - count pages
+    const response: PartialPdfResponse = {
       url: result.presignedUrl,
       index: ctx.params.index,
+      filename: partialFileName,
+      extention,
     };
+
+    const pdfBuffer = await fetch(response.url)
+      .then((r) => r.arrayBuffer())
+      .then((arrayBuffer) => Buffer.from(arrayBuffer))
+      .catch((err) => {
+        console.log(response.url, err);
+      });
+
+    if (!pdfBuffer) return;
+
+    const pdfReaderStream = new muhammara.PDFRStreamForBuffer(pdfBuffer);
+    const pdfReader = muhammara.createReader(pdfReaderStream);
+    const count = pdfReader.getPagesCount();
+
+    response.pagesCount = count;
+
+    return response;
   }
 
   @Action({
@@ -532,6 +668,11 @@ export default class JobsRequestsService extends moleculer.Service {
     const data: any[] = [];
 
     const { id } = ctx.params;
+
+    const folder = this.getTempFolder(id);
+
+    await ctx.call('minio.cleanFolder', { prefix: folder, recursive: true });
+
     const requestData = await getRequestData(ctx, id, {
       loadLegend: false,
       loadPlaces: true,
@@ -703,5 +844,10 @@ export default class JobsRequestsService extends moleculer.Service {
     const userPath = user?.id || 'user';
 
     return `uploads/requests/${tenantPath}/${userPath}`;
+  }
+
+  @Method
+  getTempFolder(requestId: Request['id']) {
+    return `temp/requests/pdf/${requestId}`;
   }
 }
