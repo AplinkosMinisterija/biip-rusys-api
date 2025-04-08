@@ -428,7 +428,10 @@ export default class JobsRequestsService extends moleculer.Service {
       partialFileName,
     );
 
-    await this.checkIfFileExists(ctx, uploadedHtml.objectName);
+    // CDN though cloudflare doesn't return size for HTML documents..
+    if (!isNaN(uploadedHtml.size)) {
+      await this.checkIfFileExists(ctx, uploadedHtml.objectName);
+    }
 
     const pdf = await ctx.call('tools.makePdf', {
       url: uploadedHtml.presignedUrl,
@@ -870,7 +873,7 @@ export default class JobsRequestsService extends moleculer.Service {
 
     if (fileData?.exists) return true;
 
-    console.error(`File ${objectName} doesn't exist!`);
+    console.error(`File ${objectName} doesn't exist!`, fileData);
     throw new Error(`File ${objectName} doesn't exist!`);
   }
 }

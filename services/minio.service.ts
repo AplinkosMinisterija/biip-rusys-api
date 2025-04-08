@@ -119,6 +119,7 @@ export default class MinioService extends Moleculer.Service {
         timeout: 0,
       });
     } catch (_e) {
+      console.error(_e);
       throwUnableToUploadError();
     }
 
@@ -298,42 +299,42 @@ export default class MinioService extends Moleculer.Service {
         await this.actions.makeBucket({
           bucketName: BUCKET_NAME(),
         });
+      }
 
-        await this.client.setBucketPolicy(
-          BUCKET_NAME(),
-          JSON.stringify({
-            Version: '2012-10-17',
-            Statement: [
-              {
-                Effect: 'Allow',
-                Principal: {
-                  AWS: ['*'],
-                },
-                Action: ['s3:GetObject'],
-                Resource: [
-                  `arn:aws:s3:::${BUCKET_NAME()}/uploads/species/*`,
-                  `arn:aws:s3:::${BUCKET_NAME()}/uploads/forms/*`,
-                ],
-              },
-            ],
-          }),
-        );
-
-        await this.client.setBucketLifecycle(BUCKET_NAME(), {
-          Rule: [
+      await this.client.setBucketPolicy(
+        BUCKET_NAME(),
+        JSON.stringify({
+          Version: '2012-10-17',
+          Statement: [
             {
-              ID: 'Expiration Rule For Temp Files',
-              Status: 'Enabled',
-              Filter: {
-                Prefix: 'temp/*',
+              Effect: 'Allow',
+              Principal: {
+                AWS: ['*'],
               },
-              Expiration: {
-                Days: '7',
-              },
+              Action: ['s3:GetObject'],
+              Resource: [
+                `arn:aws:s3:::${BUCKET_NAME()}/uploads/species/*`,
+                `arn:aws:s3:::${BUCKET_NAME()}/uploads/forms/*`,
+              ],
             },
           ],
-        });
-      }
+        }),
+      );
+
+      await this.client.setBucketLifecycle(BUCKET_NAME(), {
+        Rule: [
+          {
+            ID: 'Expiration Rule For Temp Files',
+            Status: 'Enabled',
+            Filter: {
+              Prefix: 'temp/*',
+            },
+            Expiration: {
+              Days: '7',
+            },
+          },
+        ],
+      });
     } catch (err) {
       this.broker.logger.fatal(err);
     }
