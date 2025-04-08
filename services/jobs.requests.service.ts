@@ -229,7 +229,7 @@ export default class JobsRequestsService extends moleculer.Service {
       .then((r) => r.arrayBuffer())
       .then((arrayBuffer) => Buffer.from(arrayBuffer))
       .catch((err) => {
-        console.log(url, err);
+        console.error(url, err);
       });
 
     if (!pdfBuffer) return;
@@ -295,6 +295,8 @@ export default class JobsRequestsService extends moleculer.Service {
       },
     );
 
+    await this.checkIfFileExists(ctx, result.objectName);
+
     return {
       index,
       url: result.presignedUrl,
@@ -324,11 +326,14 @@ export default class JobsRequestsService extends moleculer.Service {
     const pass = new PassThrough();
     const pdfWriter = muhammara.createWriter(new muhammara.PDFStreamForResponse(pass));
     const folder = this.getFolderName(request.createdBy as any as User, request.tenant as Tenant);
+    const date = moment().format('YYYY-MM-DD-HH-mm');
+    const filename = `israsas-${id}-${date}`;
 
     const uploadPromise: any = ctx.call(
       'minio.uploadFile',
       {
         payload: pass,
+        name: `${filename}-${getPublicFileName(20)}`,
         folder,
         isPrivate: true,
         types: FILE_TYPES,
@@ -336,7 +341,7 @@ export default class JobsRequestsService extends moleculer.Service {
       {
         meta: {
           mimetype: 'application/pdf',
-          filename: `israsas-${id}.pdf`,
+          filename: `${filename}.pdf`,
         },
       },
     );
@@ -353,14 +358,16 @@ export default class JobsRequestsService extends moleculer.Service {
     pdfWriter.end();
     pass.end();
 
-    await uploadPromise;
+    const result = await uploadPromise;
+
+    await this.checkIfFileExists(ctx, result.objectName);
 
     // await ctx.call('requests.saveGeneratedPdf', {
     //   id,
-    //   url: uploadPromise.url,
+    //   url: result.url,
     // });
 
-    return { job: job.id, url: uploadPromise.url };
+    return { job: job.id, url: result.url };
   }
 
   @Action({
@@ -421,10 +428,12 @@ export default class JobsRequestsService extends moleculer.Service {
       partialFileName,
     );
 
+    await this.checkIfFileExists(ctx, uploadedHtml.objectName);
+
     const pdf = await ctx.call('tools.makePdf', {
-      // url: uploadedHtml.presignedUrl,
+      url: uploadedHtml.presignedUrl,
       // TODO: remove
-      url: uploadedHtml.url.replace('localhost', 'host.docker.internal'),
+      // url: uploadedHtml.url.replace('localhost', 'host.docker.internal'),
     });
 
     const result: any = await ctx.call(
@@ -445,6 +454,8 @@ export default class JobsRequestsService extends moleculer.Service {
       },
     );
 
+    await this.checkIfFileExists(ctx, result.objectName);
+
     // Lastly - count pages
     const response: PartialPdfResponse = {
       url: result.presignedUrl,
@@ -457,7 +468,7 @@ export default class JobsRequestsService extends moleculer.Service {
       .then((r) => r.arrayBuffer())
       .then((arrayBuffer) => Buffer.from(arrayBuffer))
       .catch((err) => {
-        console.log(response.url, err);
+        console.error(response.url, err);
       });
 
     if (!pdfBuffer) return;
@@ -849,5 +860,17 @@ export default class JobsRequestsService extends moleculer.Service {
   @Method
   getTempFolder(requestId: Request['id']) {
     return `temp/requests/pdf/${requestId}`;
+  }
+
+  @Method
+  async checkIfFileExists(ctx: Context, objectName: string) {
+    const fileData: any = await ctx.call('minio.fileStat', {
+      objectName,
+    });
+
+    if (fileData?.exists) return true;
+
+    console.error(`File ${objectName} doesn't exist!`);
+    throw new Error(`File ${objectName} doesn't exist!`);
   }
 }

@@ -143,6 +143,7 @@ export default class MinioService extends Moleculer.Service {
       size,
       filename,
       path: `${bucketName}/${objectFileName}`,
+      objectName: objectFileName,
       privateUrl: this.getObjectUrl(objectFileName, true, bucketName),
       publicUrl: this.getObjectUrl(objectFileName, false, bucketName),
     };
@@ -213,10 +214,11 @@ export default class MinioService extends Moleculer.Service {
         type: 'string',
         default: BUCKET_NAME(),
       },
+      size: 'number|default:100',
     },
   })
-  async fileStat(ctx: Context<{ bucketName: string; objectName: string }>) {
-    const { bucketName, objectName } = ctx.params;
+  async fileStat(ctx: Context<{ bucketName: string; objectName: string; size: number }>) {
+    const { bucketName, objectName, size } = ctx.params;
 
     const response: any = {
       exists: false,
@@ -227,7 +229,7 @@ export default class MinioService extends Moleculer.Service {
         objectName,
       });
 
-      response.exists = data?.size > 100;
+      response.exists = data?.size > size;
 
       if (response.exists) {
         const presignedUrl: string = await this.getPresignedUrl(ctx, objectName, bucketName);
@@ -239,7 +241,9 @@ export default class MinioService extends Moleculer.Service {
       }
 
       return response;
-    } catch (err) {}
+    } catch (err) {
+      console.error(err);
+    }
 
     return response;
   }

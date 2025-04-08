@@ -63,14 +63,12 @@ export default class JobsService extends moleculer.Service {
 
       if (uploadedBeforeDays > 5) return;
 
+      return fileData.presignedUrl;
       // TODO: remove
-      // return fileData.presignedUrl;
-      return fileData.privateUrl?.replace('127.0.0.1', 'host.docker.internal');
+      // return fileData.privateUrl?.replace('127.0.0.1', 'host.docker.internal');
     }
 
     let screenshotUrl = await getHashedFileUrl();
-
-    job.updateProgress(50);
 
     if (!screenshotUrl) {
       const screenshot = await ctx.call('tools.makeScreenshot', {
@@ -97,11 +95,9 @@ export default class JobsService extends moleculer.Service {
 
       screenshotUrl = await getHashedFileUrl();
       if (!screenshotUrl) {
-        throw new Error('Screenshot is empty');
+        throw new Error(`Screenshot for url ${url} is empty`);
       }
     }
-
-    job.updateProgress(100);
 
     return {
       job: job.id,

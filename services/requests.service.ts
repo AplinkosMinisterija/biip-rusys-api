@@ -37,13 +37,11 @@ import {
   getPlacesByRequestIds,
   getPlacesByRequestIdsCount,
 } from '../utils/db.queries';
-import { parseToObject, toReadableStream } from '../utils/functions';
-import { getTemplateHtml } from '../utils/html';
+import { parseToObject } from '../utils/functions';
 import { emailCanBeSent, notifyOnFileGenerated, notifyOnRequestUpdate } from '../utils/mails';
 import { getRequestData } from '../utils/pdf/requests';
-import { getRequestSecret } from './jobs.requests.service';
 import { Taxonomy } from './taxonomies.service';
-import { TaxonomySpeciesType, TaxonomySpeciesTypeTranslate } from './taxonomies.species.service';
+import { TaxonomySpeciesType } from './taxonomies.species.service';
 
 export const RequestType = {
   GET: 'GET',
