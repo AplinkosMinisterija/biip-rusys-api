@@ -362,10 +362,10 @@ export default class JobsRequestsService extends moleculer.Service {
 
     await this.checkIfFileExists(ctx, result.objectName);
 
-    // await ctx.call('requests.saveGeneratedPdf', {
-    //   id,
-    //   url: result.url,
-    // });
+    await ctx.call('requests.saveGeneratedPdf', {
+      id,
+      url: result.url,
+    });
 
     return { job: job.id, url: result.url };
   }
