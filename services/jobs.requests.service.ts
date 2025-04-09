@@ -202,7 +202,7 @@ export default class JobsRequestsService extends moleculer.Service {
             f.geometry.crs = { type: 'name', properties: { name: 'EPSG:3346' } };
             f.properties = {
               'Anketos ID': form.id,
-              'Radavietės ID': place.id,
+              'Radavietės ID': `${place.id}`,
               'Radavietės kodas': place.placeCode,
               ...speciesInfo,
               'Individų skaičius (gausumas)': form.quantityTranslate || '0',
