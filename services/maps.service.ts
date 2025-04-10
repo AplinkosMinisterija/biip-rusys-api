@@ -122,13 +122,8 @@ export default class MapsService extends moleculer.Service {
     return this.getLegendData({
       project: 'inva',
       layers: ctx.params.all
-        ? [
-            mapsInvaPlacesInvasiveLayerId,
-            mapsInvaPlacesIntroducedLayerId,
-            mapsInvaNoQuantityInvasiveFormsLayerId,
-            mapsInvaNoQuantityIntroducedFormsLayerId,
-          ].join(',')
-        : [mapsInvaPlacesInvasiveLayerId, mapsInvaNoQuantityInvasiveFormsLayerId].join(','),
+        ? [mapsInvaPlacesInvasiveLayerId, mapsInvaPlacesIntroducedLayerId].join(',')
+        : [mapsInvaPlacesInvasiveLayerId].join(','),
     });
   }
 
