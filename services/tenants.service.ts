@@ -221,11 +221,11 @@ export default class TenantsService extends moleculer.Service {
   @Action({
     rest: 'POST /',
     params: {
-      personalCode: 'any',
-      firstName: 'string',
-      lastName: 'string',
-      email: 'string',
-      phone: 'string',
+      personalCode: 'string|convert|optional',
+      firstName: 'string|optional',
+      lastName: 'string|optional',
+      email: 'string|optional',
+      phone: 'string|optional',
       companyName: 'string',
       companyCode: 'string',
       companyPhone: 'string',
@@ -236,32 +236,47 @@ export default class TenantsService extends moleculer.Service {
   async invite(
     ctx: Context<
       {
-        personalCode: any;
-        phone: string;
-        email: string;
         companyCode: string;
         companyName: string;
-        firstName: string;
-        lastName: string;
         companyEmail: string;
         companyPhone: string;
+        personalCode?: string;
+        phone?: string;
+        email?: string;
+        firstName?: string;
+        lastName?: string;
       },
       UserAuthMeta
     >,
   ) {
     const {
-      personalCode,
-      email,
       companyCode,
       companyName,
+      companyEmail,
+      companyPhone,
+
+      // owner data
+      personalCode,
+      email,
       phone,
       firstName,
       lastName,
-      companyEmail,
-      companyPhone,
     } = ctx.params;
 
-    const authGroup: any = await ctx.call('auth.users.invite', { companyCode });
+    const authGroup: any = await ctx.call('auth.users.invite', {
+      companyCode,
+      notify: personalCode ? [] : [companyEmail],
+    });
+
+    if (!personalCode) {
+      return ctx.call('tenants.findOrCreate', {
+        authGroup: authGroup,
+        email: companyEmail,
+        phone: companyPhone,
+        name: companyName,
+      });
+    }
+
     const authUser: any = await ctx.call('auth.users.invite', {
       companyId: authGroup.id,
       personalCode: personalCode,
