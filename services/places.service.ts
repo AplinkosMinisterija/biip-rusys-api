@@ -34,6 +34,7 @@ export const PlaceStatus = {
   DISAPPEARED: 'DISAPPEARED',
   DESTROYED: 'DESTROYED',
   MISTAKEN: 'MISTAKEN',
+  ARCHIVAL: 'ARCHIVAL',
 };
 
 export const PlaceStatusTranslates = {
@@ -44,6 +45,7 @@ export const PlaceStatusTranslates = {
   [PlaceStatus.DISAPPEARED]: 'Išnyko',
   [PlaceStatus.DESTROYED]: 'Sunaikinta',
   [PlaceStatus.MISTAKEN]: 'Klaidingai įvesti duomenys / susidubliavimas',
+  [PlaceStatus.ARCHIVAL]: 'Archyvinė',
 };
 
 export interface Place extends BaseModelInterface {
