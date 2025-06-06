@@ -4,7 +4,7 @@ import moleculer, { Context, RestSchema } from 'moleculer';
 import { Action, Event, Method, Service } from 'moleculer-decorators';
 
 import DbConnection, { MaterializedView } from '../mixins/database.mixin';
-import { TaxonomySpeciesType } from './taxonomies.species.service';
+import { TaxonomySpecies, TaxonomySpeciesType } from './taxonomies.species.service';
 
 import PostgisMixin, { areaQuery, distanceQuery } from 'moleculer-postgis';
 
@@ -1127,33 +1127,20 @@ export default class FormsService extends moleculer.Service {
     ctx: Context<
       {
         species: number;
-        activity?: string;
         isInformational: boolean;
         quantity: number;
       },
       UserAuthMeta
     >,
   ) {
-    const { species, activity, quantity } = ctx.params;
+    const { species, quantity } = ctx.params;
 
-    ctx.params.isInformational = false;
-
-    const taxonomy: Taxonomy = await this.broker.call('taxonomies.findBySpeciesId', {
+    const taxonomySpecies: TaxonomySpecies = await this.broker.call('taxonomies.species.resolve', {
       id: species,
       showHidden: !!ctx?.meta?.user?.isExpert,
     });
 
-    if (activity) {
-      const isInformational: boolean = await this.broker.call('forms.types.isInformational', {
-        type: taxonomy.formType,
-        activity,
-        quantity,
-      });
-
-      if (isInformational) {
-        ctx.params.isInformational = isInformational;
-      }
-    }
+    ctx.params.isInformational = !!quantity && !taxonomySpecies.formNeedsApproval;
 
     return ctx;
   }
