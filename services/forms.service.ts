@@ -427,7 +427,6 @@ export interface Form extends BaseModelInterface {
       isInformational: {
         type: 'boolean',
         default: false,
-        immutable: true,
       },
 
       respondedAt: {
