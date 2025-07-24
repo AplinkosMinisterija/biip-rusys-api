@@ -14,6 +14,18 @@ export const MaterializedView = {
   APPROVED_FORMS: 'approvedForms',
 };
 
+export function extendAndQuery(query: any, newQuery: any) {
+  if (!query || !newQuery) return query;
+
+  if (query.$and) {
+    query.$and.push(newQuery);
+  } else {
+    query.$and = [newQuery];
+  }
+
+  return query;
+}
+
 export function PopulateHandlerFn(action: string) {
   return async function (
     ctx: Context<{ populate: string | string[] }>,
@@ -177,9 +189,9 @@ export default function (opts: any = {}) {
         if (!sort) {
           return [];
         }
-      
+
         let parsed;
-      
+
         if (typeof sort === 'string') {
           try {
             parsed = JSON.parse(sort);
@@ -189,9 +201,9 @@ export default function (opts: any = {}) {
         } else {
           parsed = sort;
         }
-      
+
         const sortingFields = Array.isArray(parsed) ? parsed : parsed?.split(',') || [];
-      
+
         return sortingFields;
       },
 
