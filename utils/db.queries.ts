@@ -239,13 +239,17 @@ export function getInformationalFormsByRequestIds(
     .whereIn(`${requestsTable}.id`, ids);
 
   const query = knex
-    .select(`${formsTable}.id`, geomQuery(formsTable))
+    .select(
+      `${formsTable}.id`,
+      geomQuery(formsTable),
+      knex.raw(areaQuery(`${snakeCase(formsTable)}.geom`, 'area', 3346)),
+    )
     .from(formsTable)
     .join(requestsGeom.as(requestsTable), intersectsQuery(formsTable))
     .where(knex.raw(`${snakeCase(formsTable)}.${queryBooleanPlain('isInformational', true)}`))
     .where(knex.raw(`${snakeCase(formsTable)}.${queryBooleanPlain('isRelevant', true)}`))
     .whereIn(`${formsTable}.speciesId`, species)
-    .orderBy(`${formsTable}.id`, 'asc');
+    .orderBy(`${formsTable}.speciesId`, 'asc');
 
   if (date) {
     date = moment(date).endOf('day').format();

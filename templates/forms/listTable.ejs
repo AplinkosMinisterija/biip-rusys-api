@@ -1,25 +1,24 @@
 <table class="w-full table-striped my-4" cellspacing="0" cellpadding="0">
-    <thead class="text-left">
-      <tr>
-        <th class="px-4 py-2">Nr.</th>
-        <th class="px-4 py-2">Pavadinimas</th>
-        <th class="px-4 py-2">Lot. pavadinimas</th>
-        <th class="px-4 py-2">Stebėjimo data</th>
-      </tr>
-    </thead>
-    <% if (Object.keys(informationalForms).length) { %>
-    <tbody>
-      <% Object.keys(informationalForms).forEach(function(key) { %>
-        <% informationalForms[key].forms.forEach(function(form, innerIndex) { %>
-      <tr>
-        <td class="px-4 py-2"><%= innerIndex + 1 %>.</td>
-        <td class="px-4 py-2"><%= speciesById[key].speciesName %></td>
-        <td class="px-4 py-2 font-italic"><%= speciesById[key].speciesNameLatin %></td>
-        <td class="px-4 py-2"><%= form.observedAt %></td>
-      </tr>
-      <% }); %>
-      <% }); %>
-    </tbody>
-    <% } %>
-  </table>
-  
+  <thead class="text-left">
+    <tr>
+      <th class="px-4 py-2">Nr.</th>
+      <th class="px-4 py-2">Pavadinimas</th>
+      <th class="px-4 py-2">Lot. pavadinimas</th>
+      <th class="px-4 py-2">Plotas</th>
+      <th class="px-4 py-2">Stebėjimo data</th>
+    </tr>
+  </thead>
+  <% if (informationalForms.length) { %>
+  <tbody>
+    <% informationalForms.forEach(function(form, index) { %>
+    <tr>
+      <td class="px-4 py-2"><%= index + 1 %>.</td>
+      <td class="px-4 py-2"><%= speciesById[form.species].speciesName %></td>
+      <td class="px-4 py-2 font-italic"><%= speciesById[form.species].speciesNameLatin %></td>
+      <td class="px-4 py-2"><%= form.areaText %></td>
+      <td class="px-4 py-2"><%= form.observedAt %></td>
+    </tr>
+    <% }); %>
+  </tbody>
+  <% } %>
+</table>
