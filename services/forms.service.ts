@@ -3,7 +3,7 @@
 import moleculer, { Context, RestSchema } from 'moleculer';
 import { Action, Event, Method, Service } from 'moleculer-decorators';
 
-import DbConnection, { MaterializedView } from '../mixins/database.mixin';
+import DbConnection, { extendAndQuery, MaterializedView } from '../mixins/database.mixin';
 import { TaxonomySpeciesType } from './taxonomies.species.service';
 
 import PostgisMixin, { areaQuery, distanceQuery } from 'moleculer-postgis';
@@ -517,7 +517,7 @@ export interface Form extends BaseModelInterface {
 
         if (user.isExpert && !params.id) {
           const expertSpeciesQuery = { species: { $in: user.expertSpecies } };
-          return { ...query, ...expertSpeciesQuery };
+          extendAndQuery(query, expertSpeciesQuery);
         }
 
         return query;
