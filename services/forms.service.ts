@@ -1136,10 +1136,10 @@ export default class FormsService extends moleculer.Service {
 
     const taxonomySpecies: TaxonomySpecies = await this.broker.call('taxonomies.species.resolve', {
       id: species,
-      showHidden: !!ctx?.meta?.user?.isExpert,
     });
 
-    ctx.params.isInformational = !!quantity && !taxonomySpecies.formNeedsApproval;
+    ctx.params.isInformational =
+      !!quantity && taxonomySpecies?.id && !taxonomySpecies.formNeedsApproval;
 
     return ctx;
   }

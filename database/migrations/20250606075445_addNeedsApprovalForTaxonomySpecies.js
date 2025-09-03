@@ -4,7 +4,7 @@
  */
 exports.up = function (knex) {
   return knex.schema.alterTable('taxonomySpecies', (table) => {
-    table.boolean('formNeedsApproval').defaultTo(false);
+    table.boolean('formNeedsApproval').defaultTo(true);
   });
 };
 

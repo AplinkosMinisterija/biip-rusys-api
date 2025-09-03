@@ -195,7 +195,7 @@ const publicPopulate = ['class', 'conventions'];
     scopes: {
       applyHidden(query: any, ctx: Context<null, UserAuthMeta>, params: any) {
         const { user } = ctx?.meta;
-         
+
         if (query?.showHidden) {
           delete query.showHidden;
           return query;
