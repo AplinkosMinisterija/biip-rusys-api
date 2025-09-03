@@ -237,7 +237,11 @@ export interface Form extends BaseModelInterface {
           entity,
         }: FieldHookCallback & ContextMeta<FormStatusChanged>) {
           const { user } = ctx?.meta;
-          if (!ctx?.meta?.statusChanged || entity.status === FormStatus.APPROVED) return;
+          if (
+            !ctx?.meta?.statusChanged ||
+            (entity.status === FormStatus.APPROVED && (!entity.place || entity.isInformational))
+          )
+            return;
           else if (!user?.id) return value;
 
           return value || FormStatus.SUBMITTED;
@@ -1440,8 +1444,7 @@ export default class FormsService extends moleculer.Service {
   async 'forms.updated'(ctx: Context<EntityChangedParams<Form>, UserAuthMeta>) {
     const { oldData: prevForm, data: form } = ctx.params;
 
-    if (prevForm?.status == FormStatus.APPROVED && !prevForm?.place && !prevForm.isInformational)
-      return;
+    if (prevForm?.status == FormStatus.APPROVED && !prevForm?.place) return;
 
     if (prevForm?.status !== form.status) {
       const { comment } = ctx.options?.parentCtx?.params as any;
