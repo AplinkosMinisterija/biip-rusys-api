@@ -96,24 +96,6 @@ export default class FormTypesService extends moleculer.Service {
     return valid;
   }
 
-  @Action({
-    params: {
-      type: 'string',
-      activity: 'string',
-    },
-  })
-  isInformational(ctx: Context<{ type: string; activity: string; quantity: number }>) {
-    const { type, activity, quantity } = ctx.params;
-
-    if (!quantity) return false;
-
-    let isInformational = false;
-    if (type === FormType.ENDANGERED_ANIMAL) {
-      isInformational = !EndangeredFormActivitiesNonInformational.includes(activity);
-    }
-
-    return isInformational;
-  }
 
   @Method
   isValid(field: string, options: any) {
