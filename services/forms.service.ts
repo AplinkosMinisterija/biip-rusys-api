@@ -235,14 +235,22 @@ export interface Form extends BaseModelInterface {
           ctx,
           value,
           entity,
+          params,
         }: FieldHookCallback & ContextMeta<FormStatusChanged>) {
           const { user } = ctx?.meta;
-          if (
-            !ctx?.meta?.statusChanged ||
-            (entity.status === FormStatus.APPROVED && (!entity.place || entity.isInformational))
-          )
+          const statusChanged = ctx?.meta?.statusChanged;
+          const isApprovedExpert =
+            entity.status === FormStatus.APPROVED &&
+            user?.isExpert &&
+            (!entity?.place || (params?.isInformational && !entity?.isInformational));
+
+          if (!statusChanged || isApprovedExpert) {
             return;
-          else if (!user?.id) return value;
+          }
+
+          if (!user?.id) {
+            return value;
+          }
 
           return value || FormStatus.SUBMITTED;
         },
@@ -317,28 +325,38 @@ export interface Form extends BaseModelInterface {
           ContextMeta<FormStatusChanged> &
           ContextMeta<FormPlaceChanged> &
           ContextMeta<FormAutoApprove>) {
-          const { statusChanged, autoApprove, placeChanged } = ctx?.meta;
+          const { statusChanged, autoApprove, placeChanged } = ctx?.meta ?? {};
           const isInformational = params?.isInformational || entity?.isInformational;
 
-          const assignPlace =
-            (statusChanged &&
-              params?.status === FormStatus.APPROVED &&
-              params.noQuantityReason !== FormNoQuantityReason.RESEARCH) ||
-            placeChanged ||
-            (entity?.status === FormStatus.APPROVED && !entity?.place && !entity.isInformational);
+          const isApproved =
+            params?.status === FormStatus.APPROVED &&
+            params?.noQuantityReason !== FormNoQuantityReason.RESEARCH;
 
-          if (isInformational || !assignPlace || autoApprove) return;
+          const missingPlace =
+            entity?.status === FormStatus.APPROVED && !entity?.place && !entity?.isInformational;
+
+          const assignPlace = (statusChanged && isApproved) || placeChanged || missingPlace;
+
+          if (isInformational || !assignPlace || autoApprove) {
+            return;
+          }
 
           const speciesId = params?.species || entity?.speciesId;
-          if (value) return value;
-          else if (!value && entity?.placeId) return entity.placeId;
-          else if (speciesId) {
-            const place: Place = await ctx.call('places.create', {
-              species: speciesId,
-            });
 
+          if (value) {
+            return value;
+          }
+
+          if (entity?.placeId) {
+            return entity.placeId;
+          }
+
+          if (speciesId) {
+            const place: Place = await ctx.call('places.create', { species: speciesId });
             return place.id;
           }
+
+          return;
         },
       },
 
