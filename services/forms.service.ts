@@ -240,7 +240,8 @@ export interface Form extends BaseModelInterface {
           const { user } = ctx?.meta;
           if (
             !ctx?.meta?.statusChanged ||
-            (entity.status === FormStatus.APPROVED && (!entity.place || params.isInformational))
+            (entity.status === FormStatus.APPROVED &&
+              (!entity.place || (params.isInformational && !entity?.isInformational)))
           )
             return;
           else if (!user?.id) return value;
