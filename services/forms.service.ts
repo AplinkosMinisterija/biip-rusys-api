@@ -235,11 +235,12 @@ export interface Form extends BaseModelInterface {
           ctx,
           value,
           entity,
+          params,
         }: FieldHookCallback & ContextMeta<FormStatusChanged>) {
           const { user } = ctx?.meta;
           if (
             !ctx?.meta?.statusChanged ||
-            (entity.status === FormStatus.APPROVED && (!entity.place || entity.isInformational))
+            (entity.status === FormStatus.APPROVED && (!entity.place || params.isInformational))
           )
             return;
           else if (!user?.id) return value;
