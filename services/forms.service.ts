@@ -4,7 +4,7 @@ import moleculer, { Context, RestSchema } from 'moleculer';
 import { Action, Event, Method, Service } from 'moleculer-decorators';
 
 import DbConnection, { extendAndQuery, MaterializedView } from '../mixins/database.mixin';
-import { TaxonomySpeciesType } from './taxonomies.species.service';
+import { TaxonomySpecies, TaxonomySpeciesType } from './taxonomies.species.service';
 
 import PostgisMixin, { areaQuery, distanceQuery } from 'moleculer-postgis';
 
@@ -231,9 +231,17 @@ export interface Form extends BaseModelInterface {
           const { autoApprove } = ctx?.meta;
           return autoApprove ? FormStatus.APPROVED : FormStatus.CREATED;
         },
-        onUpdate: function ({ ctx, value }: FieldHookCallback & ContextMeta<FormStatusChanged>) {
+        onUpdate: function ({
+          ctx,
+          value,
+          entity,
+        }: FieldHookCallback & ContextMeta<FormStatusChanged>) {
           const { user } = ctx?.meta;
-          if (!ctx?.meta?.statusChanged) return;
+          if (
+            !ctx?.meta?.statusChanged ||
+            (entity.status === FormStatus.APPROVED && (!entity.place || entity.isInformational))
+          )
+            return;
           else if (!user?.id) return value;
 
           return value || FormStatus.SUBMITTED;
@@ -316,7 +324,8 @@ export interface Form extends BaseModelInterface {
             (statusChanged &&
               params?.status === FormStatus.APPROVED &&
               params.noQuantityReason !== FormNoQuantityReason.RESEARCH) ||
-            placeChanged;
+            placeChanged ||
+            (entity?.status === FormStatus.APPROVED && !entity?.place && !entity.isInformational);
 
           if (isInformational || !assignPlace || autoApprove) return;
 
@@ -427,7 +436,6 @@ export interface Form extends BaseModelInterface {
       isInformational: {
         type: 'boolean',
         default: false,
-        immutable: true,
       },
 
       respondedAt: {
@@ -1127,33 +1135,26 @@ export default class FormsService extends moleculer.Service {
     ctx: Context<
       {
         species: number;
-        activity?: string;
         isInformational: boolean;
         quantity: number;
+        method: string;
       },
       UserAuthMeta
     >,
   ) {
-    const { species, activity, quantity } = ctx.params;
+    const { species, quantity, method } = ctx.params;
 
-    ctx.params.isInformational = false;
-
-    const taxonomy: Taxonomy = await this.broker.call('taxonomies.findBySpeciesId', {
+    const taxonomySpecies: TaxonomySpecies = await this.broker.call('taxonomies.species.resolve', {
       id: species,
       showHidden: !!ctx?.meta?.user?.isExpert,
     });
 
-    if (activity) {
-      const isInformational: boolean = await this.broker.call('forms.types.isInformational', {
-        type: taxonomy.formType,
-        activity,
-        quantity,
-      });
+    const formType = await this.getFormType(ctx, species);
 
-      if (isInformational) {
-        ctx.params.isInformational = isInformational;
-      }
-    }
+    ctx.params.isInformational =
+      taxonomySpecies?.id &&
+      !taxonomySpecies.formNeedsApproval &&
+      (formType === FormType.INVASIVE_PLANT ? !!method : quantity >= 0);
 
     return ctx;
   }
