@@ -239,9 +239,12 @@ export interface Form extends BaseModelInterface {
         }: FieldHookCallback & ContextMeta<FormStatusChanged>) {
           const { user } = ctx?.meta;
           const statusChanged = ctx?.meta?.statusChanged;
+          const speciesId = entity?.speciesId;
+
           const isApprovedExpert =
             entity.status === FormStatus.APPROVED &&
             user?.isExpert &&
+            user?.expertSpecies.includes(speciesId) &&
             ((params?.isInformational && !entity?.isInformational) ||
               (!entity?.isInformational && !entity?.place));
 
