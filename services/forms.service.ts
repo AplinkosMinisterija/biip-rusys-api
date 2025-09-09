@@ -242,7 +242,8 @@ export interface Form extends BaseModelInterface {
           const isApprovedExpert =
             entity.status === FormStatus.APPROVED &&
             user?.isExpert &&
-            (!entity?.place || (params?.isInformational && !entity?.isInformational));
+            ((params?.isInformational && !entity?.isInformational) ||
+              (!entity?.isInformational && !entity?.place));
 
           if (!statusChanged || isApprovedExpert) {
             return;
