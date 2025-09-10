@@ -352,9 +352,9 @@ export interface Form extends BaseModelInterface {
               }
             };
 
-            if (isInformational && entity?.placeId) {
+            if (params?.isInformational && entity?.placeId) {
               await maybeRemoveOldPlace(entity?.placeId);
-              return;
+              return null;
             }
 
             if (params?.place && entity?.placeId !== params?.place) {
