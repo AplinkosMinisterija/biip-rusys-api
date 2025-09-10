@@ -4,11 +4,11 @@ import moleculer, { Context } from 'moleculer';
 import { Action, Event, Method, Service } from 'moleculer-decorators';
 
 import authMixin from 'biip-auth-nodejs/mixin';
-import { AUTH_FREELANCERS_GROUP_ID, EndpointType, throwNotFoundError } from '../types';
 import { UserAuthMeta } from './api.service';
-import { Tenant } from './tenants.service';
-import { TenantUserRole } from './tenantUsers.service';
 import { User, USERS_DEFAULT_SCOPES, UserType } from './users.service';
+import { AUTH_FREELANCERS_GROUP_ID, EndpointType, throwNotFoundError } from '../types';
+import { TenantUserRole } from './tenantUsers.service';
+import { Tenant } from './tenants.service';
 
 @Service({
   name: 'auth',
