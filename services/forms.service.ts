@@ -346,7 +346,6 @@ export interface Form extends BaseModelInterface {
               if (!placeId) return;
 
               const forms: Form[] = await ctx.call('forms.find', { query: { place: placeId } });
-              throwValidationError(forms.length.toString(), placeId);
 
               if (forms?.length <= 1) {
                 await ctx.call('places.remove', { id: placeId });
