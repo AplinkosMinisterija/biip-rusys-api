@@ -345,25 +345,25 @@ export interface Form extends BaseModelInterface {
             const maybeRemoveOldPlace = async (placeId?: string) => {
               if (!placeId) return;
               const forms: Form[] = await ctx.call('forms.find', { place: placeId });
-              if (forms.length <= 1) {
+              if (forms?.length <= 1) {
                 await ctx.call('places.remove', { id: placeId });
               }
             };
 
-            if (isInformational && entity?.placeId) {
-              await maybeRemoveOldPlace(entity.placeId);
+            if (isInformational && entity?.place) {
+              await maybeRemoveOldPlace(entity?.place);
               return null;
             }
 
-            if (params?.placeId && entity?.placeId !== params.placeId) {
-              const newPlace: Place = await ctx.call('places.resolve', { id: params.placeId });
+            if (params?.place && entity?.place !== params?.place) {
+              const newPlace: Place = await ctx.call('places.resolve', { id: params.place });
 
               if (newPlace.species !== entity.species) {
                 throwValidationError('The species does not belong to this place.');
               }
 
-              await maybeRemoveOldPlace(entity?.placeId);
-              return params.placeId;
+              await maybeRemoveOldPlace(entity?.place);
+              return params.place;
             }
 
             if (isInformational || !assignPlace || autoApprove) {
