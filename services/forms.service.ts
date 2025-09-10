@@ -343,7 +343,9 @@ export interface Form extends BaseModelInterface {
             const assignPlace = (statusChanged && isApproved) || placeChanged || missingPlace;
 
             const maybeRemoveOldPlace = async (placeId?: string) => {
+              throwValidationError(placeId);
               if (!placeId) return;
+
               const forms: Form[] = await ctx.call('forms.find', { place: placeId });
               throwValidationError(forms.length.toString(), placeId);
 
@@ -360,7 +362,7 @@ export interface Form extends BaseModelInterface {
             if (params?.place && entity?.placeId !== params?.place) {
               const newPlace: Place = await ctx.call('places.resolve', { id: params.place });
 
-              if (newPlace.species !== entity.species) {
+              if (newPlace.species !== entity?.speciesId) {
                 throwValidationError('The species does not belong to this place.');
               }
 
