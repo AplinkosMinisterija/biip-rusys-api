@@ -329,7 +329,7 @@ export interface Form extends BaseModelInterface {
           ContextMeta<FormAutoApprove>) {
           {
             const { statusChanged, autoApprove, placeChanged } = ctx?.meta ?? {};
-            const isInformational = params?.isInformational || entity?.isInformational;
+            const isInformational = params?.isInformational ?? entity?.isInformational;
 
             const isApproved =
               params?.status === FormStatus.APPROVED &&
@@ -352,7 +352,7 @@ export interface Form extends BaseModelInterface {
               }
             };
 
-            if (params?.isInformational && entity?.placeId) {
+            if (isInformational && entity?.placeId) {
               await maybeRemoveOldPlace(entity?.placeId);
               return null;
             }
