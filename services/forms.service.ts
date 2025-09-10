@@ -350,21 +350,19 @@ export interface Form extends BaseModelInterface {
               }
             };
 
-            throwValidationError(JSON.stringify(entity));
-
-            if (isInformational && entity?.place) {
-              await maybeRemoveOldPlace(entity?.place);
-              return null;
+            if (isInformational && entity?.placeId) {
+              await maybeRemoveOldPlace(entity?.placeId);
+              return;
             }
 
-            if (params?.place && entity?.place !== params?.place) {
+            if (params?.place && entity?.placeId !== params?.place) {
               const newPlace: Place = await ctx.call('places.resolve', { id: params.place });
 
               if (newPlace.species !== entity.species) {
                 throwValidationError('The species does not belong to this place.');
               }
 
-              await maybeRemoveOldPlace(entity?.place);
+              await maybeRemoveOldPlace(entity?.placeId);
               return params.place;
             }
 
