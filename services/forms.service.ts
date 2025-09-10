@@ -350,7 +350,7 @@ export interface Form extends BaseModelInterface {
               }
             };
 
-            throwValidationError(isInformational.toString(), JSON.stringify(entity?.place));
+            throwValidationError(JSON.stringify(entity?.place));
 
             if (isInformational && entity?.place) {
               await maybeRemoveOldPlace(entity?.place);
