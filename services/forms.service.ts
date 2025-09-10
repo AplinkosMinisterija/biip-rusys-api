@@ -337,7 +337,7 @@ export interface Form extends BaseModelInterface {
             params?.noQuantityReason !== FormNoQuantityReason.RESEARCH;
 
           const missingPlace =
-            entity?.status === FormStatus.APPROVED && !entity?.place && !entity?.isInformational;
+            entity?.status === FormStatus.APPROVED && !entity?.placeId && !entity?.isInformational;
 
           const assignPlace = (statusChanged && isApproved) || placeChanged || missingPlace;
 
