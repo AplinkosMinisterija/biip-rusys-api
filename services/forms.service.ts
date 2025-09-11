@@ -381,8 +381,6 @@ export interface Form extends BaseModelInterface {
               const place: Place = await ctx.call('places.create', { species: speciesId });
               return place.id;
             }
-
-            return;
           }
         },
       },

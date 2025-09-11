@@ -3,7 +3,11 @@
 import moleculer, { Context } from 'moleculer';
 import { Action, Event, Method, Service } from 'moleculer-decorators';
 
-import DbConnection, { MaterializedView, PopulateHandlerFn } from '../mixins/database.mixin';
+import DbConnection, {
+  extendAndQuery,
+  MaterializedView,
+  PopulateHandlerFn,
+} from '../mixins/database.mixin';
 
 import { FeatureCollection, Geometry } from 'geojsonjs';
 import {
@@ -25,6 +29,8 @@ import { TaxonomySpecies } from './taxonomies.species.service';
 import { User, UserType } from './users.service';
 
 import PostgisMixin, { asGeoJsonQuery } from 'moleculer-postgis';
+
+const VISIBLE_TO_EXPERT_SCOPE = 'visibleToExpert';
 
 export const PlaceStatus = {
   INITIAL: 'INITIAL',
@@ -145,9 +151,22 @@ export interface Place extends BaseModelInterface {
 
     scopes: {
       ...COMMON_SCOPES,
+      visibleToExpert(query: any, ctx: Context<null, UserAuthMeta>, params: any) {
+        const { user } = ctx?.meta;
+        if (!user?.id || user?.type === UserType.ADMIN) {
+          return query;
+        }
+
+        if (user.isExpert) {
+          const expertSpeciesQuery = { species: { $in: user.expertSpecies } };
+          extendAndQuery(query, expertSpeciesQuery);
+        }
+
+        return query;
+      },
     },
 
-    defaultScopes: [...COMMON_DEFAULT_SCOPES],
+    defaultScopes: [...COMMON_DEFAULT_SCOPES, VISIBLE_TO_EXPERT_SCOPE],
     defaultPopulates: ['geom', 'area'],
   },
 
