@@ -231,10 +231,30 @@ export interface Form extends BaseModelInterface {
           const { autoApprove } = ctx?.meta;
           return autoApprove ? FormStatus.APPROVED : FormStatus.CREATED;
         },
-        onUpdate: function ({ ctx, value }: FieldHookCallback & ContextMeta<FormStatusChanged>) {
+        onUpdate: function ({
+          ctx,
+          value,
+          entity,
+          params,
+        }: FieldHookCallback & ContextMeta<FormStatusChanged>) {
           const { user } = ctx?.meta;
-          if (!ctx?.meta?.statusChanged) return;
-          else if (!user?.id) return value;
+          const statusChanged = ctx?.meta?.statusChanged;
+          const speciesId = entity?.speciesId;
+
+          const isApprovedExpert =
+            entity.status === FormStatus.APPROVED &&
+            user?.isExpert &&
+            user?.expertSpecies.includes(speciesId) &&
+            ((params?.isInformational && !entity?.isInformational) ||
+              (!entity?.isInformational && !entity?.place));
+
+          if (!statusChanged || isApprovedExpert) {
+            return;
+          }
+
+          if (!user?.id) {
+            return value;
+          }
 
           return value || FormStatus.SUBMITTED;
         },
@@ -309,25 +329,34 @@ export interface Form extends BaseModelInterface {
           ContextMeta<FormStatusChanged> &
           ContextMeta<FormPlaceChanged> &
           ContextMeta<FormAutoApprove>) {
-          const { statusChanged, autoApprove, placeChanged } = ctx?.meta;
+          const { statusChanged, autoApprove, placeChanged } = ctx?.meta ?? {};
           const isInformational = params?.isInformational || entity?.isInformational;
 
-          const assignPlace =
-            (statusChanged &&
-              params?.status === FormStatus.APPROVED &&
-              params.noQuantityReason !== FormNoQuantityReason.RESEARCH) ||
-            placeChanged;
+          const isApproved =
+            params?.status === FormStatus.APPROVED &&
+            params?.noQuantityReason !== FormNoQuantityReason.RESEARCH;
 
-          if (isInformational || !assignPlace || autoApprove) return;
+          const missingPlace =
+            entity?.status === FormStatus.APPROVED && !entity?.placeId && !entity?.isInformational;
+
+          const assignPlace = (statusChanged && isApproved) || placeChanged || missingPlace;
+
+          if (isInformational || !assignPlace || autoApprove) {
+            return;
+          }
 
           const speciesId = params?.species || entity?.speciesId;
-          if (value) return value;
-          else if (!value && entity?.placeId) return entity.placeId;
-          else if (speciesId) {
-            const place: Place = await ctx.call('places.create', {
-              species: speciesId,
-            });
 
+          if (value) {
+            return value;
+          }
+
+          if (entity?.placeId) {
+            return entity.placeId;
+          }
+
+          if (speciesId) {
+            const place: Place = await ctx.call('places.create', { species: speciesId });
             return place.id;
           }
         },
@@ -1128,19 +1157,24 @@ export default class FormsService extends moleculer.Service {
         species: number;
         isInformational: boolean;
         quantity: number;
+        method: string;
       },
       UserAuthMeta
     >,
   ) {
-    const { species, quantity } = ctx.params;
+    const { species, quantity, method } = ctx.params;
 
     const taxonomySpecies: TaxonomySpecies = await this.broker.call('taxonomies.species.resolve', {
       id: species,
       showHidden: !!ctx?.meta?.user?.isExpert,
     });
 
+    const formType = await this.getFormType(ctx, species);
+
     ctx.params.isInformational =
-      !!quantity && taxonomySpecies?.id && !taxonomySpecies.formNeedsApproval;
+      taxonomySpecies?.id &&
+      !taxonomySpecies.formNeedsApproval &&
+      (formType === FormType.INVASIVE_PLANT ? !!method : quantity >= 0);
 
     return ctx;
   }
