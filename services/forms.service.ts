@@ -29,9 +29,9 @@ import {
 import { UserAuthMeta } from './api.service';
 
 import _ from 'lodash';
-import { parseToObject } from '../utils/functions';
-import { emailCanBeSent, notifyFormAssignee, notifyOnFormUpdate } from '../utils/mails';
+import { isPositive, parseToObject } from '../utils/functions';
 import { FormHistoryTypes } from './forms.histories.service';
+import { emailCanBeSent, notifyFormAssignee, notifyOnFormUpdate } from '../utils/mails';
 import { FormSettingSource } from './forms.settings.sources.service';
 import { FormType } from './forms.types.service';
 import { Place } from './places.service';
@@ -45,6 +45,7 @@ export const FormStatus = {
   REJECTED: 'REJECTED',
   RETURNED: 'RETURNED',
   APPROVED: 'APPROVED',
+  DRAFT: 'DRAFT',
 };
 
 const VISIBLE_TO_USER_SCOPE = 'visibleToUser';
@@ -85,7 +86,7 @@ async function validateActivity({ ctx, params, entity, value }: FieldHookCallbac
   const speciesId = entity?.speciesId || params?.species;
 
   const formType = await this.getFormType(ctx, speciesId);
-  const validate = !entity?.id || !!value;
+  const validate = canValidateField({ params, entity, value });
 
   if (validate) {
     const isValid = await this.broker.call('forms.types.validateActivity', {
@@ -105,7 +106,7 @@ async function validateEvolution({ ctx, params, entity, value }: FieldHookCallba
   const speciesId = entity?.speciesId || params?.species;
 
   const formType = await this.getFormType(ctx, speciesId);
-  const validate = !entity?.id || !!value;
+  const validate = canValidateField({ params, entity, value });
 
   if (validate) {
     const isValid = await this.broker.call('forms.types.validateEvolution', {
@@ -126,7 +127,8 @@ async function validateMethod({ ctx, params, entity, value }: FieldHookCallback)
   const speciesId = entity?.speciesId || params?.species;
 
   const formType = await this.getFormType(ctx, speciesId);
-  const validate = !entity?.id || !!value;
+
+  const validate = canValidateField({ params, entity, value });
 
   if (validate) {
     const isValid = await this.broker.call('forms.types.validateMethod', {
@@ -140,6 +142,25 @@ async function validateMethod({ ctx, params, entity, value }: FieldHookCallback)
   }
 
   return value;
+}
+
+function validateDraft({ params, entity, value, field }: FieldHookCallback) {
+  const validate = canValidateField({ params, entity, value });
+
+  if (!value && value !== 0 && validate) {
+    return throwValidationError(`${field?.name} is required`, params);
+  }
+
+  return value;
+}
+
+function canValidateField({ params, entity, value }: any) {
+  const isEntityDraft = entity?.status === FormStatus.DRAFT;
+  const isDraftStatus = params.status === FormStatus.DRAFT;
+
+  const shouldValidate = !isDraftStatus && (!entity?.id || isEntityDraft);
+
+  return shouldValidate || !!value;
 }
 
 export interface Form extends BaseModelInterface {
@@ -192,6 +213,9 @@ export interface Form extends BaseModelInterface {
         type: 'number',
         validate: 'validateQuantity',
         integer: true,
+        onCreate: validateDraft,
+        onUpdate: validateDraft,
+        onReplace: validateDraft,
       },
 
       activity: {
@@ -219,7 +243,12 @@ export interface Form extends BaseModelInterface {
         type: 'string',
       },
 
-      description: 'string',
+      description: {
+        type: 'string',
+        onCreate: validateDraft,
+        onUpdate: validateDraft,
+        onReplace: validateDraft,
+      },
 
       notes: 'string',
 
@@ -227,14 +256,25 @@ export interface Form extends BaseModelInterface {
         type: 'string',
         enum: Object.values(FormStatus),
         validate: 'validateStatus',
-        onCreate: function ({ ctx }: FieldHookCallback & ContextMeta<FormAutoApprove>) {
+        onCreate: function ({ ctx, value }: FieldHookCallback & ContextMeta<FormAutoApprove>) {
+          if (value === FormStatus.DRAFT) return value;
+
           const { autoApprove } = ctx?.meta;
           return autoApprove ? FormStatus.APPROVED : FormStatus.CREATED;
         },
-        onUpdate: function ({ ctx, value }: FieldHookCallback & ContextMeta<FormStatusChanged>) {
+        onUpdate: function ({
+          ctx,
+          value,
+          entity,
+        }: FieldHookCallback & ContextMeta<FormAutoApprove & FormStatusChanged>) {
           const { user } = ctx?.meta;
           if (!ctx?.meta?.statusChanged) return;
           else if (!user?.id) return value;
+
+          const { autoApprove } = ctx?.meta;
+
+          if (entity.status === FormStatus.DRAFT && value !== FormStatus.DRAFT)
+            return autoApprove ? FormStatus.APPROVED : FormStatus.CREATED;
 
           return value || FormStatus.SUBMITTED;
         },
@@ -244,6 +284,18 @@ export interface Form extends BaseModelInterface {
         type: 'any',
         required: true,
         geom: {
+          async validate({ ctx, params, value }: any) {
+            const { id } = params;
+            const entity = id
+              ? await ctx.call('forms.resolve', {
+                  id,
+                })
+              : {};
+
+            const isValid = !canValidateField({ params, entity, value }) || !!value;
+
+            return isValid;
+          },
           type: 'geom',
           properties: {
             bufferSize: 'geomBufferSize',
@@ -286,7 +338,17 @@ export interface Form extends BaseModelInterface {
         validate: 'validateAssignee',
         get: USER_PUBLIC_GET,
         async onCreate({ ctx, params }: FieldHookCallback & ContextMeta<FormAutoApprove>) {
-          if (ctx?.meta?.autoApprove) return;
+          if (ctx?.meta?.autoApprove || params.status === FormStatus.DRAFT) return;
+
+          return ctx.call('forms.getAssigneeForForm', {
+            species: params.species,
+            createdBy: ctx.meta?.user?.id,
+          });
+        },
+        async onUpdate({ ctx, params, entity }: FieldHookCallback & ContextMeta<FormAutoApprove>) {
+          const assignee = entity?.assignee || entity?.assigneeId;
+
+          if (ctx?.meta?.autoApprove || !!assignee || params.status === FormStatus.DRAFT) return;
 
           return ctx.call('forms.getAssigneeForForm', {
             species: params.species,
@@ -332,7 +394,6 @@ export interface Form extends BaseModelInterface {
           }
         },
       },
-
       species: {
         type: 'number',
         columnType: 'integer',
@@ -353,6 +414,9 @@ export interface Form extends BaseModelInterface {
         type: 'number',
         columnName: 'sourceId',
         populate: 'forms.settings.sources.resolve',
+        onCreate: validateDraft,
+        onUpdate: validateDraft,
+        onReplace: validateDraft,
       },
 
       eunis: {
@@ -362,22 +426,27 @@ export interface Form extends BaseModelInterface {
         validate: function ({ ctx, value }: FieldHookCallback) {
           const { user } = ctx.meta;
           if (!value || !user?.id) return true;
+
           return user?.isExpert || 'Eunis can be set by expert only';
         },
       },
 
       transect: {
         type: 'object',
+        validate: function ({ value, params }: FieldHookCallback) {
+          if (params?.status === FormStatus.DRAFT || !value) return true;
+
+          return isPositive(value.width) && isPositive(value.height);
+        },
+
         properties: {
           width: {
             type: 'number',
             required: true,
-            positive: true,
           },
           height: {
             type: 'number',
             required: true,
-            positive: true,
           },
           unit: {
             type: 'string',
@@ -491,6 +560,14 @@ export interface Form extends BaseModelInterface {
       ...COMMON_SCOPES,
       visibleToUser(query: any, ctx: Context<null, UserAuthMeta>, params: any) {
         const { user, profile } = ctx?.meta;
+
+        if (!!user && !profile?.id) {
+          query.$or = [
+            { status: { $ne: FormStatus.DRAFT } },
+            { status: FormStatus.DRAFT, createdBy: user?.id, tenant: { $exists: false } },
+          ];
+        }
+
         if (!user?.id || user?.type === UserType.ADMIN) {
           return query;
         }
@@ -1076,7 +1153,7 @@ export default class FormsService extends moleculer.Service {
 
     if (isCreatedByTenant || isCreatedByUser) {
       return {
-        edit: [FormStatus.RETURNED].includes(form.status),
+        edit: [FormStatus.RETURNED, FormStatus.DRAFT].includes(form.status),
         validate: false,
       };
     } else if (user.isExpert) {
@@ -1160,9 +1237,11 @@ export default class FormsService extends moleculer.Service {
       );
 
       ctx.meta.statusChanged = !doNotChangeStatus;
-    } else if (isInformational) {
+    }
+
+    if (isInformational) {
       ctx.meta.autoApprove = true;
-    } else if (!id && ctx?.meta?.user?.isExpert) {
+    } else if (ctx?.meta?.user?.isExpert) {
       ctx.meta.autoApprove = ctx.meta.user.expertSpecies.includes(Number(species));
     }
 
@@ -1265,7 +1344,10 @@ export default class FormsService extends moleculer.Service {
   @Method
   validateStatus({ ctx, value, entity }: FieldHookCallback) {
     const { user, profile } = ctx.meta;
-    if (!value || !user?.id) return true;
+    const canSetDraft =
+      value === FormStatus.DRAFT && (!entity?.status || entity.status === FormStatus.DRAFT);
+
+    if (!value || !user?.id || canSetDraft) return true;
 
     const expertStatuses = [FormStatus.REJECTED, FormStatus.RETURNED, FormStatus.APPROVED];
 
@@ -1279,7 +1361,12 @@ export default class FormsService extends moleculer.Service {
     const editingPermissions = this.hasPermissionToEdit(entity, user, profile);
 
     if (editingPermissions.edit) {
-      return value === FormStatus.SUBMITTED || error;
+      return (
+        value === FormStatus.SUBMITTED ||
+        (entity.status === FormStatus.DRAFT &&
+          [FormStatus.CREATED, FormStatus.APPROVED].includes(value)) ||
+        error
+      );
     } else if (editingPermissions.validate) {
       return expertStatuses.includes(value) || error;
     }
@@ -1289,6 +1376,8 @@ export default class FormsService extends moleculer.Service {
 
   @Method
   async validateQuantity({ ctx, params, entity, value }: FieldHookCallback) {
+    if (params.status === FormStatus.DRAFT) return true;
+
     const speciesId = entity?.speciesId || params?.species;
 
     const formType = await this.getFormType(ctx, speciesId);
@@ -1422,9 +1511,12 @@ export default class FormsService extends moleculer.Service {
   async 'forms.updated'(ctx: Context<EntityChangedParams<Form>, UserAuthMeta>) {
     const { oldData: prevForm, data: form } = ctx.params;
 
+    if (form.status === FormStatus.DRAFT) return;
+
     if (prevForm?.status !== form.status) {
       const { comment } = ctx.options?.parentCtx?.params as any;
       const typesByStatus = {
+        [FormStatus.CREATED]: FormHistoryTypes.CREATED,
         [FormStatus.SUBMITTED]: FormHistoryTypes.UPDATED,
         [FormStatus.REJECTED]: FormHistoryTypes.REJECTED,
         [FormStatus.RETURNED]: FormHistoryTypes.RETURNED,
@@ -1482,6 +1574,8 @@ export default class FormsService extends moleculer.Service {
   @Event()
   async 'forms.created'(ctx: Context<EntityChangedParams<Form>>) {
     const { data: form } = ctx.params;
+
+    if (form.status === FormStatus.DRAFT) return;
 
     await this.createFormHistory(form.id, ctx.meta, FormHistoryTypes.CREATED);
     if (form.status === FormStatus.APPROVED) {
