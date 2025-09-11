@@ -32,6 +32,7 @@ export interface TaxonomySpecies extends BaseModelInterface {
   conventions: Convention[];
   content?: { [key: string]: string };
   conventionsText?: string[];
+  formNeedsApproval?: boolean;
 }
 
 export const TaxonomySpeciesType = {
@@ -148,6 +149,10 @@ const publicPopulate = ['class', 'conventions'];
         type: 'boolean',
       },
 
+      formNeedsApproval: {
+        type: 'boolean',
+      },
+
       ltAddedAt: {
         type: 'date',
         columnType: 'datetime',
@@ -190,6 +195,12 @@ const publicPopulate = ['class', 'conventions'];
     scopes: {
       applyHidden(query: any, ctx: Context<null, UserAuthMeta>, params: any) {
         const { user } = ctx?.meta;
+
+        if (query?.showHidden) {
+          delete query.showHidden;
+          return query;
+        }
+
         if (user?.isExpert || user?.type === UserType.ADMIN) return query;
 
         return {
