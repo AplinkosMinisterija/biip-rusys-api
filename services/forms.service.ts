@@ -327,61 +327,81 @@ export interface Form extends BaseModelInterface {
           ContextMeta<FormStatusChanged> &
           ContextMeta<FormPlaceChanged> &
           ContextMeta<FormAutoApprove>) {
-          {
-            const { statusChanged, autoApprove, placeChanged } = ctx?.meta ?? {};
-            const isInformational = params?.isInformational ?? entity?.isInformational;
+          const { statusChanged, autoApprove, placeChanged } = ctx?.meta ?? {};
 
-            const isApproved =
-              params?.status === FormStatus.APPROVED &&
-              params?.noQuantityReason !== FormNoQuantityReason.RESEARCH;
+          const isInformational = params?.isInformational ?? entity?.isInformational ?? false;
+          const createNewPlace = params?.place === null;
 
-            const missingPlace =
-              entity?.status === FormStatus.APPROVED &&
-              !entity?.placeId &&
-              (!entity?.isInformational || !params?.isInformational);
+          const isApproved =
+            params?.status === FormStatus.APPROVED &&
+            params?.noQuantityReason !== FormNoQuantityReason.RESEARCH;
 
-            const assignPlace = (statusChanged && isApproved) || placeChanged || missingPlace;
+          const missingPlace =
+            entity?.status === FormStatus.APPROVED &&
+            !entity?.placeId &&
+            (!entity?.isInformational || !params?.isInformational);
 
-            const maybeRemoveOldPlace = async (placeId?: string) => {
-              if (!placeId) return;
+          const assignPlace = (statusChanged && isApproved) || placeChanged || missingPlace;
 
-              const forms: Form[] = await ctx.call('forms.find', { query: { place: placeId } });
+          const getSpeciesId = () => params?.species || entity?.speciesId;
 
-              if (forms?.length <= 1) {
-                await ctx.call('places.remove', { id: placeId });
-              }
-            };
+          const maybeRemoveOldPlace = async (placeId?: string) => {
+            if (!placeId) return;
 
-            if (isInformational && entity?.placeId) {
-              await maybeRemoveOldPlace(entity?.placeId);
-              return null;
+            const forms: Form[] =
+              (await ctx.call('forms.find', { query: { place: placeId } })) ?? [];
+            if (forms.length <= 1) {
+              await ctx.call('places.remove', { id: placeId });
             }
+          };
 
-            if (params?.place && entity?.placeId !== params?.place) {
-              const newPlace: Place = await ctx.call('places.resolve', { id: params.place });
-
-              if (newPlace.species !== entity?.speciesId) {
-                throwValidationError('The species does not belong to this place.');
-              }
-
-              await maybeRemoveOldPlace(entity?.placeId);
-              return params.place;
-            }
-
-            if (isInformational || !assignPlace || autoApprove) {
-              return;
-            }
-
-            const speciesId = params?.species || entity?.speciesId;
-
-            if (value) return value;
-            if (entity?.placeId) return entity.placeId;
-
-            if (speciesId) {
-              const place: Place = await ctx.call('places.create', { species: speciesId });
-              return place.id;
-            }
+          if (isInformational && entity?.placeId) {
+            await maybeRemoveOldPlace(entity.placeId);
+            return null;
           }
+
+          if (createNewPlace && entity?.placeId) {
+            const speciesId = getSpeciesId();
+            if (!speciesId) throwValidationError('Missing species for new place.');
+
+            const forms: Form[] =
+              (await ctx.call('forms.find', {
+                query: { place: entity.placeId },
+              })) ?? [];
+
+            if (forms.length === 1) {
+              throwValidationError('Place only has one form.');
+            }
+
+            const place: Place = await ctx.call('places.create', { species: speciesId });
+            return place.id;
+          }
+
+          if (params?.place && entity?.placeId !== params.place) {
+            const newPlace: Place = await ctx.call('places.resolve', { id: params.place });
+
+            if (newPlace.species !== entity?.speciesId) {
+              throwValidationError('The species does not belong to this place.');
+            }
+
+            await maybeRemoveOldPlace(entity?.placeId);
+            return newPlace.id;
+          }
+
+          if (isInformational || !assignPlace || autoApprove) {
+            return;
+          }
+
+          if (value) return value;
+          if (entity?.placeId) return entity.placeId;
+
+          const speciesId = getSpeciesId();
+          if (speciesId) {
+            const place: Place = await ctx.call('places.create', { species: speciesId });
+            return place.id;
+          }
+
+          return undefined;
         },
       },
 
@@ -1498,17 +1518,21 @@ export default class FormsService extends moleculer.Service {
       await this.createFormHistory(form.id, ctx.meta, FormHistoryTypes.RELEVANCY_CHANGED, comment);
     }
 
-    if (prevForm?.place !== form.place) {
-      if (!prevForm?.place) {
-        await this.createFormHistory(form.id, ctx.meta, FormHistoryTypes.PLACE_ASSIGNED);
-      } else {
-        await this.createFormHistory(form.id, ctx.meta, FormHistoryTypes.PLACE_CHANGED);
-      }
+    if (form.isInformational !== prevForm.isInformational) {
+      const historyType = prevForm?.isInformational
+        ? FormHistoryTypes.NOT_INFORMATIONAL
+        : FormHistoryTypes.INFORMATIONAL;
+      await this.createFormHistory(form.id, ctx.meta, historyType);
+    }
+
+    if (form.place && prevForm?.place !== form.place) {
+      const historyType = prevForm?.place
+        ? FormHistoryTypes.PLACE_CHANGED
+        : FormHistoryTypes.PLACE_ASSIGNED;
+
+      await this.createFormHistory(form.id, ctx.meta, historyType);
 
       await this.assignPlaceIfNeeded(ctx, form);
-      if (prevForm?.place) {
-        await this.assignPlaceIfNeeded(ctx, prevForm);
-      }
     }
 
     const assigneeChanged = prevForm?.assignee !== form.assignee;
