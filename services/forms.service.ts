@@ -1518,7 +1518,9 @@ export default class FormsService extends moleculer.Service {
         ? FormHistoryTypes.PLACE_CHANGED
         : FormHistoryTypes.PLACE_ASSIGNED;
 
-      await this.createFormHistory(form.id, ctx.meta, historyType);
+      if (form.place) {
+        await this.createFormHistory(form.id, ctx.meta, historyType);
+      }
 
       await this.assignPlaceIfNeeded(ctx, form);
       if (prevForm.place) {
