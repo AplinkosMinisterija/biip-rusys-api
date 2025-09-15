@@ -345,18 +345,7 @@ export interface Form extends BaseModelInterface {
 
           const getSpeciesId = () => params?.species || entity?.speciesId;
 
-          const maybeRemoveOldPlace = async (placeId?: string) => {
-            if (!placeId) return;
-
-            const forms: Form[] =
-              (await ctx.call('forms.find', { query: { place: placeId } })) ?? [];
-            if (forms.length <= 1) {
-              await ctx.call('places.remove', { id: placeId });
-            }
-          };
-
           if (isInformational && entity?.placeId) {
-            await maybeRemoveOldPlace(entity.placeId);
             return null;
           }
 
@@ -384,7 +373,6 @@ export interface Form extends BaseModelInterface {
               throwValidationError('The species does not belong to this place.');
             }
 
-            await maybeRemoveOldPlace(entity?.placeId);
             return newPlace.id;
           }
 
@@ -1525,7 +1513,7 @@ export default class FormsService extends moleculer.Service {
       await this.createFormHistory(form.id, ctx.meta, historyType);
     }
 
-    if (form.place && prevForm?.place !== form.place) {
+    if (prevForm?.place !== form.place) {
       const historyType = prevForm?.place
         ? FormHistoryTypes.PLACE_CHANGED
         : FormHistoryTypes.PLACE_ASSIGNED;
@@ -1533,6 +1521,14 @@ export default class FormsService extends moleculer.Service {
       await this.createFormHistory(form.id, ctx.meta, historyType);
 
       await this.assignPlaceIfNeeded(ctx, form);
+      if (prevForm.place) {
+        const forms: Form[] =
+          (await ctx.call('forms.find', { query: { place: prevForm.place } })) ?? [];
+        if (!!forms?.length) {
+          await ctx.call('places.remove', { id: prevForm.place });
+        }
+        await this.assignPlaceIfNeeded(ctx, prevForm);
+      }
     }
 
     const assigneeChanged = prevForm?.assignee !== form.assignee;
