@@ -13,8 +13,15 @@ export const FormHistoryTypes = {
   RETURNED: 'RETURNED',
   APPROVED: 'APPROVED',
   PLACE_CHANGED: 'PLACE_CHANGED',
+
+  // - Not verified by an expert
+  // - Does not have place
   INFORMATIONAL: 'INFORMATIONAL',
+
+  // - Must be checked/verified by an expert
+  // - Has place
   NOT_INFORMATIONAL: 'NOT_INFORMATIONAL',
+
   PLACE_ASSIGNED: 'PLACE_ASSIGNED',
   PLACE_CREATED: 'PLACE_CREATED',
   RELEVANCY_CHANGED: 'RELEVANCY_CHANGED',

@@ -327,7 +327,7 @@ export interface Form extends BaseModelInterface {
           ContextMeta<FormStatusChanged> &
           ContextMeta<FormPlaceChanged> &
           ContextMeta<FormAutoApprove>) {
-          const { statusChanged, autoApprove, placeChanged } = ctx?.meta ?? {};
+          const { statusChanged, autoApprove, placeChanged, user } = ctx?.meta ?? {};
 
           const isInformational = params?.isInformational ?? entity?.isInformational ?? false;
           const createNewPlace = params?.place === null;
@@ -337,26 +337,24 @@ export interface Form extends BaseModelInterface {
             params?.noQuantityReason !== FormNoQuantityReason.RESEARCH;
 
           const missingPlace =
-            entity?.status === FormStatus.APPROVED &&
-            !entity?.placeId &&
-            (!entity?.isInformational || !params?.isInformational);
+            entity?.status === FormStatus.APPROVED && !entity?.placeId && !isInformational;
 
           const assignPlace = (statusChanged && isApproved) || placeChanged || missingPlace;
 
-          const getSpeciesId = () => params?.species || entity?.speciesId;
+          const speciesId = params?.species || entity?.speciesId;
 
-          if (isInformational && entity?.placeId) {
+          const isExpertSpecie = user?.isExpert && user?.expertSpecies.includes(speciesId);
+
+          if (isInformational && entity?.placeId && isExpertSpecie) {
             return null;
           }
 
-          if (createNewPlace && entity?.placeId) {
-            const speciesId = getSpeciesId();
+          if (createNewPlace && entity?.placeId && isExpertSpecie) {
             if (!speciesId) throwValidationError('Missing species for new place.');
 
-            const forms: Form[] =
-              (await ctx.call('forms.find', {
-                query: { place: entity.placeId },
-              })) ?? [];
+            const forms: Form[] = await ctx.call('forms.find', {
+              query: { place: entity.placeId },
+            });
 
             if (forms.length === 1) {
               throwValidationError('Place only has one form.');
@@ -366,8 +364,11 @@ export interface Form extends BaseModelInterface {
             return place.id;
           }
 
-          if (params?.place && entity?.placeId !== params.place) {
-            const newPlace: Place = await ctx.call('places.resolve', { id: params.place });
+          if (params?.place && entity?.placeId !== params.place && isExpertSpecie) {
+            const newPlace: Place = await ctx.call('places.resolve', {
+              id: params.place,
+              throwIfNotExist: true,
+            });
 
             if (newPlace.species !== entity?.speciesId) {
               throwValidationError('The species does not belong to this place.');
@@ -383,13 +384,10 @@ export interface Form extends BaseModelInterface {
           if (value) return value;
           if (entity?.placeId) return entity.placeId;
 
-          const speciesId = getSpeciesId();
           if (speciesId) {
             const place: Place = await ctx.call('places.create', { species: speciesId });
             return place.id;
           }
-
-          return undefined;
         },
       },
 
@@ -1524,8 +1522,7 @@ export default class FormsService extends moleculer.Service {
 
       await this.assignPlaceIfNeeded(ctx, form);
       if (prevForm.place) {
-        const forms: Form[] =
-          (await ctx.call('forms.find', { query: { place: prevForm.place } })) ?? [];
+        const forms: Form[] = await ctx.call('forms.find', { query: { place: prevForm.place } });
         if (!!forms?.length) {
           await ctx.call('places.remove', { id: prevForm.place });
         }
