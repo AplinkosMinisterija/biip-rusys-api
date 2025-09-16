@@ -1506,8 +1506,8 @@ export default class FormsService extends moleculer.Service {
 
     if (form.isInformational !== prevForm.isInformational) {
       const historyType = form?.isInformational
-        ? FormHistoryTypes.CHANGE_TO_INFORMATIONAL
-        : FormHistoryTypes.CHANGE_TO_NOT_INFORMATIONAL;
+        ? FormHistoryTypes.CHANGE_FORM_TO_INFORMATIONAL
+        : FormHistoryTypes.CHANGE_FORM_TO_NOT_INFORMATIONAL;
       await this.createFormHistory(form.id, ctx.meta, historyType);
     }
 
