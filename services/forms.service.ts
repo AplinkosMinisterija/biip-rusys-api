@@ -343,13 +343,13 @@ export interface Form extends BaseModelInterface {
 
           const speciesId = params?.species || entity?.speciesId;
 
-          const isExpertSpecie = user?.isExpert && user?.expertSpecies.includes(speciesId);
+          const isExpertSpecies = user?.isExpert && user?.expertSpecies.includes(speciesId);
 
-          if (isInformational && entity?.placeId && isExpertSpecie) {
+          if (isInformational && entity?.placeId && isExpertSpecies) {
             return null;
           }
 
-          if (createNewPlace && entity?.placeId && isExpertSpecie) {
+          if (createNewPlace && entity?.placeId && isExpertSpecies) {
             if (!speciesId) throwValidationError('Missing species for new place.');
 
             const forms: Form[] = await ctx.call('forms.find', {
@@ -364,7 +364,7 @@ export interface Form extends BaseModelInterface {
             return place.id;
           }
 
-          if (params?.place && entity?.placeId !== params.place && isExpertSpecie) {
+          if (params?.place && entity?.placeId !== params.place && isExpertSpecies) {
             const newPlace: Place = await ctx.call('places.resolve', {
               id: params.place,
               throwIfNotExist: true,
