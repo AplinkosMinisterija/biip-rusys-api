@@ -60,6 +60,7 @@ export default class AuthService extends moleculer.Service {
 
     if (user.isExpert) {
       data.isExpert = user.isExpert;
+      data.expertSpecies = user.expertSpecies;
     }
 
     if (authUser?.permissions?.SPECIES) {

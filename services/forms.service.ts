@@ -244,9 +244,7 @@ export interface Form extends BaseModelInterface {
           const isApprovedExpert =
             entity.status === FormStatus.APPROVED &&
             user?.isExpert &&
-            user?.expertSpecies.includes(speciesId) &&
-            ((params?.isInformational && !entity?.isInformational) ||
-              (!entity?.isInformational && !entity?.place));
+            user?.expertSpecies.includes(speciesId);
 
           if (!statusChanged || isApprovedExpert) {
             return;
@@ -329,31 +327,62 @@ export interface Form extends BaseModelInterface {
           ContextMeta<FormStatusChanged> &
           ContextMeta<FormPlaceChanged> &
           ContextMeta<FormAutoApprove>) {
-          const { statusChanged, autoApprove, placeChanged } = ctx?.meta ?? {};
-          const isInformational = params?.isInformational || entity?.isInformational;
+          const { statusChanged, autoApprove, placeChanged, user } = ctx?.meta ?? {};
+
+          const isInformational = params?.isInformational ?? entity?.isInformational ?? false;
+          const createNewPlace = params?.place === null;
 
           const isApproved =
             params?.status === FormStatus.APPROVED &&
             params?.noQuantityReason !== FormNoQuantityReason.RESEARCH;
 
           const missingPlace =
-            entity?.status === FormStatus.APPROVED && !entity?.placeId && !entity?.isInformational;
+            entity?.status === FormStatus.APPROVED && !entity?.placeId && !isInformational;
 
           const assignPlace = (statusChanged && isApproved) || placeChanged || missingPlace;
+
+          const speciesId = params?.species || entity?.speciesId;
+
+          const isExpertSpecies = user?.isExpert && user?.expertSpecies.includes(speciesId);
+
+          if (isInformational && entity?.placeId && isExpertSpecies) {
+            return null;
+          }
+
+          if (createNewPlace && entity?.placeId && isExpertSpecies) {
+            if (!speciesId) throwValidationError('Missing species for new place.');
+
+            const forms: Form[] = await ctx.call('forms.find', {
+              query: { place: entity.placeId },
+            });
+
+            if (forms.length === 1) {
+              throwValidationError('Place only has one form.');
+            }
+
+            const place: Place = await ctx.call('places.create', { species: speciesId });
+            return place.id;
+          }
+
+          if (params?.place && entity?.placeId !== params.place && isExpertSpecies) {
+            const newPlace: Place = await ctx.call('places.resolve', {
+              id: params.place,
+              throwIfNotExist: true,
+            });
+
+            if (newPlace.species !== entity?.speciesId) {
+              throwValidationError('The species does not belong to this place.');
+            }
+
+            return newPlace.id;
+          }
 
           if (isInformational || !assignPlace || autoApprove) {
             return;
           }
 
-          const speciesId = params?.species || entity?.speciesId;
-
-          if (value) {
-            return value;
-          }
-
-          if (entity?.placeId) {
-            return entity.placeId;
-          }
+          if (value) return value;
+          if (entity?.placeId) return entity.placeId;
 
           if (speciesId) {
             const place: Place = await ctx.call('places.create', { species: speciesId });
@@ -1475,9 +1504,28 @@ export default class FormsService extends moleculer.Service {
       await this.createFormHistory(form.id, ctx.meta, FormHistoryTypes.RELEVANCY_CHANGED, comment);
     }
 
+    if (form.isInformational !== prevForm.isInformational) {
+      const historyType = form?.isInformational
+        ? FormHistoryTypes.CHANGE_TO_INFORMATIONAL
+        : FormHistoryTypes.CHANGE_TO_NOT_INFORMATIONAL;
+      await this.createFormHistory(form.id, ctx.meta, historyType);
+    }
+
     if (prevForm?.place !== form.place) {
+      const historyType = prevForm?.place
+        ? FormHistoryTypes.PLACE_CHANGED
+        : FormHistoryTypes.PLACE_ASSIGNED;
+
+      if (form.place) {
+        await this.createFormHistory(form.id, ctx.meta, historyType);
+      }
+
       await this.assignPlaceIfNeeded(ctx, form);
-      if (prevForm?.place) {
+      if (prevForm.place) {
+        const forms: Form[] = await ctx.call('forms.find', { query: { place: prevForm.place } });
+        if (!!forms?.length) {
+          await ctx.call('places.remove', { id: prevForm.place });
+        }
         await this.assignPlaceIfNeeded(ctx, prevForm);
       }
     }
