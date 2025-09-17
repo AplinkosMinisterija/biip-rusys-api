@@ -54,10 +54,13 @@ export default class ToolsService extends moleculer.Service {
           'Cache-Control': 'no-cache',
         },
       })
+        .then((r) => {
+          if (!r.ok) reject(`Error while getting screenshot for ${url}`);
+          return r;
+        })
         .then((r) => (stream ? r.body?.getReader() : (r.text() as any)))
         .then(resolve)
         .catch((err) => {
-          console.error(err);
           reject(err?.message || 'Error while getting screenshot');
         });
     });

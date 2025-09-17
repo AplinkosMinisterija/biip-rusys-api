@@ -119,6 +119,7 @@ export default class MinioService extends Moleculer.Service {
         timeout: 0,
       });
     } catch (_e) {
+      console.error(_e);
       throwUnableToUploadError();
     }
 
@@ -143,6 +144,7 @@ export default class MinioService extends Moleculer.Service {
       size,
       filename,
       path: `${bucketName}/${objectFileName}`,
+      objectName: objectFileName,
       privateUrl: this.getObjectUrl(objectFileName, true, bucketName),
       publicUrl: this.getObjectUrl(objectFileName, false, bucketName),
     };
@@ -213,10 +215,11 @@ export default class MinioService extends Moleculer.Service {
         type: 'string',
         default: BUCKET_NAME(),
       },
+      size: 'number|default:100',
     },
   })
-  async fileStat(ctx: Context<{ bucketName: string; objectName: string }>) {
-    const { bucketName, objectName } = ctx.params;
+  async fileStat(ctx: Context<{ bucketName: string; objectName: string; size: number }>) {
+    const { bucketName, objectName, size } = ctx.params;
 
     const response: any = {
       exists: false,
@@ -227,7 +230,7 @@ export default class MinioService extends Moleculer.Service {
         objectName,
       });
 
-      response.exists = data?.size > 100;
+      response.exists = data?.size > size;
 
       if (response.exists) {
         const presignedUrl: string = await this.getPresignedUrl(ctx, objectName, bucketName);
@@ -239,17 +242,24 @@ export default class MinioService extends Moleculer.Service {
       }
 
       return response;
-    } catch (err) {}
+    } catch (err) {
+      console.error(err);
+    }
 
     return response;
   }
 
-  @Action()
-  async cleanTempFolder(ctx: Context) {
+  @Action({
+    params: {
+      prefix: 'string',
+      recursive: 'boolean|default:false',
+    },
+  })
+  async cleanFolder(ctx: Context<{ prefix: string; recursive: boolean }>) {
     const objects: any[] = await ctx.call('minio.listObjectsV2', {
       bucketName: BUCKET_NAME(),
-      prefix: 'temp',
-      recursive: true,
+      prefix: ctx.params.prefix,
+      recursive: ctx.params.recursive,
     });
 
     return ctx.call('minio.removeObjects', {
@@ -289,42 +299,42 @@ export default class MinioService extends Moleculer.Service {
         await this.actions.makeBucket({
           bucketName: BUCKET_NAME(),
         });
+      }
 
-        await this.client.setBucketPolicy(
-          BUCKET_NAME(),
-          JSON.stringify({
-            Version: '2012-10-17',
-            Statement: [
-              {
-                Effect: 'Allow',
-                Principal: {
-                  AWS: ['*'],
-                },
-                Action: ['s3:GetObject'],
-                Resource: [
-                  `arn:aws:s3:::${BUCKET_NAME()}/uploads/species/*`,
-                  `arn:aws:s3:::${BUCKET_NAME()}/uploads/forms/*`,
-                ],
-              },
-            ],
-          }),
-        );
-
-        await this.client.setBucketLifecycle(BUCKET_NAME(), {
-          Rule: [
+      await this.client.setBucketPolicy(
+        BUCKET_NAME(),
+        JSON.stringify({
+          Version: '2012-10-17',
+          Statement: [
             {
-              ID: 'Expiration Rule For Temp Files',
-              Status: 'Enabled',
-              Filter: {
-                Prefix: 'temp/*',
+              Effect: 'Allow',
+              Principal: {
+                AWS: ['*'],
               },
-              Expiration: {
-                Days: '7',
-              },
+              Action: ['s3:GetObject'],
+              Resource: [
+                `arn:aws:s3:::${BUCKET_NAME()}/uploads/species/*`,
+                `arn:aws:s3:::${BUCKET_NAME()}/uploads/forms/*`,
+              ],
             },
           ],
-        });
-      }
+        }),
+      );
+
+      await this.client.setBucketLifecycle(BUCKET_NAME(), {
+        Rule: [
+          {
+            ID: 'Expiration Rule For Temp Files',
+            Status: 'Enabled',
+            Filter: {
+              Prefix: 'temp/*',
+            },
+            Expiration: {
+              Days: '7',
+            },
+          },
+        ],
+      });
     } catch (err) {
       this.broker.logger.fatal(err);
     }
