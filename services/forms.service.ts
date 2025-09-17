@@ -1021,8 +1021,7 @@ export default class FormsService extends moleculer.Service {
       .select('*')
       .from(allPlacesBySpecies.as('allPlaces'))
       .where('distance', '<=', 1000)
-      .orderBy(sortingObject)
-      .limit(10);
+      .orderBy(sortingObject);
   }
 
   @Action({
