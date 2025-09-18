@@ -1043,13 +1043,28 @@ export default class FormsService extends moleculer.Service {
       .whereNotNull(`${placesTable}.id`)
       .whereNull(`${placesTable}.deletedAt`);
 
-    return adapter.client
+    const totalQuery = adapter.client
+      .count('* as total')
+      .from(allPlacesBySpecies.as('allPlaces'))
+      .where('distance', '<=', maxDistanceMeters);
+    const totalResult = await totalQuery;
+    const total = Number(totalResult[0].total);
+
+    const rowsInPage = await adapter.client
       .select('*')
       .from(allPlacesBySpecies.as('allPlaces'))
       .where('distance', '<=', maxDistanceMeters)
       .orderBy(sortingObject)
       .offset(offset)
       .limit(pageSize);
+
+    return {
+      rows: rowsInPage,
+      total,
+      pageSize,
+      page,
+      totalPages: Math.floor((total + pageSize - 1) / pageSize),
+    };
   }
 
   @Action({
