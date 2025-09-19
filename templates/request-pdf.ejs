@@ -133,9 +133,15 @@
         </div>
         <% if (previewScreenshot) { %>
           <div class="no-page-break-inside">
-            <div>
-              Teritorijoje aptinkamų prašytų invazinių rūšių radaviečių žemėlapis:
-            </div>
+            <% if (isInvasive) { %>
+              <div>
+                Teritorijoje aptinkamų prašytų invazinių rūšių radaviečių žemėlapis:
+              </div>
+            <% } else { %>
+              <div>
+                Teritorijoje aptinkamų prašytų saugomų rūšių radaviečių žemėlapis:
+              </div>
+            <% } %>
             <img
               src="<%= previewScreenshot %>"
               class="w-full"
