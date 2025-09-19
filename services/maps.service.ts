@@ -127,7 +127,7 @@ export default class MapsService extends moleculer.Service {
             mapsInvaPlacesIntroducedLayerId,
             mapsInvaNoQuantityIntroducedFormsLayerId,
           ].join(',')
-        : [mapsInvaPlacesInvasiveLayerId].join(','),
+        : mapsInvaPlacesInvasiveLayerId,
     });
   }
 
