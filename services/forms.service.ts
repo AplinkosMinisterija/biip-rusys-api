@@ -970,14 +970,40 @@ export default class FormsService extends moleculer.Service {
         { type: 'string', optional: true },
         { type: 'array', optional: true, items: 'string' },
       ],
+      pageSize: {
+        type: 'number',
+        convert: true,
+        integer: true,
+        optional: true,
+        default: 10,
+        min: 1,
+      },
+      page: {
+        type: 'number',
+        convert: true,
+        integer: true,
+        min: 1,
+        optional: true,
+        default: 1,
+      },
     },
   })
-  async getPlaces(ctx: Context<{ id: number; sort?: string[] | string }, UserAuthMeta>) {
+  async getPlaces(
+    ctx: Context<
+      { id: number; sort?: string[] | string; page: number; pageSize: number },
+      UserAuthMeta
+    >,
+  ) {
+    const maxDistanceMeters = 100;
     const adapter = await this.getAdapter(ctx);
     const table = adapter.getTable();
     const formsTable = 'forms';
     const placesTable = 'places';
     const parsePlacesSort = this.parseSort(ctx.params.sort);
+
+    const page = ctx.params.page ?? 1;
+    const pageSize = ctx.params.pageSize ?? 10;
+    const offset = (page - 1) * pageSize;
 
     const getSortObject = (item = '') => {
       const desc = item.startsWith('-');
@@ -1017,12 +1043,28 @@ export default class FormsService extends moleculer.Service {
       .whereNotNull(`${placesTable}.id`)
       .whereNull(`${placesTable}.deletedAt`);
 
-    return adapter.client
+    const totalQuery = adapter.client
+      .count('* as total')
+      .from(allPlacesBySpecies.as('allPlaces'))
+      .where('distance', '<=', maxDistanceMeters);
+    const totalResult = await totalQuery;
+    const total = Number(totalResult[0].total);
+
+    const rowsInPage = await adapter.client
       .select('*')
       .from(allPlacesBySpecies.as('allPlaces'))
-      .where('distance', '<=', 1000)
+      .where('distance', '<=', maxDistanceMeters)
       .orderBy(sortingObject)
-      .limit(10);
+      .offset(offset)
+      .limit(pageSize);
+
+    return {
+      rows: rowsInPage,
+      total,
+      pageSize,
+      page,
+      totalPages: Math.floor((total + pageSize - 1) / pageSize),
+    };
   }
 
   @Action({
