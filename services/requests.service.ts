@@ -1204,7 +1204,7 @@ export default class RequestsService extends moleculer.Service {
   }
 
   @Method
-  async sendNotificationOnStatusChange(request: Request) {
+  async sendNotificationOnStatusChange(request: Request, comment?: string) {
     if (!emailCanBeSent()) return;
 
     if ([RequestStatus.SUBMITTED, RequestStatus.CREATED].includes(request.status)) {
@@ -1212,7 +1212,15 @@ export default class RequestsService extends moleculer.Service {
       if (!emails?.length) return;
 
       return emails.map((email) => {
-        notifyOnRequestUpdate(email, request.status, request.id, request.type, false, true);
+        notifyOnRequestUpdate(
+          email,
+          request.status,
+          request.id,
+          request.type,
+          false,
+          true,
+          request.speciesTypes,
+        );
       });
     }
 
@@ -1238,6 +1246,8 @@ export default class RequestsService extends moleculer.Service {
       request.type,
       !!expertSpecies?.length,
       user.type === UserType.ADMIN,
+      request.speciesTypes,
+      user.type === UserType.ADMIN ? comment : undefined,
     );
   }
 
@@ -1367,6 +1377,8 @@ export default class RequestsService extends moleculer.Service {
       request.id,
       !!(!request.tenant && isExpert),
       user.type === UserType.ADMIN,
+      request.speciesTypes,
+      user.type === UserType.ADMIN ? text :''
     );
   }
 
@@ -1387,7 +1399,7 @@ export default class RequestsService extends moleculer.Service {
 
       await this.generatePdfIfNeeded(request);
       await this.generateGeojsonIfNeeded(request);
-      this.sendNotificationOnStatusChange(request);
+      this.sendNotificationOnStatusChange(request, comment);
     }
 
     // Send notification that PDF is prepared

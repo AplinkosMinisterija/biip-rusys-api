@@ -1289,7 +1289,7 @@ export default class FormsService extends moleculer.Service {
   }
 
   @Method
-  async sendNotificationOnStatusChange(form: Form) {
+  async sendNotificationOnStatusChange(form: Form, comment: string) {
     if (!emailCanBeSent()) return;
 
     const notifyExpert = [FormStatus.SUBMITTED].includes(form.status);
@@ -1308,6 +1308,7 @@ export default class FormsService extends moleculer.Service {
       taxonomy,
       notifyExpert,
       user.type === UserType.ADMIN,
+      !notifyExpert ? comment : '',
     );
   }
 
@@ -1496,7 +1497,7 @@ export default class FormsService extends moleculer.Service {
 
       await this.createFormHistory(form.id, ctx.meta, typesByStatus[form.status], comment);
 
-      await this.sendNotificationOnStatusChange(form);
+      await this.sendNotificationOnStatusChange(form, comment);
     }
 
     if (form.isInformational && prevForm.isRelevant !== form.isRelevant) {
