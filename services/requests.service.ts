@@ -1247,7 +1247,7 @@ export default class RequestsService extends moleculer.Service {
       !!expertSpecies?.length,
       user.type === UserType.ADMIN,
       request.speciesTypes,
-      user.type === UserType.ADMIN ? comment : undefined,
+      user.type !== UserType.ADMIN ? comment : undefined,
     );
   }
 
@@ -1378,7 +1378,6 @@ export default class RequestsService extends moleculer.Service {
       !!(!request.tenant && isExpert),
       user.type === UserType.ADMIN,
       request.speciesTypes,
-      user.type === UserType.ADMIN ? text :''
     );
   }
 
