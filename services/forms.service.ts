@@ -1567,8 +1567,9 @@ export default class FormsService extends moleculer.Service {
         const forms: Form[] = await ctx.call('forms.find', { query: { place: prevForm.place } });
         if (!forms?.length) {
           await ctx.call('places.remove', { id: prevForm.place });
+        } else {
+          await this.assignPlaceIfNeeded(ctx, prevForm);
         }
-        await this.assignPlaceIfNeeded(ctx, prevForm);
       }
     }
 
