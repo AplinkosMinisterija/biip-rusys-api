@@ -242,10 +242,9 @@ export interface Form extends BaseModelInterface {
           const speciesId = entity?.speciesId;
 
           const canManageApprovedEntity =
-            (entity.status === FormStatus.APPROVED &&
-              user?.isExpert &&
-              user?.expertSpecies.includes(speciesId)) ||
-            user.type === UserType.ADMIN;
+            entity.status === FormStatus.APPROVED &&
+            ((user?.isExpert && user?.expertSpecies.includes(speciesId)) ||
+              user.type === UserType.ADMIN);
 
           if (!statusChanged || canManageApprovedEntity) {
             return;
