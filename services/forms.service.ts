@@ -34,7 +34,7 @@ import { emailCanBeSent, notifyFormAssignee, notifyOnFormUpdate } from '../utils
 import { FormHistoryTypes } from './forms.histories.service';
 import { FormSettingSource } from './forms.settings.sources.service';
 import { FormType } from './forms.types.service';
-import { Place } from './places.service';
+import { Place, PlaceStatus } from './places.service';
 import { Taxonomy } from './taxonomies.service';
 import { Tenant } from './tenants.service';
 import { User, USERS_DEFAULT_SCOPES, UserType } from './users.service';
@@ -1566,7 +1566,11 @@ export default class FormsService extends moleculer.Service {
       if (prevForm.place) {
         const forms: Form[] = await ctx.call('forms.find', { query: { place: prevForm.place } });
         if (!forms?.length) {
-          await ctx.call('places.remove', { id: prevForm.place });
+          await ctx.call('places.remove', {
+            id: prevForm.place,
+            status: PlaceStatus.DESTROYED,
+            comment: 'Sunaikinta, nes atskirta paskutinė forma nuo radavietės',
+          });
         } else {
           await this.assignPlaceIfNeeded(ctx, prevForm);
         }
