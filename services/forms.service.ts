@@ -241,12 +241,13 @@ export interface Form extends BaseModelInterface {
           const statusChanged = ctx?.meta?.statusChanged;
           const speciesId = entity?.speciesId;
 
-          const isApprovedExpert =
-            entity.status === FormStatus.APPROVED &&
-            user?.isExpert &&
-            user?.expertSpecies.includes(speciesId);
+          const canManageApprovedEntity =
+            (entity.status === FormStatus.APPROVED &&
+              user?.isExpert &&
+              user?.expertSpecies.includes(speciesId)) ||
+            user.type === UserType.ADMIN;
 
-          if (!statusChanged || isApprovedExpert) {
+          if (!statusChanged || canManageApprovedEntity) {
             return;
           }
 
@@ -343,13 +344,15 @@ export interface Form extends BaseModelInterface {
 
           const speciesId = params?.species || entity?.speciesId;
 
-          const isExpertSpecies = user?.isExpert && user?.expertSpecies.includes(speciesId);
+          const isSpeciesExpertOrAdmin =
+            (user?.isExpert && user?.expertSpecies.includes(speciesId)) ||
+            user.type === UserType.ADMIN;
 
-          if (isInformational && entity?.placeId && isExpertSpecies) {
+          if (isInformational && entity?.placeId && isSpeciesExpertOrAdmin) {
             return null;
           }
 
-          if (createNewPlace && entity?.placeId && isExpertSpecies) {
+          if (createNewPlace && entity?.placeId && isSpeciesExpertOrAdmin) {
             if (!speciesId) throwValidationError('Missing species for new place.');
 
             const forms: Form[] = await ctx.call('forms.find', {
@@ -364,7 +367,7 @@ export interface Form extends BaseModelInterface {
             return place.id;
           }
 
-          if (params?.place && entity?.placeId !== params.place && isExpertSpecies) {
+          if (params?.place && entity?.placeId !== params.place && isSpeciesExpertOrAdmin) {
             const newPlace: Place = await ctx.call('places.resolve', {
               id: params.place,
               throwIfNotExist: true,
