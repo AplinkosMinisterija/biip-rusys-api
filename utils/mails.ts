@@ -8,8 +8,6 @@ const client = new ServerClient(process.env.POSTMARK_KEY);
 const sender = 'noreply@biip.lt';
 
 export function emailCanBeSent() {
-  return true;
-
   return ['production'].includes(process.env.NODE_ENV);
 }
 
