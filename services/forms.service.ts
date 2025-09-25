@@ -34,7 +34,7 @@ import { emailCanBeSent, notifyFormAssignee, notifyOnFormUpdate } from '../utils
 import { FormHistoryTypes } from './forms.histories.service';
 import { FormSettingSource } from './forms.settings.sources.service';
 import { FormType } from './forms.types.service';
-import { Place } from './places.service';
+import { Place, PlaceStatus } from './places.service';
 import { Taxonomy } from './taxonomies.service';
 import { Tenant } from './tenants.service';
 import { User, USERS_DEFAULT_SCOPES, UserType } from './users.service';
@@ -241,12 +241,12 @@ export interface Form extends BaseModelInterface {
           const statusChanged = ctx?.meta?.statusChanged;
           const speciesId = entity?.speciesId;
 
-          const isApprovedExpert =
+          const canManageApprovedEntity =
             entity.status === FormStatus.APPROVED &&
-            user?.isExpert &&
-            user?.expertSpecies.includes(speciesId);
+            ((user?.isExpert && user?.expertSpecies.includes(speciesId)) ||
+              user.type === UserType.ADMIN);
 
-          if (!statusChanged || isApprovedExpert) {
+          if (!statusChanged || canManageApprovedEntity) {
             return;
           }
 
@@ -343,13 +343,15 @@ export interface Form extends BaseModelInterface {
 
           const speciesId = params?.species || entity?.speciesId;
 
-          const isExpertSpecies = user?.isExpert && user?.expertSpecies.includes(speciesId);
+          const isSpeciesExpertOrAdmin =
+            (user?.isExpert && user?.expertSpecies.includes(speciesId)) ||
+            user.type === UserType.ADMIN;
 
-          if (isInformational && entity?.placeId && isExpertSpecies) {
+          if (isInformational && entity?.placeId && isSpeciesExpertOrAdmin) {
             return null;
           }
 
-          if (createNewPlace && entity?.placeId && isExpertSpecies) {
+          if (createNewPlace && entity?.placeId && isSpeciesExpertOrAdmin) {
             if (!speciesId) throwValidationError('Missing species for new place.');
 
             const forms: Form[] = await ctx.call('forms.find', {
@@ -364,7 +366,7 @@ export interface Form extends BaseModelInterface {
             return place.id;
           }
 
-          if (params?.place && entity?.placeId !== params.place && isExpertSpecies) {
+          if (params?.place && entity?.placeId !== params.place && isSpeciesExpertOrAdmin) {
             const newPlace: Place = await ctx.call('places.resolve', {
               id: params.place,
               throwIfNotExist: true,
@@ -1566,10 +1568,15 @@ export default class FormsService extends moleculer.Service {
       await this.assignPlaceIfNeeded(ctx, form);
       if (prevForm.place) {
         const forms: Form[] = await ctx.call('forms.find', { query: { place: prevForm.place } });
-        if (!!forms?.length) {
-          await ctx.call('places.remove', { id: prevForm.place });
+        if (!forms?.length) {
+          await ctx.call('places.remove', {
+            id: prevForm.place,
+            status: PlaceStatus.DESTROYED,
+            comment: 'Sunaikinta, nes atskirta paskutinė forma nuo radavietės',
+          });
+        } else {
+          await this.assignPlaceIfNeeded(ctx, prevForm);
         }
-        await this.assignPlaceIfNeeded(ctx, prevForm);
       }
     }
 
