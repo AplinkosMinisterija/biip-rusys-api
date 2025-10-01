@@ -839,7 +839,7 @@ export default class FormsService extends moleculer.Service {
         convert: true,
       },
     },
-    types: [EndpointType.EXPERT],
+    types: [EndpointType.EXPERT, EndpointType.ADMIN],
   })
   async setPlace(ctx: Context<{ id: number; place?: number }, UserAuthMeta & FormPlaceChanged>) {
     ctx.meta.placeChanged = true;
