@@ -846,6 +846,7 @@ export default class FormsService extends moleculer.Service {
 
     await this.updateEntity(ctx, {
       id: ctx.params.id,
+      isInformational: false,
       place: ctx.params.place || null,
     });
 
