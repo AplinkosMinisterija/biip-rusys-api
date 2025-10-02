@@ -43,7 +43,7 @@ function formatAreaText(area?: number): string {
   const areaValue = Number(area) || 0;
   const isSquareKilometers = areaValue >= 10000;
 
-  return `${(isSquareKilometers ? areaValue / 1000000 : areaValue).toFixed(2)} ${
+  return `${(isSquareKilometers ? areaValue / 1000000 : areaValue).toFixed(3)} ${
     isSquareKilometers ? 'km²' : 'm²'
   }`;
 }
