@@ -1572,7 +1572,7 @@ export default class FormsService extends moleculer.Service {
         if (!forms?.length) {
           await ctx.call('places.remove', {
             id: prevForm.place,
-            status: PlaceStatus.DESTROYED,
+            status: PlaceStatus.MISTAKEN,
             comment: 'Sunaikinta, nes atskirta paskutinė forma nuo radavietės',
           });
         } else {
