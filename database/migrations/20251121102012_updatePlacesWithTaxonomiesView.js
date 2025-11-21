@@ -56,7 +56,7 @@ exports.up = function (knex) {
           .leftJoin(
             knex
               .select(
-                knex.raw('DISTINCT ON (placeId) placeId'),
+                knex.raw('DISTINCT ON (place_id) place_id'),
                 'id',
                 'activity',
                 'evolution',
@@ -65,11 +65,11 @@ exports.up = function (knex) {
                 'observed_at',
               )
               .from('forms')
-              .whereNotNull('placeId')
-              .orderBy('placeId')
+              .whereNotNull('place_id')
+              .orderBy('place_id')
               .orderBy('observed_at', 'desc')
               .as('latest'),
-            'latest.placeId',
+            'latest.place_id',
             'p.id',
           ),
       );
