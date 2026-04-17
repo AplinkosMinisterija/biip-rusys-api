@@ -74,6 +74,7 @@ export interface Place extends BaseModelInterface {
     }),
     PostgisMixin({
       srid: 3346,
+      geojson: { maxDecimalDigits: 2 },
     }),
   ],
 
