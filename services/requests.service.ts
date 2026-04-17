@@ -930,11 +930,30 @@ export default class RequestsService extends moleculer.Service {
 
     requestData.places?.forEach((place) => {
       const speciesInfo = getSpeciesData(place.species);
+
+      const placeFeatures = place.geom?.features || [];
+      placeFeatures.forEach((pf: any) => {
+        pf.geometry.crs = { type: 'name', properties: { name: 'EPSG:3346' } };
+        pf.properties = {
+          'Objekto tipas': 'Radavietė',
+          'Radavietės ID': place.id,
+          'Radavietės kodas': place.placeCode,
+          ...speciesInfo,
+          'Radavietės plotas (m²)': place.placeArea,
+          'Paskutinio stebėjimo data': place.placeLastObservedAt,
+          'Pirmo stebėjimo data': place.placeFirstObservedAt,
+          'Radavietės būsena': place.placeStatusTranslate,
+          'Radavietės sukūrimo data': place.placeCreatedAt,
+        };
+        geojson.features.push(pf);
+      });
+
       place.forms?.forEach((form) => {
         const { features } = form.geom || [];
         const featuresToInsert = features.map((f: any) => {
           f.geometry.crs = { type: 'name', properties: { name: 'EPSG:3346' } };
           f.properties = {
+            'Objekto tipas': 'Stebėjimas',
             'Anketos ID': form.id,
             'Radavietės ID': place.id,
             'Radavietės kodas': place.placeCode,
