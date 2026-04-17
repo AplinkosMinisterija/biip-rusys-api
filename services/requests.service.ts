@@ -117,6 +117,7 @@ const populatePermissions = (field: string) => {
     }),
     PostgisMixin({
       srid: 3346,
+      geojson: { maxDecimalDigits: 2 },
     }),
     Cron,
   ],

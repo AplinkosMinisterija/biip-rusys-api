@@ -31,6 +31,7 @@ export interface PlaceHistory extends BaseModelInterface {
     }),
     PostgisMixin({
       srid: 3346,
+      geojson: { maxDecimalDigits: 2 },
     }),
   ],
 
