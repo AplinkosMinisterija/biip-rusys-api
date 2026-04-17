@@ -193,6 +193,7 @@ export function getFormsByDateAndPlaceIds(ids: number[], date: string) {
     )
     .from(formsTable)
     .whereIn(`${formsTable}.placeId`, ids)
+    .where(knex.raw(`${snakeCase(formsTable)}.${queryBooleanPlain('isRelevant', true)}`))
     .where(`${formsTable}.createdAt`, '<=', date);
 
   return query;
