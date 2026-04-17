@@ -342,7 +342,7 @@ export default class PlacesService extends moleculer.Service {
         adapter.client.raw(
           asGeoJsonQuery('geom', 'geom', 3346, {
             options: 0,
-            digits: 0,
+            digits: 2,
           }),
         ),
       )
