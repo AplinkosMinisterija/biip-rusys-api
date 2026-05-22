@@ -13,11 +13,18 @@ import {
   getPublicFileName,
   throwNotFoundError,
   throwUnableToUploadError,
+  throwUnauthorizedError,
   throwUnsupportedMimetypeError,
 } from '../types';
 import { AuthType, UserAuthMeta } from './api.service';
+import { UserType } from './users.service';
 
 export const BUCKET_NAME = () => process.env.MINIO_BUCKET || 'rusys';
+
+// Object paths that may be served without authentication. These mirror the
+// MinIO bucket policy applied at service start (uploads/forms/* and
+// uploads/species/* are public-read for image rendering).
+const PUBLIC_PATH_PREFIXES = ['uploads/forms/', 'uploads/species/'];
 
 @Service({
   name: 'minio',
@@ -172,7 +179,7 @@ export default class MinioService extends Moleculer.Service {
   async getFile(
     ctx: Context<
       { bucket: string; name: string[]; download?: string },
-      {
+      UserAuthMeta & {
         $responseHeaders: any;
         $statusCode: number;
         $statusMessage: string;
@@ -181,11 +188,14 @@ export default class MinioService extends Moleculer.Service {
     >,
   ) {
     const { bucket, name } = ctx.params;
+    const objectPath = name.join('/');
+
+    await this.assertCanReadObject(ctx, objectPath);
 
     try {
       const reader: NodeJS.ReadableStream = await ctx.call('minio.getObject', {
         bucketName: bucket,
-        objectName: name.join('/'),
+        objectName: objectPath,
       });
 
       const filename = name[name.length - 1];
@@ -340,6 +350,60 @@ export default class MinioService extends Moleculer.Service {
     }
 
     return `${hostUrl}/${bucketName}/${objectName}`;
+  }
+
+  @Method
+  async assertCanReadObject(
+    ctx: Context<unknown, UserAuthMeta>,
+    objectPath: string,
+  ): Promise<void> {
+    if (PUBLIC_PATH_PREFIXES.some((prefix) => objectPath.startsWith(prefix))) {
+      return;
+    }
+
+    const user = ctx.meta.user;
+    if (!user?.id) {
+      throwUnauthorizedError('Authentication required.');
+    }
+
+    if (user.type === UserType.ADMIN) {
+      return;
+    }
+
+    // Request extracts (PDF / GeoJSON) live under:
+    //   uploads/requests/<tenantId or 'private'>/<userId or 'user'>/<filename>
+    // See requests.service.ts and jobs.requests.service.ts -> getFolderName.
+    const requestPathMatch = objectPath.match(
+      /^uploads\/requests\/([^/]+)\/([^/]+)\//,
+    );
+
+    if (!requestPathMatch) {
+      throwUnauthorizedError('Cannot access this file.');
+    }
+
+    const [, tenantSegment, userSegment] = requestPathMatch;
+
+    if (tenantSegment === 'private') {
+      // Personal (non-tenant) folder: only the owning user may read.
+      if (String(user.id) !== userSegment) {
+        throwUnauthorizedError('Cannot access this file.');
+      }
+      return;
+    }
+
+    const tenantId = Number(tenantSegment);
+    if (!Number.isFinite(tenantId) || tenantId <= 0) {
+      throwUnauthorizedError('Cannot access this file.');
+    }
+
+    const isMember: boolean = await ctx.call('tenantUsers.userExistsInTenant', {
+      userId: user.id,
+      tenantId,
+    });
+
+    if (!isMember) {
+      throwUnauthorizedError('Cannot access this file.');
+    }
   }
 
   @Method
