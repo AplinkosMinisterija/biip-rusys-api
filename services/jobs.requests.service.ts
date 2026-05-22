@@ -1,5 +1,6 @@
 'use strict';
 
+import { randomBytes } from 'crypto';
 import moleculer, { Context } from 'moleculer';
 import { Action, Method, Service } from 'moleculer-decorators';
 import moment from 'moment';
@@ -20,8 +21,19 @@ import { TaxonomySpeciesType, TaxonomySpeciesTypeTranslate } from './taxonomies.
 import { Tenant } from './tenants.service';
 import { User } from './users.service';
 
-export function getRequestSecret(request: Request) {
-  return toMD5Hash(`id=${request.id}&date=${moment(request.createdAt).format('YYYYMMDDHHmmss')}`);
+// Single-use access nonce for /jobs/requests/:id/html. Created when a PDF
+// generation flow starts (or when admin preview is requested), looked up
+// from Redis on access, and TTL'd so it can't be hoarded.
+const HTML_NONCE_TTL_SECONDS = 10 * 60;
+const htmlNonceCacheKey = (id: number, nonce: string) => `request.html.nonce.${id}.${nonce}`;
+
+export async function issueRequestHtmlNonce(
+  broker: moleculer.ServiceBroker,
+  requestId: number,
+): Promise<string> {
+  const nonce = randomBytes(32).toString('hex');
+  await broker.cacher.set(htmlNonceCacheKey(requestId, nonce), '1', HTML_NONCE_TTL_SECONDS);
+  return nonce;
 }
 @Service({
   name: 'jobs.requests',
@@ -103,7 +115,7 @@ export default class JobsRequestsService extends moleculer.Service {
 
     await this.broker.cacher.set(redisKey, screenshotsByHash);
 
-    const secret = getRequestSecret(request);
+    const nonce = await issueRequestHtmlNonce(this.broker, id);
 
     const footerHtml = getTemplateHtml('footer.ejs', {
       id,
@@ -111,7 +123,7 @@ export default class JobsRequestsService extends moleculer.Service {
     });
 
     const pdf = await ctx.call('tools.makePdf', {
-      url: `${process.env.SERVER_HOST}/jobs/requests/${id}/html?secret=${secret}&skey=${screenshotsHash}`,
+      url: `${process.env.SERVER_HOST}/jobs/requests/${id}/html?nonce=${nonce}&skey=${screenshotsHash}`,
       footer: footerHtml,
     });
 
@@ -419,7 +431,7 @@ export default class JobsRequestsService extends moleculer.Service {
         type: 'number',
         convert: true,
       },
-      secret: 'string',
+      nonce: 'string',
       skey: 'string',
     },
     rest: 'GET /:id/html',
@@ -428,19 +440,27 @@ export default class JobsRequestsService extends moleculer.Service {
   })
   async getRequestHtml(
     ctx: Context<
-      { id: number; secret: string; skey: string },
+      { id: number; nonce: string; skey: string },
       { $responseType: string; $responseHeaders: any }
     >,
   ) {
     ctx.meta.$responseType = 'text/html';
 
-    const { id, secret, skey: screenshotsRedisKey } = ctx.params;
+    const { id, nonce, skey: screenshotsRedisKey } = ctx.params;
+
+    if (!nonce) {
+      return throwNotFoundError('Invalid nonce.');
+    }
+
+    const cacheKey = htmlNonceCacheKey(id, nonce);
+    const issued = await this.broker.cacher.get(cacheKey);
+    if (!issued) {
+      return throwNotFoundError('Invalid or expired nonce.');
+    }
 
     const request: Request = await ctx.call('requests.resolve', { id });
-
-    const secretToApprove = getRequestSecret(request);
-    if (!request?.id || !secret || secret !== secretToApprove) {
-      return throwNotFoundError('Invalid secret!');
+    if (!request?.id) {
+      return throwNotFoundError('Request not found.');
     }
 
     const requestData = await getRequestData(ctx, id);

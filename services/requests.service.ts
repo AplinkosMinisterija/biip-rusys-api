@@ -41,7 +41,7 @@ import { parseToObject, toReadableStream } from '../utils/functions';
 import { getTemplateHtml } from '../utils/html';
 import { emailCanBeSent, notifyOnFileGenerated, notifyOnRequestUpdate } from '../utils/mails';
 import { getRequestData } from '../utils/pdf/requests';
-import { getRequestSecret } from './jobs.requests.service';
+import { issueRequestHtmlNonce } from './jobs.requests.service';
 import { Taxonomy } from './taxonomies.service';
 import { TaxonomySpeciesType, TaxonomySpeciesTypeTranslate } from './taxonomies.species.service';
 
@@ -778,7 +778,7 @@ export default class RequestsService extends moleculer.Service {
 
     const requestData = await getRequestData(ctx, id);
 
-    const secret = getRequestSecret(request);
+    const nonce = await issueRequestHtmlNonce(this.broker, request.id);
 
     const footerHtml = getTemplateHtml('footer.ejs', {
       id,
@@ -786,7 +786,7 @@ export default class RequestsService extends moleculer.Service {
     });
 
     const pdf = await ctx.call('tools.makePdf', {
-      url: `${process.env.SERVER_HOST}/jobs/requests/${id}/html?secret=${secret}&skey=admin_preview`,
+      url: `${process.env.SERVER_HOST}/jobs/requests/${id}/html?nonce=${nonce}&skey=admin_preview`,
       footer: footerHtml,
     });
 
