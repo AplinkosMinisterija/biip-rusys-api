@@ -342,6 +342,7 @@ export default class UsersService extends moleculer.Service {
         convert: true,
       },
     },
+    types: [EndpointType.ADMIN],
   })
   async impersonate(ctx: Context<{ id: number }, UserAuthMeta>) {
     const { id } = ctx.params;
