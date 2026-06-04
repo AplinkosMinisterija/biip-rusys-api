@@ -1,3 +1,5 @@
+import { Handlers } from '@sentry/node';
+import helmet from 'helmet';
 import pick from 'lodash/pick';
 import moleculer, { Context, Errors } from 'moleculer';
 import { Action, Method, Service } from 'moleculer-decorators';
@@ -6,7 +8,19 @@ import { COMMON_DELETED_SCOPES, EndpointType, RequestMessage } from '../types';
 import { Tenant } from './tenants.service';
 import { User } from './users.service';
 import { throwUnauthorizedError } from '../types';
-import { Handlers } from '@sentry/node';
+
+// Permissions-Policy is intentionally NOT covered by helmet (it dropped
+// Feature-/Permissions-Policy support), so set it explicitly. Disables a set
+// of powerful browser features this JSON API never needs, shrinking the
+// attack surface if a response is ever rendered in a browsing context.
+function permissionsPolicyMiddleware(_req: any, res: any, next: any) {
+  res.setHeader(
+    'Permissions-Policy',
+    'accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()',
+  );
+  next();
+}
+
 export interface UserAuthMeta {
   user: User;
   profile?: Tenant;
@@ -42,6 +56,14 @@ export const AuthType = {
     },
 
     use: [
+      // Standard security headers (X-Content-Type-Options, X-Frame-Options,
+      // Referrer-Policy, COOP/CORP, HSTS in prod, drops X-Powered-By, etc.)
+      // applied to every route. CSP is intentionally disabled: this API
+      // serves binary files through the `minio` proxy, and a wrong CSP would
+      // break inline file responses without protecting a JSON/file surface.
+      // Permissions-Policy (which helmet no longer sets) is added separately.
+      helmet({ contentSecurityPolicy: false }),
+      permissionsPolicyMiddleware,
       function (req: any, res: any, next: any) {
         const removeScopes = (query: any) => {
           if (!query) return query;
