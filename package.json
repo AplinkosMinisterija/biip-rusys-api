@@ -65,6 +65,7 @@
     "dotenv": "^16.0.0",
     "ejs": "^3.1.8",
     "geojsonjs": "^0.1.2",
+    "helmet": "^8.1.0",
     "ioredis": "^4.28.5",
     "jsonwebtoken": "^9.0.0",
     "knex": "^2.5.1",
