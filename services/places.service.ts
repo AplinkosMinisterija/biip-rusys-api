@@ -186,6 +186,29 @@ export interface Place extends BaseModelInterface {
       },
       types: [EndpointType.ADMIN, EndpointType.EXPERT],
     },
+
+    // Places hold precise protected-species coordinates. The `visibleToExpert`
+    // scope only narrows experts (to their own species) and lets admins through,
+    // so without a gate a plain USER would read every place. Regular users get
+    // their granted places through the maps/QGIS flow (maps.qgisserver), not
+    // these endpoints, so restrict the reads to admins and experts — matching
+    // the create/update/remove restriction above. Internal populate/resolve
+    // calls are unaffected (service-to-service calls bypass endpoint `types`).
+    get: {
+      types: [EndpointType.ADMIN, EndpointType.EXPERT],
+    },
+
+    list: {
+      types: [EndpointType.ADMIN, EndpointType.EXPERT],
+    },
+
+    find: {
+      types: [EndpointType.ADMIN, EndpointType.EXPERT],
+    },
+
+    count: {
+      types: [EndpointType.ADMIN, EndpointType.EXPERT],
+    },
   },
 })
 export default class PlacesService extends moleculer.Service {
@@ -197,6 +220,7 @@ export default class PlacesService extends moleculer.Service {
         convert: true,
       },
     },
+    types: [EndpointType.ADMIN, EndpointType.EXPERT],
   })
   async getHistory(ctx: Context<{ id: number }>) {
     return ctx.call(`places.histories.list`, {
@@ -288,6 +312,7 @@ export default class PlacesService extends moleculer.Service {
 
   @Action({
     rest: 'GET /deleted',
+    types: [EndpointType.ADMIN, EndpointType.EXPERT],
   })
   listDeleted(ctx: Context<{}>) {
     return ctx.call('places.list', {
