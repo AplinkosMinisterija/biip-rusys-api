@@ -6,7 +6,7 @@ import moment from 'moment';
 import { PassThrough, Readable } from 'stream';
 import BullMqMixin from '../mixins/bullmq.mixin';
 import { FILE_TYPES, throwNotFoundError, throwValidationError } from '../types';
-import { toMD5Hash, toReadableStream } from '../utils/functions';
+import { toHmacHash, toMD5Hash, toReadableStream } from '../utils/functions';
 import { getTemplateHtml } from '../utils/html';
 import {
   getInformationalForms,
@@ -21,7 +21,15 @@ import { Tenant } from './tenants.service';
 import { User } from './users.service';
 
 export function getRequestSecret(request: Request) {
-  return toMD5Hash(`id=${request.id}&date=${moment(request.createdAt).format('YYYYMMDDHHmmss')}`);
+  // Gates the public request HTML endpoint. `id` is an enumerable integer and
+  // `createdAt` is returned on the request, so a keyless md5 of them was
+  // forgeable; key the digest with a server secret so it cannot be recomputed
+  // from public data. Both generation and validation call this, so the shared
+  // key keeps them in sync with no stored state.
+  return toHmacHash(
+    `id=${request.id}&date=${moment(request.createdAt).format('YYYYMMDDHHmmss')}`,
+    process.env.JWT_MAPS_SECRET,
+  );
 }
 @Service({
   name: 'jobs.requests',
