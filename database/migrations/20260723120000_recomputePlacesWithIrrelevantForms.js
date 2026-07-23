@@ -15,6 +15,12 @@
 exports.up = function (knex) {
   return knex.schema
     .raw(
+      // forms.place_id has no index; with ~500k forms in production every
+      // per-place recompute (this backfill AND every places.changed at
+      // runtime) would seq-scan the whole table without it.
+      `CREATE INDEX IF NOT EXISTS forms_place_id_idx ON forms (place_id)`,
+    )
+    .raw(
       `UPDATE places p
        SET geom = d.geom
        FROM (
@@ -37,11 +43,11 @@ exports.up = function (knex) {
 };
 
 /**
- * Data repair — nothing to restore.
+ * Data repair — only the index is reversible.
  *
  * @param { import("knex").Knex } knex
  * @returns { Promise<void> }
  */
-exports.down = function () {
-  return Promise.resolve();
+exports.down = function (knex) {
+  return knex.schema.raw(`DROP INDEX IF EXISTS forms_place_id_idx`);
 };
