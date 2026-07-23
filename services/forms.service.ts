@@ -29,7 +29,7 @@ import {
 import { UserAuthMeta } from './api.service';
 
 import _ from 'lodash';
-import { parseToObject } from '../utils/functions';
+import { parseToObject, shouldRecomputePlaceOnRelevancyChange } from '../utils/functions';
 import { emailCanBeSent, notifyFormAssignee, notifyOnFormUpdate } from '../utils/mails';
 import { FormHistoryTypes } from './forms.histories.service';
 import { FormSettingSource } from './forms.settings.sources.service';
@@ -1098,8 +1098,12 @@ export default class FormsService extends moleculer.Service {
       ids = [ids];
     }
 
+    // Place geometry derives from APPROVED relevant forms only — counting
+    // non-approved ones here would let the last approved relevant form go
+    // irrelevant and leave the place with an empty geometry.
     const query: any = {
       isRelevant: queryBoolean('isRelevant', true),
+      status: FormStatus.APPROVED,
     };
 
     if (ids?.length) {
@@ -1579,6 +1583,19 @@ export default class FormsService extends moleculer.Service {
         } else {
           await this.assignPlaceIfNeeded(ctx, prevForm);
         }
+      }
+    }
+
+    if (
+      shouldRecomputePlaceOnRelevancyChange(form, prevForm, ctx.options?.parentCtx?.action?.name)
+    ) {
+      const { comment } = (ctx.options?.parentCtx?.params as { comment?: string }) || {};
+      try {
+        await ctx.emit('places.changed', { id: form.place, comment });
+      } catch (err) {
+        // A failed recompute must not turn into an unhandled rejection —
+        // the relevancy change itself is already persisted.
+        this.logger.error('Failed to recompute place after form relevancy change', err);
       }
     }
 
