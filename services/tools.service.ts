@@ -54,7 +54,14 @@ export default class ToolsService extends moleculer.Service {
           'Cache-Control': 'no-cache',
         },
       })
-        .then((r) => (stream ? r.body?.getReader() : (r.text() as any)))
+        .then((r) => {
+          // Without this the error body is uploaded as a .jpeg, MinIO reports it
+          // as too small and the job fails with the useless "Screenshot is emtpy".
+          if (!r.ok) {
+            throw new Error(`Screenshot service responded with ${r.status}`);
+          }
+          return stream ? r.body?.getReader() : (r.text() as any);
+        })
         .then(resolve)
         .catch((err) => {
           console.error(err);
@@ -102,7 +109,12 @@ export default class ToolsService extends moleculer.Service {
           'Content-Type': 'application/json',
         },
       })
-        .then((r) => r.body?.getReader())
+        .then((r) => {
+          if (!r.ok) {
+            throw new Error(`PDF service responded with ${r.status}`);
+          }
+          return r.body?.getReader();
+        })
         .then(resolve)
         .catch((err) => {
           console.error(err);
