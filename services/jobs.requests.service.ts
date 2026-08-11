@@ -388,13 +388,30 @@ export default class JobsRequestsService extends moleculer.Service {
       params: { ...item, waitFor: '#image-canvas-0' },
       name: 'jobs',
       action: 'saveScreenshot',
-      // BullMQ reads `rdof` from the failing child's own options, not from the
-      // parent's. On the parent it is a no-op and a failed screenshot leaves
-      // `generateAndSavePdf` in `waiting-children` forever.
-      options: { removeDependencyOnFailure: true },
     }));
 
-    return this.flow(ctx, 'jobs.requests', 'generateAndSavePdf', { id }, childrenJobs);
+    return this.flow(
+      ctx,
+      'jobs.requests',
+      'generateAndSavePdf',
+      {
+        id,
+      },
+      childrenJobs,
+      { removeDependencyOnFailure: true },
+    );
+  }
+
+
+  @Action({
+    params: {
+      id: 'number',
+    },
+    timeout: 0,
+  })
+  async initiateGdbGenerate(ctx: Context<{ id: number }>) {
+    const { id } = ctx.params;
+    return ctx.call('gdb.requests.generateAndSaveGdb', { id });
   }
 
   @Action({

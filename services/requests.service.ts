@@ -62,7 +62,9 @@ export const RequestStatus = {
 export const RequestDocumentType = {
   PDF: 'PDF',
   GEOJSON: 'GEOJSON',
+  GDB: 'GDB',
 };
+
 
 const TaxonomyTypes = {
   CLASS: 'CLASS',
@@ -87,6 +89,7 @@ export interface Request extends BaseModelInterface {
   inheritedSpecies?: number[];
   generatedFile?: string;
   generatedFileGeojson?: string;
+  generatedFileGdb?: string;
   speciesTypes: string[];
   status: string;
   tenant: number | Tenant;
@@ -285,6 +288,8 @@ const populatePermissions = (field: string) => {
 
       generatedFileGeojson: 'string',
 
+      generatedFileGdb: 'string',
+
       notifyEmail: {
         type: 'string',
         onCreate: ({ ctx, value }: FieldHookCallback) => {
@@ -300,6 +305,7 @@ const populatePermissions = (field: string) => {
           type: 'string',
           enum: Object.values(RequestDocumentType),
         },
+        onCreate: ({ value }: FieldHookCallback) => value || [],
         get({ value, entity }: any) {
           if (entity.type !== RequestType.GET_ONCE) return;
 
@@ -613,6 +619,16 @@ export default class RequestsService extends moleculer.Service {
   }
 
   @Action()
+  saveGeneratedGdb(ctx: Context<{ id: number; url: string }>) {
+    const { id, url: generatedFileGdb } = ctx.params;
+
+    return this.updateEntity(ctx, {
+      id,
+      generatedFileGdb,
+    });
+  }
+
+  @Action()
   async getExpertsIds(ctx: Context) {
     const approvedRequests: Request[] = await ctx.call('requests.find', {
       query: {
@@ -863,6 +879,39 @@ export default class RequestsService extends moleculer.Service {
     }
 
     const job: any = await ctx.call('jobs.requests.initiateGeojsonGenerate', {
+      id: ctx.params.id,
+    });
+
+    return {
+      generating: !!job?.id,
+    };
+  }
+
+  @Action({
+    params: {
+      id: {
+        type: 'number',
+        convert: true,
+      },
+    },
+    rest: 'POST /:id/generate/gdb',
+    timeout: 0,
+  })
+  async generateGdb(ctx: Context<{ id: number }>) {
+    const request: Request = await ctx.call('requests.resolve', {
+      id: ctx.params.id,
+      throwIfNotExist: true,
+    });
+
+    if (
+      request.status !== RequestStatus.APPROVED ||
+      request.type !== RequestType.GET_ONCE ||
+      !request.documentTypes?.includes(RequestDocumentType.GDB)
+    ) {
+      throwUnauthorizedError('Cannot generate gdb');
+    }
+
+    const job: any = await ctx.call('jobs.requests.initiateGdbGenerate', {
       id: ctx.params.id,
     });
 
@@ -1173,6 +1222,22 @@ export default class RequestsService extends moleculer.Service {
   }
 
   @Method
+  async generateGdbIfNeeded(request: Request) {
+    if (
+      !request?.id ||
+      request?.generatedFileGdb ||
+      request?.status !== RequestStatus.APPROVED ||
+      request?.type !== RequestType.GET_ONCE ||
+      !request?.documentTypes?.includes(RequestDocumentType.GDB)
+    ) {
+      return;
+    }
+
+    this.broker.call('requests.generateGdb', { id: request.id });
+    return request;
+  }
+
+  @Method
   createRequestHistory(request: number | string, meta: any, type: string, comment: string = '') {
     return this.broker.call(
       'requests.histories.create',
@@ -1376,6 +1441,7 @@ export default class RequestsService extends moleculer.Service {
     const documentTypeTranslates = {
       [RequestDocumentType.PDF]: 'PDF',
       [RequestDocumentType.GEOJSON]: 'GeoJSON',
+      [RequestDocumentType.GDB]: 'GDB',
     };
     const translate = documentTypeTranslates[documentType];
     const text = translate ? `Paruoštas išrašas ${translate} formatu` : '';
@@ -1418,6 +1484,7 @@ export default class RequestsService extends moleculer.Service {
 
       await this.generatePdfIfNeeded(request);
       await this.generateGeojsonIfNeeded(request);
+      await this.generateGdbIfNeeded(request);
       this.sendNotificationOnStatusChange(request, comment);
     }
 
@@ -1432,6 +1499,11 @@ export default class RequestsService extends moleculer.Service {
       !!request.generatedFileGeojson
     ) {
       await this.sendNotificationOnFileGenerated(ctx, request, RequestDocumentType.GEOJSON);
+    }
+
+    // Send notification that GDB is prepared
+    if (prevRequest?.generatedFileGdb !== request.generatedFileGdb && !!request.generatedFileGdb) {
+      await this.sendNotificationOnFileGenerated(ctx, request, RequestDocumentType.GDB);
     }
   }
 
@@ -1449,6 +1521,7 @@ export default class RequestsService extends moleculer.Service {
       );
       await this.generatePdfIfNeeded(request);
       await this.generateGeojsonIfNeeded(request);
+      await this.generateGdbIfNeeded(request);
     } else {
       this.sendNotificationOnStatusChange(request);
     }

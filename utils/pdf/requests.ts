@@ -107,7 +107,9 @@ async function getTranslatesAndFormTypes(ctx: Context, speciesIds: number[]) {
 }
 
 export async function getMapsSearchParams(ctx: Context): Promise<URLSearchParams> {
-  const mapsToken: any = await ctx.call('maps.generateServerToken');
+  const mapsToken: any = await ctx.call('maps.generateToken', {
+    server: true,
+  });
 
   const searchParams = new URLSearchParams();
   searchParams.set('auth', mapsToken.token);
