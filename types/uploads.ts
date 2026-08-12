@@ -5,6 +5,10 @@ export const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg'];
 
 export const FILE_TYPES = ['application/pdf', 'application/geo+json', 'application/gdb'];
 
+// The GDB extract ships as a zipped .gdb directory; upload sources present
+// either zip mimetype depending on the OS mime table, so accept both.
+export const ZIP_FILE_TYPES = ['application/zip', 'application/x-zip-compressed'];
+
 export const ALL_FILE_TYPES = [...IMAGE_TYPES, ...FILE_TYPES];
 
 export function getExtention(mimetype: string) {

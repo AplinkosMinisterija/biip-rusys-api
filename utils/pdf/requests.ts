@@ -135,7 +135,7 @@ function getGeometryWithTranslates(geom: FeatureCollection | Feature) {
   return geometries.map((g) => {
     const coordinatesToString = (coordinates: any[]): string => {
       const allItemsAreNumbers = coordinates.every((i) => !isNaN(i));
-      let text = '';
+      let text: string;
       if (allItemsAreNumbers) {
         text = coordinates.join(' ');
       } else {
@@ -191,7 +191,7 @@ export async function getPlaces(
 
   const placesForms: any[] = await getFormsByDateAndPlaceIds(placesIds, date);
 
-  const mappedPlaces = (places || [])
+  return (places || [])
     .map((p) => {
       const placeForms = placesForms
         .filter((i) => i.placeId === p.id)
@@ -227,8 +227,6 @@ export async function getPlaces(
     .sort((p1: any, p2: any) => {
       return moment(p2.placeLastObservedAt).diff(moment(p1.placeLastObservedAt));
     });
-
-  return mappedPlaces;
 }
 
 export async function getInformationalForms(

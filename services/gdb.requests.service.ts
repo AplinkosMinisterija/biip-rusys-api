@@ -2,35 +2,31 @@
 
 import moleculer, { Context } from 'moleculer';
 import { Action, Service } from 'moleculer-decorators';
-import { buildGdbPayload, validateGdbData } from '../utils/gdb/requests';
-import { getRequestData } from '../utils/pdf/requests';
+import BullMqMixin from '../mixins/bullmq.mixin';
+import { buildGdbPayload, getGdbRequestData, validateGdbData } from '../utils/gdb/requests';
+import { getRequestFolderName } from '../utils/requests';
 import { Request } from './requests.service';
 import { Tenant } from './tenants.service';
 import { User } from './users.service';
-import { FILE_TYPES } from '../types';
+import { ZIP_FILE_TYPES } from '../types';
 
 @Service({
   name: 'gdb.requests',
-  settings: {},
+  mixins: [BullMqMixin],
+  settings: {
+    bullmq: {
+      worker: { concurrency: 5 },
+      job: {
+        attempts: 5,
+        failParentOnFailure: true,
+        backoff: 1000,
+      },
+    },
+  },
 })
 export default class GdbRequestsService extends moleculer.Service {
-  public logger: any;
-
-  created() {
-    this.logger = this.broker.getLocalService('gdb.requests')?.logger || console;
-  }
-
-  private getFolderName(user: User, tenant?: Tenant): string {
-    if (tenant?.id) {
-      return `rusys/uploads/requests/private/${tenant.id}`;
-    }
-    if (user?.id) {
-      return `rusys/uploads/requests/private/${user.id}`;
-    }
-    return 'rusys/uploads/requests/private';
-  }
-
   @Action({
+    queue: true,
     params: {
       id: 'number',
     },
@@ -44,83 +40,83 @@ export default class GdbRequestsService extends moleculer.Service {
 
     try {
       // Step 1: Resolve request
-      this.logger.debug(`[GDB] Step 1/6: Resolving request ${id}`);
+      this.logger.debug(`[GDB] Step 1/5: Resolving request ${id}`);
       const request: Request = await ctx.call('requests.resolve', {
         id,
         populate: 'createdBy,tenant,geom',
       });
 
       if (!request?.id) {
-        this.logger.warn(`[GDB] ❌ Step 1 FAILED: No request found with id ${id}`);
+        this.logger.warn(`[GDB] ⏭️ Step 1 SKIPPED: No request found with id ${id}`);
         return { skipped: 'no-request' };
       }
       this.logger.debug(`[GDB] ✓ Step 1 OK: Request ${id} resolved (status=${request.status})`);
 
-      console.log({ ctx });
       // Step 2: Load request data
-      this.logger.debug(`[GDB] Step 2/6: Loading request data for request ${id}`);
-      const requestData = await getRequestData(ctx, id, {
-        loadPlaces: true,
-        loadLegend: false,
-        loadInformationalForms: true,
-      });
+      this.logger.debug(`[GDB] Step 2/5: Loading request data for request ${id}`);
+      const requestData = await getGdbRequestData(ctx, id);
 
-      console.log({ requestData });
       // Validate data
-      const validation = await validateGdbData(requestData);
+      const validation = validateGdbData(requestData);
       if (!validation.valid) {
-        this.logger.warn(`[GDB] ❌ Step 2 FAILED: ${validation.message}`);
+        this.logger.warn(`[GDB] ⏭️ Step 2 SKIPPED: ${validation.message}`);
         return { skipped: 'no-data', reason: validation.message };
       }
 
-      const placesCount = requestData?.places?.length || 0;
-      const observationsCount = Object.values(requestData?.informationalForms || {}).reduce(
-        (sum: number, group: any) => sum + (group.forms?.length || 0),
-        0,
-      );
-
       this.logger.debug(
-        `[GDB] ✓ Step 2 OK: Loaded places=${placesCount}, observations=${observationsCount}`,
+        `[GDB] ✓ Step 2 OK: Loaded places=${validation.placesCount}, observations=${validation.observationsCount}`,
       );
 
       // Step 3: Build GDB payload
-      this.logger.debug(`[GDB] Step 3/6: Building GDB payload`);
-      const gdbPayload = await buildGdbPayload(ctx, request, requestData);
+      this.logger.debug(`[GDB] Step 3/5: Building GDB payload`);
+      const gdbPayload = buildGdbPayload(request, requestData);
 
       const totalFeatures = gdbPayload.layers.reduce(
         (sum: number, layer: any) => sum + layer.geojson.features.length,
         0,
       );
 
-      this.logger.debug(
+      this.logger.info(
         `[GDB] ✓ Step 3 OK: Built ${gdbPayload.layers.length} layers with ${totalFeatures} total features`,
       );
 
       gdbPayload.layers.forEach((layer: any, idx: number) => {
         this.logger.debug(
-          `[GDB]   Layer ${idx + 1}: ${layer.name} (${layer.geojson.features.length} features)`,
+          `[GDB]   Layer ${idx + 1}: ${layer.name} (${layer.geojson.features.length} features, ${
+            layer.fields.length
+          } fields)`,
         );
       });
 
       // Step 4: Call tools.makeGdb
-      this.logger.debug(`[GDB] Step 4/6: Calling tools.makeGdb`);
-      const stream = (await ctx.call('tools.makeGdb', gdbPayload).catch((err: any) => {
-        this.logger.error(`[GDB] ❌ Step 4 FAILED: tools.makeGdb error for request ${id}`, {
-          error: err.message,
-          code: err.code,
-          status: err.status,
+      // tools.makeGdb streams the ZIP back as a Node Readable (no buffering).
+      // A failure here MUST surface — historically the BullMQ retry loop
+      // ate the rejection and the request stayed in limbo. We rethrow so
+      // BullMQ marks the job failed and the request stays observably broken
+      // instead of silently appearing successful.
+      this.logger.debug(`[GDB] Step 4/5: Calling tools.makeGdb`);
+      const stream: NodeJS.ReadableStream = await ctx
+        .call('tools.makeGdb', gdbPayload)
+        .then((s) => s as NodeJS.ReadableStream)
+        .catch((err: any) => {
+          this.logger.error(
+            `tools.makeGdb failed for request ${id} ` +
+              `(${gdbPayload.layers.length} layer(s): ${gdbPayload.layers
+                .map((l) => `${l.name}=${l.geojson.features.length}`)
+                .join(', ')})`,
+            err,
+          );
+          throw err;
         });
-        throw err;
-      })) as NodeJS.ReadableStream;
 
       this.logger.debug(`[GDB] ✓ Step 4 OK: Received stream from tools.makeGdb`);
 
       // Step 5: Upload to MinIO
-      const folder = this.getFolderName(
+      const folder = getRequestFolderName(
         request?.createdBy as any as User,
         request?.tenant as Tenant,
       );
-      this.logger.debug(`[GDB] Step 5/6: Uploading GDB to MinIO (folder=${folder})`);
+      this.logger.debug(`[GDB] Step 5/5: Uploading GDB to MinIO (folder=${folder})`);
 
       const result: any = await ctx
         .call(
@@ -129,7 +125,7 @@ export default class GdbRequestsService extends moleculer.Service {
             payload: stream,
             folder,
             isPrivate: true,
-            types: FILE_TYPES,
+            types: ZIP_FILE_TYPES,
             name: `israsas-${request.id}`,
           },
           {
@@ -140,20 +136,18 @@ export default class GdbRequestsService extends moleculer.Service {
           },
         )
         .catch((err: any) => {
-          this.logger.error(`[GDB] ❌ Step 5 FAILED: MinIO upload error for request ${id}`, {
+          this.logger.error(`minio.uploadFile failed for request ${id}`, {
             error: err.message,
             folder,
           });
           throw err;
         });
 
-      this.logger.debug(`[GDB] ✓ Step 5 OK: File uploaded to MinIO`);
-      this.logger.info(`[GDB] File URL: ${result.url}`);
+      this.logger.info(`[GDB] ✓ Step 5 OK: File uploaded to MinIO at ${result.url}`);
 
-      // Step 6: Save URL to database
-      this.logger.debug(`[GDB] Step 6/6: Saving GDB URL to database`);
+      // Save URL to database
       await ctx.call('requests.saveGeneratedGdb', { id, url: result.url }).catch((err: any) => {
-        this.logger.error(`[GDB] ❌ Step 6 FAILED: Database save error for request ${id}`, {
+        this.logger.error(`requests.saveGeneratedGdb failed for request ${id}`, {
           error: err.message,
         });
         throw err;
@@ -170,10 +164,28 @@ export default class GdbRequestsService extends moleculer.Service {
     } catch (error: any) {
       const elapsed = Date.now() - startTime;
       this.logger.error(`[GDB] 🔴 Generation FAILED after ${elapsed}ms for request ${id}`, {
-        error: error.message,
+        message: error.message,
+        stack: error.stack,
       });
       throw error;
     }
+  }
+
+  @Action({
+    params: {
+      id: 'number',
+    },
+    timeout: 0,
+  })
+  async initiateGdbGenerate(ctx: Context<{ id: number }>) {
+    // No preprocessing needed for GDB — single queued job with
+    // BullMQ retry semantics inherited from the mixin (5 attempts, 1s
+    // backoff). Same as initiateGeoJsonGenerate in biip-uetk-api.
+    const job = await this.localQueue(ctx, 'generateAndSaveGdb', {
+      id: ctx.params.id,
+    });
+    this.logger.info(`[GDB] Job initiated for request ${ctx.params.id} with job id ${job.id}`);
+    return { job: { id: job.id } };
   }
 
   @Action({
@@ -196,13 +208,9 @@ export default class GdbRequestsService extends moleculer.Service {
       return { valid: false, reason: 'Request not found' };
     }
 
-    const requestData = await getRequestData(ctx, id, {
-      loadPlaces: true,
-      loadLegend: false,
-      loadInformationalForms: true,
-    });
+    const requestData = await getGdbRequestData(ctx, id);
 
-    const validation = await validateGdbData(requestData);
+    const validation = validateGdbData(requestData);
 
     return {
       valid: validation.valid,
