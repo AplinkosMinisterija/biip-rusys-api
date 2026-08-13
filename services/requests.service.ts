@@ -41,9 +41,15 @@ import { parseToObject, toReadableStream } from '../utils/functions';
 import { getTemplateHtml } from '../utils/html';
 import { emailCanBeSent, notifyOnFileGenerated, notifyOnRequestUpdate } from '../utils/mails';
 import { getRequestData } from '../utils/pdf/requests';
+import {
+  getObservationFormProperties,
+  getRequestFolderName,
+  getSpeciesData,
+  LKS_94_CRS,
+} from '../utils/requests';
 import { getRequestSecret } from './jobs.requests.service';
 import { Taxonomy } from './taxonomies.service';
-import { TaxonomySpeciesType, TaxonomySpeciesTypeTranslate } from './taxonomies.species.service';
+import { TaxonomySpeciesType } from './taxonomies.species.service';
 
 export const RequestType = {
   GET: 'GET',
@@ -62,6 +68,8 @@ export const RequestStatus = {
 export const RequestDocumentType = {
   PDF: 'PDF',
   GEOJSON: 'GEOJSON',
+  GDB: 'GDB',
+  GPKG: 'GPKG',
 };
 
 const TaxonomyTypes = {
@@ -87,6 +95,8 @@ export interface Request extends BaseModelInterface {
   inheritedSpecies?: number[];
   generatedFile?: string;
   generatedFileGeojson?: string;
+  generatedFileGdb?: string;
+  generatedFileGpkg?: string;
   speciesTypes: string[];
   status: string;
   tenant: number | Tenant;
@@ -285,6 +295,10 @@ const populatePermissions = (field: string) => {
 
       generatedFileGeojson: 'string',
 
+      generatedFileGdb: 'string',
+
+      generatedFileGpkg: 'string',
+
       notifyEmail: {
         type: 'string',
         onCreate: ({ ctx, value }: FieldHookCallback) => {
@@ -300,6 +314,7 @@ const populatePermissions = (field: string) => {
           type: 'string',
           enum: Object.values(RequestDocumentType),
         },
+        onCreate: ({ value }: FieldHookCallback) => value || [],
         get({ value, entity }: any) {
           if (entity.type !== RequestType.GET_ONCE) return;
 
@@ -313,7 +328,7 @@ const populatePermissions = (field: string) => {
 
     scopes: {
       ...COMMON_SCOPES,
-      visibleToUser(query: any, ctx: Context<null, UserAuthMeta>, params: any) {
+      visibleToUser(query: any, ctx: Context<null, UserAuthMeta>) {
         const { user, profile } = ctx?.meta;
         if (!user?.id) return query;
 
@@ -330,7 +345,7 @@ const populatePermissions = (field: string) => {
 
         return query;
       },
-      tasks(query: any, ctx: Context<null, UserAuthMeta>, params: any) {
+      tasks(query: any, ctx: Context<null, UserAuthMeta>) {
         const { user } = ctx?.meta;
         if (!user?.id) return query;
 
@@ -445,7 +460,7 @@ export default class RequestsService extends moleculer.Service {
     },
   })
   async upload(ctx: Context<{}, UserAuthMeta>) {
-    const folder = this.getFolderName(ctx.meta?.user, ctx.meta?.profile);
+    const folder = getRequestFolderName(ctx.meta?.user, ctx.meta?.profile);
     return ctx.call('minio.uploadFile', {
       payload: ctx.params,
       isPrivate: true,
@@ -609,6 +624,31 @@ export default class RequestsService extends moleculer.Service {
     return this.updateEntity(ctx, {
       id,
       generatedFileGeojson,
+    });
+  }
+
+  @Action()
+  saveGeneratedGdb(ctx: Context<{ id: number; url: string }>) {
+    const { id, url: generatedFileGdb } = ctx.params;
+
+    return this.updateEntity(ctx, {
+      id,
+      generatedFileGdb,
+    });
+  }
+
+  @Action({
+    params: {
+      id: 'number',
+      url: 'string',
+    },
+  })
+  saveGeneratedGpkg(ctx: Context<{ id: number; url: string }>) {
+    const { id, url: generatedFileGpkg } = ctx.params;
+
+    return this.updateEntity(ctx, {
+      id,
+      generatedFileGpkg,
     });
   }
 
@@ -878,6 +918,72 @@ export default class RequestsService extends moleculer.Service {
         convert: true,
       },
     },
+    rest: 'POST /:id/generate/gdb',
+    timeout: 0,
+  })
+  async generateGdb(ctx: Context<{ id: number }>) {
+    const request: Request = await ctx.call('requests.resolve', {
+      id: ctx.params.id,
+      throwIfNotExist: true,
+    });
+
+    if (
+      request.status !== RequestStatus.APPROVED ||
+      request.type !== RequestType.GET_ONCE ||
+      !request.documentTypes?.includes(RequestDocumentType.GDB)
+    ) {
+      throwUnauthorizedError('Cannot generate gdb');
+    }
+
+    const result: any = await ctx.call('jobs.requests.initiateGdbGenerate', {
+      id: ctx.params.id,
+    });
+
+    return {
+      generating: !!result?.job?.id,
+    };
+  }
+
+  @Action({
+    params: {
+      id: {
+        type: 'number',
+        convert: true,
+      },
+    },
+    rest: 'POST /:id/generate/gpkg',
+    timeout: 0,
+  })
+  async generateGpkg(ctx: Context<{ id: number }>) {
+    const request: Request = await ctx.call('requests.resolve', {
+      id: ctx.params.id,
+      throwIfNotExist: true,
+    });
+
+    if (
+      request.status !== RequestStatus.APPROVED ||
+      request.type !== RequestType.GET_ONCE ||
+      !request.documentTypes?.includes(RequestDocumentType.GPKG)
+    ) {
+      throwUnauthorizedError('Cannot generate gpkg');
+    }
+
+    const result: any = await ctx.call('jobs.requests.initiateGpkgGenerate', {
+      id: ctx.params.id,
+    });
+
+    return {
+      generating: !!result?.job?.id,
+    };
+  }
+
+  @Action({
+    params: {
+      id: {
+        type: 'number',
+        convert: true,
+      },
+    },
     rest: 'GET /:id/geojson',
     timeout: 0,
   })
@@ -900,50 +1006,22 @@ export default class RequestsService extends moleculer.Service {
       features: [],
     };
 
-    function getSpeciesData(id: number) {
-      const species = requestData.speciesById[`${id}`];
-
-      if (!species?.speciesId) return {};
-
-      return {
-        'Rūšies tipas': TaxonomySpeciesTypeTranslate[species.speciesType],
-        'Rūšies pavadinimas': species.speciesName,
-        'Rūšies lotyniškas pavadinimas': species.speciesNameLatin,
-        'Rūšies sinonimai': species.speciesSynonyms?.join(', ') || '',
-        'Klasės pavadinimas': species.className,
-        'Klasės lotyniškas pavadinimas': species.classNameLatin,
-        'Tipo pavadinimas': species.phylumName,
-        'Tipo lotyniškas pavadinimas': species.phylumNameLatin,
-        'Karalystės pavadinimas': species.kingdomName,
-        'Karalystės lotyniškas pavadinimas': species.kingdomNameLatin,
-      };
-    }
-
-    function getTitle(speciesId: number) {
-      const species = requestData.speciesById[`${speciesId}`];
-      const isInvasive = [TaxonomySpeciesType.INTRODUCED, TaxonomySpeciesType.INVASIVE].includes(
-        species?.speciesType,
-      );
-
-      return isInvasive ? 'Įvedimo į INVA data' : 'Įvedimo į SRIS data';
-    }
-
     requestData.places?.forEach((place) => {
-      const speciesInfo = getSpeciesData(place.species);
+      const speciesInfo = getSpeciesData(requestData.speciesById, place.species);
 
       const placeFeatures = place.geom?.features || [];
       placeFeatures.forEach((pf: any) => {
-        pf.geometry.crs = { type: 'name', properties: { name: 'EPSG:3346' } };
+        pf.geometry.crs = LKS_94_CRS;
         pf.properties = {
           'Objekto tipas': 'Radavietė',
-          'Radavietės ID': place.id,
-          'Radavietės kodas': place.placeCode,
+          ['Radavietės ID']: place.id,
+          ['Radavietės kodas']: place.placeCode,
           ...speciesInfo,
-          'Radavietės plotas (m²)': place.placeArea,
-          'Paskutinio stebėjimo data': place.placeLastObservedAt,
-          'Pirmo stebėjimo data': place.placeFirstObservedAt,
-          'Radavietės būsena': place.placeStatusTranslate,
-          'Radavietės sukūrimo data': place.placeCreatedAt,
+          ['Radavietės plotas (m²)']: place.placeArea,
+          ['Paskutinio stebėjimo data']: place.placeLastObservedAt,
+          ['Pirmo stebėjimo data']: place.placeFirstObservedAt,
+          ['Radavietės būsena']: place.placeStatusTranslate,
+          ['Radavietės sukūrimo data']: place.placeCreatedAt,
         };
         geojson.features.push(pf);
       });
@@ -951,20 +1029,14 @@ export default class RequestsService extends moleculer.Service {
       place.forms?.forEach((form) => {
         const { features } = form.geom || [];
         const featuresToInsert = features.map((f: any) => {
-          f.geometry.crs = { type: 'name', properties: { name: 'EPSG:3346' } };
+          f.geometry.crs = LKS_94_CRS;
           f.properties = {
             'Objekto tipas': 'Stebėjimas',
-            'Anketos ID': form.id,
-            'Radavietės ID': place.id,
-            'Radavietės kodas': place.placeCode,
-            ...speciesInfo,
-            'Individų skaičius (gausumas)': form.quantityTranslate || '0',
-            'Buveinė, elgsena, ūkinė veikla ir kita informacija': form.description,
-            [getTitle(place.species)]: form.createdAt,
-            'Stebėjimo data': form.observedAt,
-            Šaltinis: form.source,
-            'Veiklos požymiai': form.activityTranslate,
-            'Vystymosi stadija': form.evolutionTranslate,
+            ...getObservationFormProperties(
+              form,
+              { speciesById: requestData.speciesById, speciesId: place.species },
+              { id: place.id, placeCode: place.placeCode },
+            ),
           };
           return f;
         });
@@ -977,20 +1049,11 @@ export default class RequestsService extends moleculer.Service {
       item?.forms?.forEach((form: any) => {
         const { features } = form.geom || [];
         const featuresToInsert = features.map((f: any) => {
-          f.geometry.crs = { type: 'name', properties: { name: 'EPSG:3346' } };
-          f.properties = {
-            'Anketos ID': form.id,
-            'Radavietės ID': '-',
-            'Radavietės kodas': '-',
-            ...getSpeciesData(form.species),
-            'Individų skaičius (gausumas)': form.quantityTranslate || '0',
-            'Buveinė, elgsena, ūkinė veikla ir kita informacija': form.description,
-            [getTitle(form.species)]: form.createdAt,
-            'Stebėjimo data': form.observedAt,
-            Šaltinis: form.source,
-            'Veiklos požymiai': form.activityTranslate,
-            'Vystymosi stadija': form.evolutionTranslate,
-          };
+          f.geometry.crs = LKS_94_CRS;
+          f.properties = getObservationFormProperties(form, {
+            speciesById: requestData.speciesById,
+            speciesId: form.species,
+          });
           return f;
         });
 
@@ -1152,7 +1215,7 @@ export default class RequestsService extends moleculer.Service {
       return;
     }
 
-    this.broker.call('requests.generatePdf', { id: request.id });
+    void this.broker.call('requests.generatePdf', { id: request.id });
     return request;
   }
 
@@ -1168,7 +1231,39 @@ export default class RequestsService extends moleculer.Service {
       return;
     }
 
-    this.broker.call('requests.generateGeojson', { id: request.id });
+    void this.broker.call('requests.generateGeojson', { id: request.id });
+    return request;
+  }
+
+  @Method
+  async generateGdbIfNeeded(request: Request) {
+    if (
+      !request?.id ||
+      request?.generatedFileGdb ||
+      request?.status !== RequestStatus.APPROVED ||
+      request?.type !== RequestType.GET_ONCE ||
+      !request?.documentTypes?.includes(RequestDocumentType.GDB)
+    ) {
+      return;
+    }
+
+    void this.broker.call('requests.generateGdb', { id: request.id });
+    return request;
+  }
+
+  @Method
+  async generateGpkgIfNeeded(request: Request) {
+    if (
+      !request?.id ||
+      request?.generatedFileGpkg ||
+      request?.status !== RequestStatus.APPROVED ||
+      request?.type !== RequestType.GET_ONCE ||
+      !request?.documentTypes?.includes(RequestDocumentType.GPKG)
+    ) {
+      return;
+    }
+
+    void this.broker.call('requests.generateGpkg', { id: request.id });
     return request;
   }
 
@@ -1259,7 +1354,7 @@ export default class RequestsService extends moleculer.Service {
     const email = request.notifyEmail || user?.email;
     if (!email || approvedGetOnceRequest) return;
 
-    notifyOnRequestUpdate(
+    void notifyOnRequestUpdate(
       email,
       request.status,
       request.id,
@@ -1269,14 +1364,6 @@ export default class RequestsService extends moleculer.Service {
       request.speciesTypes,
       user.type !== UserType.ADMIN ? comment : undefined,
     );
-  }
-
-  @Method
-  getFolderName(user?: User, tenant?: Tenant) {
-    const tenantPath = tenant?.id || 'private';
-    const userPath = user?.id || 'user';
-
-    return `uploads/requests/${tenantPath}/${userPath}`;
   }
 
   @Method
@@ -1321,7 +1408,7 @@ export default class RequestsService extends moleculer.Service {
   }
 
   @Method
-  async validateTaxonomies({ ctx, value, entity, params }: FieldHookCallback) {
+  async validateTaxonomies({ value, entity, params }: FieldHookCallback) {
     const error = 'Invalid taxonomies';
 
     const valueHasItems = !!value?.length;
@@ -1348,7 +1435,7 @@ export default class RequestsService extends moleculer.Service {
   @Method
   async validateSpeciesTypes({ ctx, value }: FieldHookCallback) {
     const error = 'Invalid species types';
-    const { user, profile } = ctx.meta;
+    const { user } = ctx.meta;
 
     if (!Array.isArray(value)) return error;
 
@@ -1363,7 +1450,7 @@ export default class RequestsService extends moleculer.Service {
 
   @Event()
   async 'requests.**'() {
-    this.broker.emit(`cache.clean.${this.fullName}`);
+    void this.broker.emit(`cache.clean.${this.fullName}`);
   }
 
   @Event()
@@ -1376,6 +1463,8 @@ export default class RequestsService extends moleculer.Service {
     const documentTypeTranslates = {
       [RequestDocumentType.PDF]: 'PDF',
       [RequestDocumentType.GEOJSON]: 'GeoJSON',
+      [RequestDocumentType.GDB]: 'GDB',
+      [RequestDocumentType.GPKG]: 'GPKG',
     };
     const translate = documentTypeTranslates[documentType];
     const text = translate ? `Paruoštas išrašas ${translate} formatu` : '';
@@ -1392,7 +1481,7 @@ export default class RequestsService extends moleculer.Service {
       userId: user.id,
     });
 
-    notifyOnFileGenerated(
+    void notifyOnFileGenerated(
       request.notifyEmail || user.email,
       request.id,
       !!(!request.tenant && isExpert),
@@ -1418,7 +1507,9 @@ export default class RequestsService extends moleculer.Service {
 
       await this.generatePdfIfNeeded(request);
       await this.generateGeojsonIfNeeded(request);
-      this.sendNotificationOnStatusChange(request, comment);
+      await this.generateGdbIfNeeded(request);
+      await this.generateGpkgIfNeeded(request);
+      void this.sendNotificationOnStatusChange(request, comment);
     }
 
     // Send notification that PDF is prepared
@@ -1432,6 +1523,19 @@ export default class RequestsService extends moleculer.Service {
       !!request.generatedFileGeojson
     ) {
       await this.sendNotificationOnFileGenerated(ctx, request, RequestDocumentType.GEOJSON);
+    }
+
+    // Send notification that GDB is prepared
+    if (prevRequest?.generatedFileGdb !== request.generatedFileGdb && !!request.generatedFileGdb) {
+      await this.sendNotificationOnFileGenerated(ctx, request, RequestDocumentType.GDB);
+    }
+
+    // Send notification that GPKG is prepared
+    if (
+      prevRequest?.generatedFileGpkg !== request.generatedFileGpkg &&
+      !!request.generatedFileGpkg
+    ) {
+      await this.sendNotificationOnFileGenerated(ctx, request, RequestDocumentType.GPKG);
     }
   }
 
@@ -1449,8 +1553,10 @@ export default class RequestsService extends moleculer.Service {
       );
       await this.generatePdfIfNeeded(request);
       await this.generateGeojsonIfNeeded(request);
+      await this.generateGdbIfNeeded(request);
+      await this.generateGpkgIfNeeded(request);
     } else {
-      this.sendNotificationOnStatusChange(request);
+      void this.sendNotificationOnStatusChange(request);
     }
   }
 
