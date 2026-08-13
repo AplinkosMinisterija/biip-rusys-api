@@ -1,5 +1,6 @@
 import { Context, LoggerInstance } from 'moleculer';
 import { getRequestFolderName } from '../requests';
+import type { FileUploadResponse } from '../../services/minio.service';
 import { Request } from '../../services/requests.service';
 import { Tenant } from '../../services/tenants.service';
 import { User } from '../../services/users.service';
@@ -56,172 +57,82 @@ export async function generateAndSaveVectorExport(
   const { label } = format;
   const startTime = Date.now();
 
-  logger.info(`[${label}] 🟢 Generation STARTED for request ${id}`);
-
   try {
-    // Step 1: Resolve request
-    logger.debug(`[${label}] Step 1/5: Resolving request ${id}`);
     const request: Request = await ctx.call('requests.resolve', {
       id,
       populate: 'createdBy,tenant,geom',
     });
 
     if (!request?.id) {
-      logger.warn(`[${label}] ⏭️ Step 1 SKIPPED: No request found with id ${id}`);
+      logger.warn(`[${label}] Generation skipped: no request found with id ${id}`);
       return { skipped: 'no-request' };
     }
-    logger.debug(`[${label}] ✓ Step 1 OK: Request ${id} resolved (status=${request.status})`);
 
-    // Step 2: Load request data
-    logger.debug(`[${label}] Step 2/5: Loading request data for request ${id}`);
     const requestData = await getVectorExportRequestData(ctx, id);
 
-    // Validate data
     const validation = validateVectorExportData(requestData);
     if (!validation.valid) {
-      logger.warn(`[${label}] ⏭️ Step 2 SKIPPED: ${validation.message}`);
+      logger.warn(`[${label}] Generation skipped for request ${id}: ${validation.message}`);
       return { skipped: 'no-data', reason: validation.message };
     }
 
-    logger.debug(
-      `[${label}] ✓ Step 2 OK: Loaded places=${validation.placesCount}, observations=${validation.observationsCount}`,
-    );
-
-    // Step 3: Build export payload
-    logger.debug(`[${label}] Step 3/5: Building export payload`);
     const payload = buildVectorExportPayload(request, requestData);
 
     const totalFeatures = payload.layers.reduce(
       (sum: number, layer) => sum + layer.geojson.features.length,
       0,
     );
-
     logger.info(
-      `[${label}] ✓ Step 3 OK: Built ${payload.layers.length} layers with ${totalFeatures} total features`,
+      `[${label}] Exporting ${
+        payload.layers.length
+      } layer(s) with ${totalFeatures} feature(s): ${payload.layers
+        .map((l) => `${l.name}=${l.geojson.features.length}`)
+        .join(', ')}`,
     );
 
-    payload.layers.forEach((layer, idx: number) => {
-      logger.debug(
-        `[${label}]   Layer ${idx + 1}: ${layer.name} (${layer.geojson.features.length} features, ${
-          layer.fields.length
-        } fields)`,
-      );
-    });
-
-    // Step 4: Call the tools export action.
     // The tools action streams the file back as a Node Readable (no buffering).
-    // A failure here MUST surface — historically the BullMQ retry loop
-    // ate the rejection and the request stayed in limbo. We rethrow so
-    // BullMQ marks the job failed and the request stays observably broken
-    // instead of silently appearing successful.
-    logger.debug(`[${label}] Step 4/5: Calling ${format.toolsAction}`);
-    const stream: NodeJS.ReadableStream = await ctx
-      .call(format.toolsAction, payload)
-      .then((s) => s as NodeJS.ReadableStream)
-      .catch((err: any) => {
-        logger.error(
-          `${format.toolsAction} failed for request ${id} ` +
-            `(${payload.layers.length} layer(s): ${payload.layers
-              .map((l) => `${l.name}=${l.geojson.features.length}`)
-              .join(', ')})`,
-          err,
-        );
-        throw err;
-      });
+    const stream: NodeJS.ReadableStream = await ctx.call(format.toolsAction, payload);
 
-    logger.debug(`[${label}] ✓ Step 4 OK: Received stream from ${format.toolsAction}`);
-
-    // Step 5: Upload to MinIO
     const folder = getRequestFolderName(
       request?.createdBy as any as User,
       request?.tenant as Tenant,
     );
-    logger.debug(`[${label}] Step 5/5: Uploading ${label} to MinIO (folder=${folder})`);
 
-    const result: any = await ctx
-      .call(
-        'minio.uploadFile',
-        {
-          payload: stream,
-          folder,
-          isPrivate: true,
-          types: format.uploadTypes,
-          name: `israsas-${request.id}`,
+    const uploadedFile: FileUploadResponse = await ctx.call(
+      'minio.uploadFile',
+      {
+        payload: stream,
+        folder,
+        isPrivate: true,
+        types: format.uploadTypes,
+        name: `israsas-${request.id}`,
+      },
+      {
+        meta: {
+          mimetype: format.mimetype,
+          filename: `israsas-${request.id}.${format.fileExtension}`,
         },
-        {
-          meta: {
-            mimetype: format.mimetype,
-            filename: `israsas-${request.id}.${format.fileExtension}`,
-          },
-        },
-      )
-      .catch((err: any) => {
-        logger.error(`minio.uploadFile failed for request ${id}`, {
-          error: err.message,
-          folder,
-        });
-        throw err;
-      });
+      },
+    );
 
-    logger.info(`[${label}] ✓ Step 5 OK: File uploaded to MinIO at ${result.url}`);
-
-    // Save URL to database
-    await ctx.call(format.saveAction, { id, url: result.url }).catch((err: any) => {
-      logger.error(`${format.saveAction} failed for request ${id}`, {
-        error: err.message,
-      });
-      throw err;
-    });
+    await ctx.call(format.saveAction, { id, url: uploadedFile.url });
 
     const elapsed = Date.now() - startTime;
     logger.info(
-      `[${label}] ✅ Generation COMPLETED in ${elapsed}ms (${(elapsed / 1000).toFixed(
-        2,
-      )}s) for request ${id}`,
+      `[${label}] Generation completed in ${elapsed}ms for request ${id}: ${uploadedFile.url}`,
     );
 
-    return { generated: true, url: result.url };
+    return { generated: true, url: uploadedFile.url };
   } catch (error: any) {
+    // A failure MUST surface — historically the BullMQ retry loop ate the
+    // rejection and the request stayed in limbo. Rethrowing marks the job
+    // failed so the request stays observably broken instead of silently
+    // appearing successful.
     const elapsed = Date.now() - startTime;
-    logger.error(`[${label}] 🔴 Generation FAILED after ${elapsed}ms for request ${id}`, {
+    logger.error(`[${label}] Generation failed after ${elapsed}ms for request ${id}`, {
       message: error.message,
       stack: error.stack,
     });
     throw error;
   }
-}
-
-export interface VectorExportRequestValidation {
-  valid: boolean;
-  message?: string;
-  reason?: string;
-  requestId?: number;
-}
-
-export async function validateVectorExportRequest(
-  ctx: Context,
-  logger: LoggerInstance,
-  id: number,
-  format: VectorExportFormat,
-): Promise<VectorExportRequestValidation> {
-  logger.debug(`[${format.label}-VALIDATE] Validating request ${id}`);
-
-  const request: Request = await ctx.call('requests.resolve', {
-    id,
-    populate: 'createdBy,tenant',
-  });
-
-  if (!request?.id) {
-    return { valid: false, reason: 'Request not found' };
-  }
-
-  const requestData = await getVectorExportRequestData(ctx, id);
-
-  const validation = validateVectorExportData(requestData);
-
-  return {
-    valid: validation.valid,
-    message: validation.message,
-    requestId: id,
-  };
 }

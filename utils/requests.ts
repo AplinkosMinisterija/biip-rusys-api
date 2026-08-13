@@ -23,16 +23,16 @@ export function getSpeciesData(speciesById: SpeciesById, id: number) {
   if (!species?.speciesId) return {};
 
   return {
-    ['Rūšies tipas']: TaxonomySpeciesTypeTranslate[species.speciesType],
-    ['Rūšies pavadinimas']: species.speciesName,
-    ['Rūšies lotyniškas pavadinimas']: species.speciesNameLatin,
-    ['Rūšies sinonimai']: species.speciesSynonyms?.join(', ') || '',
-    ['Klasės pavadinimas']: species.className,
-    ['Klasės lotyniškas pavadinimas']: species.classNameLatin,
+    'Rūšies tipas': TaxonomySpeciesTypeTranslate[species.speciesType],
+    'Rūšies pavadinimas': species.speciesName,
+    'Rūšies lotyniškas pavadinimas': species.speciesNameLatin,
+    'Rūšies sinonimai': species.speciesSynonyms?.join(', ') || '',
+    'Klasės pavadinimas': species.className,
+    'Klasės lotyniškas pavadinimas': species.classNameLatin,
     'Tipo pavadinimas': species.phylumName,
-    ['Tipo lotyniškas pavadinimas']: species.phylumNameLatin,
-    ['Karalystės pavadinimas']: species.kingdomName,
-    ['Karalystės lotyniškas pavadinimas']: species.kingdomNameLatin,
+    'Tipo lotyniškas pavadinimas': species.phylumNameLatin,
+    'Karalystės pavadinimas': species.kingdomName,
+    'Karalystės lotyniškas pavadinimas': species.kingdomNameLatin,
   };
 }
 
@@ -56,22 +56,22 @@ export function getObservationFormProperties(
 ) {
   return {
     'Anketos ID': form.id,
-    ['Radavietės ID']: place?.id ?? '-',
-    ['Radavietės kodas']: place?.placeCode ?? '-',
+    'Radavietės ID': place?.id ?? '-',
+    'Radavietės kodas': place?.placeCode ?? '-',
     ...getSpeciesData(taxonomy.speciesById, taxonomy.speciesId),
-    ['Individų skaičius (gausumas)']: form.quantityTranslate || '0',
-    ['Buveinė, elgsena, ūkinė veikla ir kita informacija']: form.description,
+    'Individų skaičius (gausumas)': form.quantityTranslate || '0',
+    'Buveinė, elgsena, ūkinė veikla ir kita informacija': form.description,
     [getSpeciesEntryDateTitle(taxonomy.speciesById, taxonomy.speciesId)]: form.createdAt,
-    ['Stebėjimo data']: form.observedAt,
-    ['Šaltinis']: form.source,
-    ['Veiklos požymiai']: form.activityTranslate,
+    'Stebėjimo data': form.observedAt,
+    Šaltinis: form.source,
+    'Veiklos požymiai': form.activityTranslate,
     'Vystymosi stadija': form.evolutionTranslate,
   };
 }
 
 // Shared MinIO folder layout for all request-generated files (PDF, GeoJSON,
-// GDB). The bucket is already namespaced (BUCKET_NAME, default 'rusys'), so
-// the folder must not repeat the bucket name.
+// GDB, GPKG). The bucket is already namespaced (BUCKET_NAME, default 'rusys'),
+// so the folder must not repeat the bucket name.
 export function getRequestFolderName(user?: User, tenant?: Tenant): string {
   const tenantPath = tenant?.id || 'private';
   const userPath = user?.id || 'user';

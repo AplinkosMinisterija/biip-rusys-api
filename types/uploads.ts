@@ -3,7 +3,7 @@ import Moleculer, { Errors } from 'moleculer';
 
 export const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg'];
 
-export const FILE_TYPES = ['application/pdf', 'application/geo+json', 'application/gdb'];
+export const FILE_TYPES = ['application/pdf', 'application/geo+json'];
 
 // The GDB extract ships as a zipped .gdb directory; upload sources present
 // either zip mimetype depending on the OS mime table, so accept both.
