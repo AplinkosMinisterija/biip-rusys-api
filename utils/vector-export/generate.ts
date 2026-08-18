@@ -105,7 +105,12 @@ export async function generateAndSaveVectorExport(
         folder,
         isPrivate: true,
         types: format.uploadTypes,
-        name: `israsas-${request.id}`,
+        // No `name`: minio.uploadFile falls back to getPublicFileName(50), a
+        // random 50-char object name. `minio.getFile` is AuthType.PUBLIC with
+        // no ownership check, so a derivable object name (e.g.
+        // `israsas-<requestId>`) would make these extracts — precise
+        // protected-species geometry — enumerable without authentication.
+        // The user-facing download name comes from meta.filename below.
       },
       {
         meta: {
