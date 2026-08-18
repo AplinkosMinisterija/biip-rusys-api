@@ -1574,14 +1574,30 @@ export default class FormsService extends moleculer.Service {
       await this.assignPlaceIfNeeded(ctx, form);
       if (prevForm.place) {
         const forms: Form[] = await ctx.call('forms.find', { query: { place: prevForm.place } });
-        if (!forms?.length) {
+
+        // Place geometry comes from APPROVED relevant forms only, so "no forms
+        // left at all" was the wrong condition to clean up on: a single leftover
+        // irrelevant or rejected form kept the place alive while its geometry
+        // could no longer be recomputed — places.changed then threw
+        // `Empty geometry` and the map kept the stale polygon forever.
+        const hasRelevantForms = forms.some(
+          (f) => f.status === FormStatus.APPROVED && f.isRelevant,
+        );
+
+        // A form still awaiting a decision can become relevant on this place
+        // later, so keep the place until it is approved or rejected.
+        const hasUndecidedForms = forms.some(
+          (f) => ![FormStatus.APPROVED, FormStatus.REJECTED].includes(f.status),
+        );
+
+        if (hasRelevantForms) {
+          await this.assignPlaceIfNeeded(ctx, prevForm);
+        } else if (!hasUndecidedForms) {
           await ctx.call('places.remove', {
             id: prevForm.place,
             status: PlaceStatus.MISTAKEN,
-            comment: 'Sunaikinta, nes atskirta paskutinė forma nuo radavietės',
+            comment: 'Sunaikinta, nes atskirta paskutinė aktuali forma nuo radavietės',
           });
-        } else {
-          await this.assignPlaceIfNeeded(ctx, prevForm);
         }
       }
     }
