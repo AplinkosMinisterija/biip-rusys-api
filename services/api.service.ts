@@ -196,10 +196,11 @@ export const AuthType = {
     ],
     // Do not log client side errors (does not log an error response when the error.code is 400<=X<500)
     log4XXResponses: false,
-    // Logging the request parameters. Set to any log level to enable it. E.g. "info"
-    logRequestParams: "info",
-    // Logging the response data. Set to any log level to enable it. E.g. "info"
-    logResponseData: "info",
+    // Request params and response bodies carry secrets (auth/maps tokens, the
+    // request HTML `secret`, private file URLs, protected-species data), so they
+    // must not be written to logs. Keep both disabled (null).
+    logRequestParams: null,
+    logResponseData: null,
     // Serve assets from "public" folder
     assets: {
       folder: 'public',
