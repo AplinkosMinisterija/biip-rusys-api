@@ -59,36 +59,6 @@ export function shouldRecomputePlaceOnRelevancyChange(
   );
 }
 
-export const DetachedPlaceAction = {
-  RECOMPUTE: 'RECOMPUTE',
-  REMOVE: 'REMOVE',
-  KEEP: 'KEEP',
-} as const;
-
-type DetachedPlaceActionType = typeof DetachedPlaceAction[keyof typeof DetachedPlaceAction];
-
-interface DetachedPlaceForm {
-  status?: string;
-  isRelevant?: boolean;
-}
-
-/**
- * What to do with a place after one of its forms was detached, given the forms
- * it still has. Place geom derives from APPROVED relevant forms only, so with
- * nothing relevant left there is nothing to recompute — asking for it anyway
- * made places.changed throw on empty geometry inside an un-awaited emit.
- * Such a place is kept (removing it is a curator's decision, not a side effect
- * of moving observations) and drops out of the map through the
- * relevant_forms_count filter instead. REMOVE stays for the pre-existing case
- * of the very last form being detached.
- */
-export function getDetachedPlaceAction(forms: DetachedPlaceForm[]): DetachedPlaceActionType {
-  const hasRelevantForms = forms.some((f) => f.status === FormStatus.APPROVED && f.isRelevant);
-  if (hasRelevantForms) return DetachedPlaceAction.RECOMPUTE;
-
-  return forms.length ? DetachedPlaceAction.KEEP : DetachedPlaceAction.REMOVE;
-}
-
 export function parseToObject(data: object | string) {
   if (typeof data === 'string') {
     try {

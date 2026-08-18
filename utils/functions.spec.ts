@@ -1,8 +1,4 @@
-import {
-  DetachedPlaceAction,
-  getDetachedPlaceAction,
-  shouldRecomputePlaceOnRelevancyChange,
-} from './functions';
+import { shouldRecomputePlaceOnRelevancyChange } from './functions';
 
 describe('shouldRecomputePlaceOnRelevancyChange', () => {
   const approvedForm = {
@@ -79,36 +75,5 @@ describe('shouldRecomputePlaceOnRelevancyChange', () => {
         'forms.update',
       ),
     ).toBe(false);
-  });
-});
-
-describe('getDetachedPlaceAction', () => {
-  const relevantForm = { status: 'APPROVED', isRelevant: true };
-  const irrelevantForm = { status: 'APPROVED', isRelevant: false };
-
-  it('recomputes while an approved relevant form is left', () => {
-    expect(getDetachedPlaceAction([relevantForm, irrelevantForm])).toBe(
-      DetachedPlaceAction.RECOMPUTE,
-    );
-  });
-
-  it('keeps — not recomputes — a place left with only an irrelevant form', () => {
-    expect(getDetachedPlaceAction([irrelevantForm])).toBe(DetachedPlaceAction.KEEP);
-  });
-
-  it('keeps a place left with only a rejected form', () => {
-    expect(getDetachedPlaceAction([{ status: 'REJECTED', isRelevant: true }])).toBe(
-      DetachedPlaceAction.KEEP,
-    );
-  });
-
-  it('keeps a place while a form still awaits a decision', () => {
-    expect(
-      getDetachedPlaceAction([irrelevantForm, { status: 'SUBMITTED', isRelevant: true }]),
-    ).toBe(DetachedPlaceAction.KEEP);
-  });
-
-  it('removes the place only when its very last form was detached', () => {
-    expect(getDetachedPlaceAction([])).toBe(DetachedPlaceAction.REMOVE);
   });
 });

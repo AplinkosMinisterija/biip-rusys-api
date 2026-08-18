@@ -30,12 +30,7 @@ import {
 import { UserAuthMeta } from './api.service';
 
 import _ from 'lodash';
-import {
-  DetachedPlaceAction,
-  getDetachedPlaceAction,
-  parseToObject,
-  shouldRecomputePlaceOnRelevancyChange,
-} from '../utils/functions';
+import { parseToObject, shouldRecomputePlaceOnRelevancyChange } from '../utils/functions';
 import { emailCanBeSent, notifyFormAssignee, notifyOnFormUpdate } from '../utils/mails';
 import { FormHistoryTypes } from './forms.histories.service';
 import { FormSettingSource } from './forms.settings.sources.service';
@@ -1572,16 +1567,14 @@ export default class FormsService extends moleculer.Service {
       await this.assignPlaceIfNeeded(ctx, form);
       if (prevForm.place) {
         const forms: Form[] = await ctx.call('forms.find', { query: { place: prevForm.place } });
-        const action = getDetachedPlaceAction(forms);
-
-        if (action === DetachedPlaceAction.RECOMPUTE) {
-          await this.assignPlaceIfNeeded(ctx, prevForm);
-        } else if (action === DetachedPlaceAction.REMOVE) {
+        if (!forms?.length) {
           await ctx.call('places.remove', {
             id: prevForm.place,
             status: PlaceStatus.MISTAKEN,
             comment: 'Sunaikinta, nes atskirta paskutinė forma nuo radavietės',
           });
+        } else {
+          await this.assignPlaceIfNeeded(ctx, prevForm);
         }
       }
     }
