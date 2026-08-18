@@ -58,6 +58,37 @@ export function shouldRecomputePlaceOnRelevancyChange(
   );
 }
 
+export const DetachedPlaceAction = {
+  RECOMPUTE: 'RECOMPUTE',
+  REMOVE: 'REMOVE',
+  KEEP: 'KEEP',
+} as const;
+
+type DetachedPlaceActionType = typeof DetachedPlaceAction[keyof typeof DetachedPlaceAction];
+
+interface DetachedPlaceForm {
+  status?: string;
+  isRelevant?: boolean;
+}
+
+/**
+ * What to do with a place after one of its forms was detached, given the forms
+ * it still has. Place geom derives from APPROVED relevant forms only, so "no
+ * forms left at all" is the wrong condition to remove on: a leftover irrelevant
+ * or rejected form kept the place alive with a polygon that could no longer be
+ * recomputed (places.changed throws on empty geometry), and the map kept
+ * drawing it. A form still awaiting a decision can become relevant on this
+ * place later, so it keeps the place untouched instead.
+ */
+export function getDetachedPlaceAction(forms: DetachedPlaceForm[]): DetachedPlaceActionType {
+  const hasRelevantForms = forms.some((f) => f.status === 'APPROVED' && f.isRelevant);
+  if (hasRelevantForms) return DetachedPlaceAction.RECOMPUTE;
+
+  const hasUndecidedForms = forms.some((f) => !['APPROVED', 'REJECTED'].includes(f.status ?? ''));
+
+  return hasUndecidedForms ? DetachedPlaceAction.KEEP : DetachedPlaceAction.REMOVE;
+}
+
 export function parseToObject(data: object | string) {
   if (typeof data === 'string') {
     try {
