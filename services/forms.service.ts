@@ -1587,7 +1587,7 @@ export default class FormsService extends moleculer.Service {
           await ctx.call('places.remove', {
             id: prevForm.place,
             status: PlaceStatus.MISTAKEN,
-            comment: 'Sunaikinta, nes atskirta paskutinė aktuali forma nuo radavietės',
+            comment: 'Sunaikinta, nes atskirta paskutinė forma nuo radavietės',
           });
         }
       }

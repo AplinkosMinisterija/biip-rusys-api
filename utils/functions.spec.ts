@@ -92,27 +92,23 @@ describe('getDetachedPlaceAction', () => {
     );
   });
 
-  it('removes the place when only an irrelevant form is left', () => {
-    expect(getDetachedPlaceAction([irrelevantForm])).toBe(DetachedPlaceAction.REMOVE);
+  it('keeps — not recomputes — a place left with only an irrelevant form', () => {
+    expect(getDetachedPlaceAction([irrelevantForm])).toBe(DetachedPlaceAction.KEEP);
   });
 
-  it('removes the place when only a rejected form is left', () => {
+  it('keeps a place left with only a rejected form', () => {
     expect(getDetachedPlaceAction([{ status: 'REJECTED', isRelevant: true }])).toBe(
-      DetachedPlaceAction.REMOVE,
+      DetachedPlaceAction.KEEP,
     );
   });
 
-  it('removes the place when no forms are left', () => {
-    expect(getDetachedPlaceAction([])).toBe(DetachedPlaceAction.REMOVE);
-  });
-
-  it('keeps the place while a form still awaits a decision', () => {
+  it('keeps a place while a form still awaits a decision', () => {
     expect(
       getDetachedPlaceAction([irrelevantForm, { status: 'SUBMITTED', isRelevant: true }]),
     ).toBe(DetachedPlaceAction.KEEP);
   });
 
-  it('keeps the place on an unknown status rather than removing it', () => {
-    expect(getDetachedPlaceAction([{ isRelevant: false }])).toBe(DetachedPlaceAction.KEEP);
+  it('removes the place only when its very last form was detached', () => {
+    expect(getDetachedPlaceAction([])).toBe(DetachedPlaceAction.REMOVE);
   });
 });
