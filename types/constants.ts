@@ -14,6 +14,14 @@ export enum EndpointType {
   SELF = 'SELF',
 }
 
+export const FormStatus = {
+  CREATED: 'CREATED',
+  SUBMITTED: 'SUBMITTED',
+  REJECTED: 'REJECTED',
+  RETURNED: 'RETURNED',
+  APPROVED: 'APPROVED',
+};
+
 export const ADDITIONAL_CACHE_KEYS = () => ['#user.type', '#user.isExpert'];
 
 export function throwUnauthorizedError(message?: string, data?: any): Errors.MoleculerError {

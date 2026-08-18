@@ -20,6 +20,7 @@ import {
   EndpointType,
   EntityChangedParams,
   FieldHookCallback,
+  FormStatus,
   queryBoolean,
   TENANT_FIELD,
   throwValidationError,
@@ -43,14 +44,6 @@ import { Place, PlaceStatus } from './places.service';
 import { Taxonomy } from './taxonomies.service';
 import { Tenant } from './tenants.service';
 import { User, USERS_DEFAULT_SCOPES, UserType } from './users.service';
-
-export const FormStatus = {
-  CREATED: 'CREATED',
-  SUBMITTED: 'SUBMITTED',
-  REJECTED: 'REJECTED',
-  RETURNED: 'RETURNED',
-  APPROVED: 'APPROVED',
-};
 
 const VISIBLE_TO_USER_SCOPE = 'visibleToUser';
 
