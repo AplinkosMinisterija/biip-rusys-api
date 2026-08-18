@@ -1,5 +1,6 @@
 import { createHash } from 'crypto';
 import { Readable } from 'stream';
+import { FormStatus } from '../types';
 
 export function toReadableStream(fetchReadable: any): NodeJS.ReadableStream {
   return new Readable({
@@ -53,7 +54,7 @@ export function shouldRecomputePlaceOnRelevancyChange(
     parentActionName === FORMS_SINGLE_UPDATE_ACTION &&
     !!form.place &&
     form.place === prevForm?.place &&
-    form.status === 'APPROVED' &&
+    form.status === FormStatus.APPROVED &&
     !form.isInformational
   );
 }

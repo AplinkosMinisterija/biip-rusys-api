@@ -237,7 +237,13 @@ export default class MapsHexagonService extends moleculer.Service {
         adapter,
         table,
         _.merge(options, { speciesType: TaxonomySpeciesType.ENDANGERED }),
-      ).whereNull(`${table}.deletedAt`);
+      )
+        .whereNull(`${table}.deletedAt`)
+        // A place whose observations were all moved away or marked irrelevant
+        // keeps the geometry it had back then, so counting it here (and drawing
+        // it on the QGIS `radavietes*` layers) would report data that is no
+        // longer relevant.
+        .where(`${table}.relevantFormsCount`, '>', 0);
 
       if (options.places?.id) {
         addIdQuery(placesQuery, table, options.places.id);
@@ -253,7 +259,9 @@ export default class MapsHexagonService extends moleculer.Service {
         adapter,
         table,
         _.merge(options, { speciesType: TaxonomySpeciesType.INVASIVE }),
-      ).whereNull(`${table}.deletedAt`);
+      )
+        .whereNull(`${table}.deletedAt`)
+        .where(`${table}.relevantFormsCount`, '>', 0);
 
       if (options.places?.id) {
         addIdQuery(placesQuery, table, options.places.id);
@@ -269,7 +277,9 @@ export default class MapsHexagonService extends moleculer.Service {
         adapter,
         table,
         _.merge(options, { speciesType: TaxonomySpeciesType.INTRODUCED }),
-      ).whereNull(`${table}.deletedAt`);
+      )
+        .whereNull(`${table}.deletedAt`)
+        .where(`${table}.relevantFormsCount`, '>', 0);
 
       if (options.places?.id) {
         addIdQuery(placesQuery, table, options.places.id);
