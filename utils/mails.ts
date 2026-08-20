@@ -1,5 +1,5 @@
 import { ServerClient } from 'postmark';
-import { FormStatus } from '../services/forms.service';
+import { FormStatus } from '../types';
 import { RequestStatus, RequestType } from '../services/requests.service';
 import { Taxonomy } from '../services/taxonomies.service';
 import { TaxonomySpeciesType } from '../services/taxonomies.species.service';
