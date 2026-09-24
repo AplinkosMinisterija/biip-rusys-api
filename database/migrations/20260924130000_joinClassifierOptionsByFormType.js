@@ -118,20 +118,7 @@ const taxonomiesAll = (formTypeColumn) => `
   ORDER BY ts.name
 `;
 
-const APPROVED_FORMS_GEOM = `
-  ST_Transform(ST_Multi(
-    CASE
-      WHEN ST_GeometryType(f.geom) IN (
-        'ST_Point',
-        'ST_LineString',
-        'ST_MultiPoint',
-        'ST_MultiLineString'
-      ) THEN ST_Buffer(f.geom, COALESCE(f.geom_buffer_size, 1))
-      WHEN ST_GeometryType(f.geom) IN ('ST_Polygon', 'ST_MultiPolygon') THEN f.geom
-    END
-  ), 3346)::geometry(multipolygon, 3346) AS geom`;
-
-const approvedForms = (taxonomies) => `
+const approvedFormsSelect = (taxonomies, translates) => `
   SELECT
     f.id,
     f.quantity,
@@ -150,11 +137,18 @@ const approvedForms = (taxonomies) => `
     f.is_informational,
     f.no_quantity_reason,
     fss.name AS source,
-    fsom.value AS method_translate,
-    fsoa.value AS activity_translate,
-    fsoe.value AS evolution_translate,
-    fsor.value AS no_quantity_reason_translate,
-    ${APPROVED_FORMS_GEOM},
+    ${translates.columns},
+    ST_Transform(ST_Multi(
+      CASE
+        WHEN ST_GeometryType(f.geom) IN (
+          'ST_Point',
+          'ST_LineString',
+          'ST_MultiPoint',
+          'ST_MultiLineString'
+        ) THEN ST_Buffer(f.geom, COALESCE(f.geom_buffer_size, 1))
+        WHEN ST_GeometryType(f.geom) IN ('ST_Polygon', 'ST_MultiPolygon') THEN f.geom
+      END
+    ), 3346)::geometry(multipolygon, 3346) AS geom,
     t.*,
     mhg.id AS hexagon_grid_id,
     ROUND(ST_X(ST_PointOnSurface(f.geom))::numeric, 2) || ' ' || ROUND(ST_Y(ST_PointOnSurface(f.geom))::numeric, 2) AS center_coordinates
@@ -162,6 +156,17 @@ const approvedForms = (taxonomies) => `
     LEFT JOIN ${taxonomies} t ON t.species_id = f.species_id
     LEFT JOIN maps_hexagon_grid mhg ON ST_Intersects(mhg.geom, ST_Centroid(f.geom))
     LEFT JOIN form_settings_sources fss ON fss.id = f.source_id
+    ${translates.joins}
+  WHERE f.status = 'APPROVED'
+`;
+
+const approvedForms = (taxonomies) =>
+  approvedFormsSelect(taxonomies, {
+    columns: `fsom.value AS method_translate,
+    fsoa.value AS activity_translate,
+    fsoe.value AS evolution_translate,
+    fsor.value AS no_quantity_reason_translate`,
+    joins: `
     LEFT JOIN form_settings_options fsom
       ON fsom.name = f.method AND fsom.group = 'METHOD' AND fsom.form_type = t.form_type
     LEFT JOIN form_settings_options fsoe
@@ -169,41 +174,16 @@ const approvedForms = (taxonomies) => `
     LEFT JOIN form_settings_options fsoa
       ON fsoa.name = f.activity AND fsoa.group = 'ACTIVITY'
     LEFT JOIN form_settings_options fsor
-      ON fsor.name = f.no_quantity_reason AND fsor.group = 'NO_QUANTITY_REASON'
-  WHERE f.status = 'APPROVED'
-`;
+      ON fsor.name = f.no_quantity_reason AND fsor.group = 'NO_QUANTITY_REASON'`,
+  });
 
-const previousApprovedForms = (taxonomies) => `
-  SELECT
-    f.id,
-    f.quantity,
-    f.description,
-    f.place_id,
-    f.created_at,
-    f.observed_at,
-    f.observed_by,
-    f.photos,
-    f.evolution,
-    f.method,
-    f.activity,
-    f.notes,
-    f.source_id,
-    f.is_relevant,
-    f.is_informational,
-    f.no_quantity_reason,
-    fss.name AS source,
-    translates.method_translate,
+const previousApprovedForms = (taxonomies) =>
+  approvedFormsSelect(taxonomies, {
+    columns: `translates.method_translate,
     translates.activity_translate,
     translates.evolution_translate,
-    translates.no_quantity_reason_translate,
-    ${APPROVED_FORMS_GEOM},
-    t.*,
-    mhg.id AS hexagon_grid_id,
-    ROUND(ST_X(ST_PointOnSurface(f.geom))::numeric, 2) || ' ' || ROUND(ST_Y(ST_PointOnSurface(f.geom))::numeric, 2) AS center_coordinates
-  FROM forms f
-    LEFT JOIN ${taxonomies} t ON t.species_id = f.species_id
-    LEFT JOIN maps_hexagon_grid mhg ON ST_Intersects(mhg.geom, ST_Centroid(f.geom))
-    LEFT JOIN form_settings_sources fss ON fss.id = f.source_id
+    translates.no_quantity_reason_translate`,
+    joins: `
     LEFT JOIN (
       SELECT
         f.id,
@@ -222,9 +202,8 @@ const previousApprovedForms = (taxonomies) => `
         LEFT JOIN form_settings_options fsor
           ON fsor.name = f.no_quantity_reason AND fsor.group = 'NO_QUANTITY_REASON'
       GROUP BY f.id
-    ) translates ON translates.id = f.id
-  WHERE f.status = 'APPROVED'
-`;
+    ) translates ON translates.id = f.id`,
+  });
 
 const RELEVANT_FORMS = `
   place_id IS NOT NULL AND status = 'APPROVED' AND is_relevant IS TRUE`;
