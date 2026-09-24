@@ -707,9 +707,7 @@ export default class SeedService extends moleculer.Service {
     ];
 
     return Promise.all(
-      values.map((value) => {
-        this.broker.call('forms.settings.options.create', value);
-      }),
+      values.map((value) => this.broker.call('forms.settings.options.create', value)),
     );
   }
 
