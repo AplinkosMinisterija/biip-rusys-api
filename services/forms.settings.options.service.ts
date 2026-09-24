@@ -87,4 +87,22 @@ export default class FormSettingsOptionsService extends moleculer.Service {
       return acc;
     }, {});
   }
+
+  @Action({
+    params: {
+      options: 'array',
+    },
+  })
+  async upsert(
+    ctx: Context<{ options: Pick<FormSettingsOptions, 'name' | 'value' | 'group' | 'formType'>[] }>,
+  ) {
+    const adapter = await this.getAdapter(ctx);
+    const createdAt = new Date();
+
+    await adapter.client
+      .table('formSettingsOptions')
+      .insert(ctx.params.options.map((option) => ({ ...option, createdAt })))
+      .onConflict(adapter.client.raw('("group", form_type, name) WHERE deleted_at IS NULL'))
+      .merge(['value']);
+  }
 }
