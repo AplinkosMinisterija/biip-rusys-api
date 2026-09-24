@@ -1,19 +1,4 @@
 /**
- * Classifier codes are unique per form type, not globally: EVOLUTION|GROWING
- * and METHOD|TRAP carry different labels for different form types. The
- * EVOLUTION and METHOD translations therefore join form_settings_options on
- * form_type too, which taxonomies_all now materializes (the SQL twin of the
- * `formType` getter in services/taxonomies.service.ts — keep them in sync).
- * The ACTIVITY and NO_QUANTITY_REASON joins stay on name + group: their codes
- * do not collide, and NO_QUANTITY_REASON options are stored under the generic
- * INVASIVE form type.
- *
- * Every view gets a unique index so it can be refreshed CONCURRENTLY.
- *
- * The views are built under a `_new` name and swapped in with a rename inside
- * the migration transaction, so readers (QGIS) keep querying the old views
- * while the new ones are built and never see a missing relation.
- *
  * @param { import("knex").Knex } knex
  * @returns { Promise<void> }
  */
