@@ -40,7 +40,10 @@ export default class SeedService extends moleculer.Service {
       await this.seedSources();
     }
 
-    await this.seedOptions();
+    const optionsCount: number = await ctx.call('forms.settings.options.count');
+    if (!optionsCount) {
+      await this.seedOptions();
+    }
 
     return true;
   }
@@ -703,7 +706,9 @@ export default class SeedService extends moleculer.Service {
       },
     ];
 
-    return this.broker.call('forms.settings.options.upsert', { options: values });
+    return Promise.all(
+      values.map((value) => this.broker.call('forms.settings.options.create', value)),
+    );
   }
 
   async started(): Promise<void> {
