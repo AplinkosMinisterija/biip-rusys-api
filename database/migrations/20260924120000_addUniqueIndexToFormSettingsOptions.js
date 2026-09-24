@@ -1,14 +1,4 @@
 /**
- * First unique constraint in this schema: one live option per
- * (group, form_type, name).
- *
- * The approvedForms / placesWithTaxonomies views translate form codes by
- * joining this table on these columns and rely on at most one match. A
- * duplicate live row would multiply form rows in those views, corrupting
- * relevant_forms_count and the hexagon statistics.
- *
- * Partial on deleted_at IS NULL so a soft-deleted option can be re-added.
- *
  * @param { import("knex").Knex } knex
  * @returns { Promise<void> }
  */
