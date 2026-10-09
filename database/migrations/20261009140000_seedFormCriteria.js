@@ -259,6 +259,14 @@ const resolveNodeId = async (knex, level, name) => {
   return { column, id: ids[0] };
 };
 
+const hasTaxonomies = async (knex) => {
+  const rows = await Promise.all(
+    Object.values(SCOPE_TABLES).map(({ table }) => knex(table).whereNull('deletedAt').first('id')),
+  );
+
+  return rows.some(Boolean);
+};
+
 const insertVocabulary = async (knex, createdAt) => {
   const rows = [
     ...SIGNS.map((option) => ({ ...option, group: SIGNS_GROUP })),
@@ -289,6 +297,9 @@ const requireOptionId = (options, group, name) => {
 exports.up = async function (knex) {
   const createdAt = new Date();
   const options = await insertVocabulary(knex, createdAt);
+
+  // Taxonomies are imported at runtime, so a fresh database has no nodes to scope to yet.
+  if (!(await hasTaxonomies(knex))) return;
 
   for (const criteria of CRITERIA) {
     const [{ id: criteriaId }] = await knex('formCriteria')
