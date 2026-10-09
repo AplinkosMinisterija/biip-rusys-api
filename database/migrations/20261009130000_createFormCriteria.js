@@ -1,6 +1,11 @@
 const { commonFields } = require('./20220620162050_setup');
 
-const SCOPE_COLUMNS = ['kingdomId', 'phylumId', 'classId', 'speciesId'];
+const SCOPE_COLUMNS = {
+  kingdomId: 'form_criteria_taxonomies_kingdom_id_idx',
+  phylumId: 'form_criteria_taxonomies_phylum_id_idx',
+  classId: 'form_criteria_taxonomies_class_id_idx',
+  speciesId: 'form_criteria_taxonomies_species_id_idx',
+};
 
 /**
  * @param { import("knex").Knex } knex
@@ -15,21 +20,39 @@ exports.up = async function (knex) {
     })
     .createTable('formCriteriaTaxonomies', (table) => {
       table.increments('id');
-      table.integer('criteriaId').unsigned().notNullable().index();
-      SCOPE_COLUMNS.forEach((column) => table.integer(column).unsigned().index());
+      table
+        .integer('criteriaId')
+        .unsigned()
+        .notNullable()
+        .index('form_criteria_taxonomies_criteria_id_idx');
+      Object.entries(SCOPE_COLUMNS).forEach(([column, indexName]) =>
+        table.integer(column).unsigned().index(indexName),
+      );
       commonFields(table);
     })
     .createTable('formCriteriaSigns', (table) => {
       table.increments('id');
-      table.integer('criteriaId').unsigned().notNullable().index();
-      table.integer('optionId').unsigned().notNullable().index();
+      table
+        .integer('criteriaId')
+        .unsigned()
+        .notNullable()
+        .index('form_criteria_signs_criteria_id_idx');
+      table.integer('optionId').unsigned().notNullable().index('form_criteria_signs_option_id_idx');
       table.integer('sortOrder').notNullable().defaultTo(0);
       commonFields(table);
     })
     .createTable('formCriteriaSignStages', (table) => {
       table.increments('id');
-      table.integer('criteriaSignId').unsigned().notNullable().index();
-      table.integer('optionId').unsigned().notNullable().index();
+      table
+        .integer('criteriaSignId')
+        .unsigned()
+        .notNullable()
+        .index('form_criteria_sign_stages_criteria_sign_id_idx');
+      table
+        .integer('optionId')
+        .unsigned()
+        .notNullable()
+        .index('form_criteria_sign_stages_option_id_idx');
       table.integer('sortOrder').notNullable().defaultTo(0);
       commonFields(table);
     });
