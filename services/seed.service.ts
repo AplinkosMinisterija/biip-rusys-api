@@ -4,7 +4,50 @@ import moleculer, { Context, ServiceBroker } from 'moleculer';
 import { Action, Method, Service } from 'moleculer-decorators';
 import { faker } from '@faker-js/faker';
 import { FormType } from './forms.types.service';
+import { FormSettingsGroupType } from './forms.settings.options.service';
 const fs = require('fs');
+
+const SEED_TIMEOUT = 10 * 60 * 1000;
+
+const CRITERIA_SERVICES = [
+  'forms.criteria',
+  'forms.criteria.taxonomies',
+  'forms.criteria.signs',
+  'forms.criteria.signs.stages',
+];
+
+const REPLACED_BY_CRITERIA_GROUPS: string[] = [
+  FormSettingsGroupType.ACTIVITY,
+  FormSettingsGroupType.EVOLUTION,
+];
+
+const TAXONOMY_SERVICE_BY_LEVEL: Record<string, string> = {
+  kingdom: 'taxonomies.kingdoms',
+  phylum: 'taxonomies.phylums',
+  class: 'taxonomies.classes',
+  species: 'taxonomies.species',
+};
+
+type SeedCriteria = {
+  name: string;
+  level: string;
+  nodes: string[];
+  signs: Array<{ sign: string; stages: string[] }>;
+};
+
+function readSeedFile(name: string) {
+  return JSON.parse(fs.readFileSync(`${process.cwd()}/seed/${name}.json`, 'utf8'));
+}
+
+function requireOptionId(options: Map<string, number>, group: string, name: string) {
+  const id = options.get(`${group}.${name}`);
+
+  if (!id) {
+    throw new moleculer.Errors.MoleculerError(`Missing ${group} option "${name}"`);
+  }
+
+  return id;
+}
 
 @Service({
   name: 'seed',
@@ -40,7 +83,11 @@ export default class SeedService extends moleculer.Service {
       await this.seedSources();
     }
 
-    const optionsCount: number = await ctx.call('forms.settings.options.count');
+    // The criteria vocabulary arrives from a migration with no formType, so a plain
+    // count would make a virgin database look already seeded.
+    const optionsCount: number = await ctx.call('forms.settings.options.count', {
+      query: { formType: { $exists: true } },
+    });
     if (!optionsCount) {
       await this.seedOptions();
     }
@@ -54,6 +101,16 @@ export default class SeedService extends moleculer.Service {
 
     if (!kingdomsCount) {
       await this.seedTaxonomies(ctx);
+    }
+    return true;
+  }
+
+  @Action()
+  async criteria(ctx: Context<Record<string, unknown>>) {
+    const criteriaCount: number = await ctx.call('forms.criteria.count');
+
+    if (!criteriaCount) {
+      await this.seedCriteria(ctx);
     }
     return true;
   }
@@ -164,31 +221,100 @@ export default class SeedService extends moleculer.Service {
       return newData;
     };
 
-    const hasItems = (item: any, cb: any) =>
-      item.items && item.items.length && item.items.forEach((i: any) => cb(i));
+    const seedItems = (item: any, create: (child: any) => Promise<any>) =>
+      Promise.all((item.items || []).map(create));
 
     const kingdoms = parseTaxonomiesFromFiles() || [];
-    kingdoms.forEach(async (kingdom: any) => {
-      const taxonomyKingdom = await createNew('taxonomies.kingdoms', getData(kingdom));
 
-      hasItems(kingdom, async (phylum: any) => {
-        const taxonomyPhylum = await createNew(
-          'taxonomies.phylums',
-          getData(phylum, 'kingdom', taxonomyKingdom),
-        );
+    await Promise.all(
+      kingdoms.map(async (kingdom: any) => {
+        const taxonomyKingdom = await createNew('taxonomies.kingdoms', getData(kingdom));
 
-        hasItems(phylum, async (oneClass: any) => {
-          const taxonomyClass = await createNew(
-            'taxonomies.classes',
-            getData(oneClass, 'phylum', taxonomyPhylum),
+        await seedItems(kingdom, async (phylum: any) => {
+          const taxonomyPhylum = await createNew(
+            'taxonomies.phylums',
+            getData(phylum, 'kingdom', taxonomyKingdom),
           );
 
-          hasItems(oneClass, async (species: any) => {
-            await createNew('taxonomies.species', getData(species, 'class', taxonomyClass));
+          await seedItems(phylum, async (oneClass: any) => {
+            const taxonomyClass = await createNew(
+              'taxonomies.classes',
+              getData(oneClass, 'phylum', taxonomyPhylum),
+            );
+
+            await seedItems(oneClass, (species: any) =>
+              createNew('taxonomies.species', getData(species, 'class', taxonomyClass)),
+            );
           });
         });
+      }),
+    );
+  }
+
+  @Method
+  async seedCriteria(ctx: Context) {
+    // Taxonomies are imported at runtime, so a database that has none cannot be scoped yet.
+    const kingdomsCount: number = await ctx.call('taxonomies.kingdoms.count');
+    if (!kingdomsCount) return;
+
+    const options = await this.criteriaVocabulary(ctx);
+
+    for (const criteria of readSeedFile('criteria') as SeedCriteria[]) {
+      const nodes = await Promise.all(
+        criteria.nodes.map(async (node) => ({
+          [criteria.level]: await this.resolveTaxonomyNode(ctx, criteria.level, node),
+        })),
+      );
+
+      await ctx.call('forms.criteria.create', {
+        name: criteria.name,
+        taxonomies: nodes,
+        signs: criteria.signs.map(({ sign, stages }) => ({
+          option: requireOptionId(options, FormSettingsGroupType.ACTIVITY, sign),
+          stages: stages.map((stage) =>
+            requireOptionId(options, FormSettingsGroupType.EVOLUTION, stage),
+          ),
+        })),
       });
+    }
+  }
+
+  @Method
+  async criteriaVocabulary(ctx: Context) {
+    const options: Array<{ id: number; group: string; name: string }> = await ctx.call(
+      'forms.settings.options.find',
+      {
+        query: {
+          group: { $in: [FormSettingsGroupType.ACTIVITY, FormSettingsGroupType.EVOLUTION] },
+          formType: { $exists: false },
+        },
+        fields: ['id', 'group', 'name'],
+      },
+    );
+
+    return new Map(options.map(({ id, group, name }) => [`${group}.${name}`, id]));
+  }
+
+  @Method
+  async resolveTaxonomyNode(ctx: Context, level: string, name: string) {
+    const service = TAXONOMY_SERVICE_BY_LEVEL[level];
+
+    if (!service) {
+      throw new moleculer.Errors.MoleculerError(`Unknown taxonomy level "${level}"`);
+    }
+
+    const nodes: Array<{ id: number }> = await ctx.call(`${service}.find`, {
+      query: { name },
+      fields: ['id'],
     });
+
+    if (nodes.length !== 1) {
+      throw new moleculer.Errors.MoleculerError(
+        `Expected exactly one ${service} node named "${name}", found ${nodes.length}`,
+      );
+    }
+
+    return nodes[0].id;
   }
 
   @Method
@@ -549,6 +675,18 @@ export default class SeedService extends moleculer.Service {
         formType: FormType.INVASIVE_CRUSTACEAN,
       },
       {
+        name: 'ACTIVE',
+        value: 'Aktyvus stebėjimas',
+        group: 'METHOD',
+        formType: FormType.INVASIVE_CRUSTACEAN,
+      },
+      {
+        name: 'PASSIVE',
+        value: 'Pasyvus stebėjimas',
+        group: 'METHOD',
+        formType: FormType.INVASIVE_CRUSTACEAN,
+      },
+      {
         name: 'OBSERVATION',
         value: 'Stebėjimas',
         group: 'METHOD',
@@ -575,6 +713,18 @@ export default class SeedService extends moleculer.Service {
       {
         name: 'OTHER',
         value: 'Kita',
+        group: 'METHOD',
+        formType: FormType.INVASIVE_MOLLUSK,
+      },
+      {
+        name: 'ACTIVE',
+        value: 'Aktyvus stebėjimas',
+        group: 'METHOD',
+        formType: FormType.INVASIVE_MOLLUSK,
+      },
+      {
+        name: 'PASSIVE',
+        value: 'Pasyvus stebėjimas',
         group: 'METHOD',
         formType: FormType.INVASIVE_MOLLUSK,
       },
@@ -707,7 +857,12 @@ export default class SeedService extends moleculer.Service {
     ];
 
     return Promise.all(
-      values.map((value) => this.broker.call('forms.settings.options.create', value)),
+      values.map((value) =>
+        this.broker.call('forms.settings.options.create', {
+          ...value,
+          active: !REPLACED_BY_CRITERIA_GROUPS.includes(value.group),
+        }),
+      ),
     );
   }
 
@@ -725,13 +880,16 @@ export default class SeedService extends moleculer.Service {
         'taxonomies.kingdoms',
         'taxonomies.phylums',
         'taxonomies.species',
+        ...CRITERIA_SERVICES,
       ])
       .then(async () => {
-        await this.broker.call('seed.real', {}, { timeout: 120 * 1000 });
+        await this.broker.call('seed.real', {}, { timeout: SEED_TIMEOUT });
 
         if (process.env.NODE_ENV !== 'production') {
-          await this.broker.call('seed.fake', {}, { timeout: 120 * 1000 });
+          await this.broker.call('seed.fake', {}, { timeout: SEED_TIMEOUT });
         }
+
+        await this.broker.call('seed.criteria', {}, { timeout: SEED_TIMEOUT });
       });
   }
 }
