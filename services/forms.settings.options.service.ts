@@ -114,13 +114,19 @@ export default class FormSettingsOptionsService extends moleculer.Service {
 
   @Method
   async rejectDuplicateName({ ctx, value, params, operation }: FieldHookCallback) {
-    // A row that carries a formType is already keyed by the partial unique index; only the
-    // formType-less rows need a check, and theirs spans every formType because the
-    // approved_forms ACTIVITY join matches on group + name alone, deleted rows included.
-    if (operation !== 'create' || params.formType) return true;
+    if (operation !== 'create') return true;
+
+    // The partial unique index keys the rows that carry a formType, so those may legitimately
+    // repeat a code across form types. It cannot see the formType-less rows, and the
+    // approved_forms ACTIVITY join matches on group + name alone, deleted rows included — so a
+    // pair is a duplicate as soon as either side has no formType.
+    const query: GenericObject<unknown> = { group: params.group, name: value };
+    if (params.formType) {
+      query.formType = { $exists: false };
+    }
 
     const duplicates: number = await ctx.call('forms.settings.options.count', {
-      query: { group: params.group, name: value },
+      query,
       scope: false,
     });
 
