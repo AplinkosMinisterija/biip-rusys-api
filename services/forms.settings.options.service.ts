@@ -62,7 +62,7 @@ export type FormSettingsOptionByFormType = GenericObject<FormSettingsOptionByTyp
         validate: 'rejectDuplicateName',
       },
 
-      value: 'string|required',
+      value: { type: 'string', required: true, validate: 'rejectDuplicateLabel' },
       group: { type: 'string', required: true, immutable: true },
       formType: {
         type: 'string',
@@ -110,6 +110,32 @@ export default class FormSettingsOptionsService extends moleculer.Service {
       acc[item.name] = item.value;
       return acc;
     }, {});
+  }
+
+  @Method
+  async rejectDuplicateLabel({ ctx, value, params, entity }: FieldHookCallback) {
+    // Two rows only ever meet in one picker when they share a group and a formType, which is
+    // why METHOD may repeat "Stebėjimas" across form types but ACTIVITY may not repeat it twice.
+    const group = entity?.group || params.group;
+    const formType = entity?.formType || params.formType;
+
+    const query: GenericObject<unknown> = {
+      group,
+      value,
+      formType: formType || { $exists: false },
+    };
+
+    if (entity?.id) {
+      query.id = { $ne: entity.id };
+    }
+
+    const duplicates: number = await ctx.call('forms.settings.options.count', { query });
+
+    if (duplicates) {
+      return `Label "${value}" already exists in group "${group}"`;
+    }
+
+    return true;
   }
 
   @Method
