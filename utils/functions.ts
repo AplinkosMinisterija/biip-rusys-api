@@ -1,4 +1,5 @@
 import { createHash } from 'crypto';
+import _ from 'lodash';
 import { Readable } from 'stream';
 import { FormStatus } from '../types';
 
@@ -67,4 +68,8 @@ export function parseToObject(data: object | string) {
   }
 
   return data;
+}
+
+export function optionCodeFromLabel(label: string): string {
+  return _.snakeCase(_.deburr(label)).toUpperCase();
 }
