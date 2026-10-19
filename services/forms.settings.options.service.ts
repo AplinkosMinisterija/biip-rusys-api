@@ -1,22 +1,26 @@
 'use strict';
 
 import moleculer, { Context } from 'moleculer';
-import { Action, Service } from 'moleculer-decorators';
+import { Action, Method, Service } from 'moleculer-decorators';
 
 import DbConnection from '../mixins/database.mixin';
 import {
+  ADMIN_ONLY_MUTATIONS,
   BaseModelInterface,
   COMMON_DEFAULT_SCOPES,
   COMMON_FIELDS,
   COMMON_SCOPES,
+  FieldHookCallback,
   GenericObject,
 } from '../types';
+import { optionCodeFromLabel } from '../utils/functions';
 
 export interface FormSettingsOptions extends BaseModelInterface {
   name: string;
   value: string;
   group: string;
   formType: string;
+  active: boolean;
 }
 
 export const FormSettingsGroupType = {
@@ -38,7 +42,6 @@ export type FormSettingsOptionByFormType = GenericObject<FormSettingsOptionByTyp
     DbConnection({
       collection: 'formSettingsOptions',
       createActions: {},
-      rest: null,
     }),
   ],
 
@@ -51,10 +54,20 @@ export type FormSettingsOptionByFormType = GenericObject<FormSettingsOptionByTyp
         secure: true,
       },
 
-      name: 'string|required',
+      name: {
+        type: 'string',
+        immutable: true,
+        default: ({ params }: FieldHookCallback) => optionCodeFromLabel(params.value),
+        validate: 'rejectDuplicateName',
+      },
+
       value: 'string|required',
       group: 'string|required',
       formType: 'string',
+      active: {
+        type: 'boolean',
+        default: true,
+      },
 
       ...COMMON_FIELDS,
     },
@@ -64,6 +77,13 @@ export type FormSettingsOptionByFormType = GenericObject<FormSettingsOptionByTyp
     },
 
     defaultScopes: [...COMMON_DEFAULT_SCOPES],
+  },
+
+  actions: {
+    ...ADMIN_ONLY_MUTATIONS,
+    remove: false,
+    replace: false,
+    removeAllEntities: false,
   },
 })
 export default class FormSettingsOptionsService extends moleculer.Service {
@@ -86,5 +106,22 @@ export default class FormSettingsOptionsService extends moleculer.Service {
       acc[item.name] = item.value;
       return acc;
     }, {});
+  }
+
+  @Method
+  async rejectDuplicateName({ ctx, value, params, operation }: FieldHookCallback) {
+    if (operation !== 'create') return true;
+
+    // The approved_forms ACTIVITY join matches on group + name alone, deleted rows included.
+    const duplicates: number = await ctx.call('forms.settings.options.count', {
+      query: { group: params.group, name: value },
+      scope: false,
+    });
+
+    if (duplicates) {
+      return `Option "${value}" already exists in group "${params.group}"`;
+    }
+
+    return true;
   }
 }
