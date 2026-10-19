@@ -296,6 +296,14 @@ const requireOptionId = (options, group, name) => {
  */
 exports.up = async function (knex) {
   const createdAt = new Date();
+
+  // Postgres treats the existing index's NULL form_type as distinct, so these rows need their own.
+  await knex.schema.raw(`
+    CREATE UNIQUE INDEX form_settings_options_criteria_name_uniq
+    ON form_settings_options ("group", name)
+    WHERE form_type IS NULL AND deleted_at IS NULL
+  `);
+
   const options = await insertVocabulary(knex, createdAt);
 
   // Taxonomies are imported at runtime, so a fresh database has no nodes to scope to yet.
@@ -366,4 +374,6 @@ exports.down = async function (knex) {
       [...SIGNS, ...STAGES].map(({ name }) => name),
     )
     .delete();
+
+  await knex.schema.raw(`DROP INDEX IF EXISTS form_settings_options_criteria_name_uniq`);
 };

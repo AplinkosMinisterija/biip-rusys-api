@@ -68,6 +68,19 @@ exports.up = async function (knex) {
       + (species_id IS NOT NULL)::int = 1
     )
   `);
+
+  // forms.activity stores the option code, so the same option twice under one parent is untraceable.
+  await knex.schema.raw(`
+    CREATE UNIQUE INDEX form_criteria_signs_criteria_id_option_id_uniq
+    ON form_criteria_signs (criteria_id, option_id)
+    WHERE deleted_at IS NULL
+  `);
+
+  await knex.schema.raw(`
+    CREATE UNIQUE INDEX form_criteria_sign_stages_criteria_sign_id_option_id_uniq
+    ON form_criteria_sign_stages (criteria_sign_id, option_id)
+    WHERE deleted_at IS NULL
+  `);
 };
 
 /**
