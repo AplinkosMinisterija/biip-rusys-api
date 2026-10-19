@@ -41,6 +41,8 @@ export type SpeciesCriteria = {
   signs: CriteriaSign[];
 };
 
+type ResolvedCriteria = { id: number; name: string; signs?: OfferedSign[] };
+
 type OfferedOption = CriteriaOption & { active: boolean };
 type Offered = { option?: OfferedOption };
 type OfferedSign = Offered & { stages?: Offered[] };
@@ -172,6 +174,10 @@ function toOption({ id, name, value }: OfferedOption): CriteriaOption {
   },
 
   hooks: {
+    before: {
+      create: 'validateTree',
+      update: 'validateTree',
+    },
     after: {
       create: 'saveTree',
       update: 'saveTree',
@@ -197,15 +203,10 @@ export default class FormCriteriaService extends moleculer.Service {
 
     if (!criteria) return { criteria: null, signs: [] };
 
-    const signs: OfferedSign[] = await ctx.call('forms.criteria.signs.find', {
-      query: { criteria: criteria.id },
-      fields: ['id', 'option', 'sortOrder', 'stages'],
-      populate: 'option,stages',
-      sort: 'sortOrder',
-    });
+    const signs: OfferedSign[] = criteria.signs || [];
 
     return {
-      criteria,
+      criteria: { id: criteria.id, name: criteria.name },
       signs: signs.filter(isOffered).map((sign) => ({
         ...toOption(sign.option),
         stages: (sign.stages || []).filter(isOffered).map((stage) => toOption(stage.option)),
@@ -214,10 +215,7 @@ export default class FormCriteriaService extends moleculer.Service {
   }
 
   @Method
-  async findNearestCriteria(
-    ctx: Context,
-    taxonomy: Taxonomy,
-  ): Promise<SpeciesCriteria['criteria']> {
+  async findNearestCriteria(ctx: Context, taxonomy: Taxonomy): Promise<ResolvedCriteria | null> {
     const nodes: Record<CriteriaTaxonomyLevelType, number> = {
       species: taxonomy.speciesId,
       class: taxonomy.classId,
@@ -234,15 +232,24 @@ export default class FormCriteriaService extends moleculer.Service {
 
       if (!scope) continue;
 
-      const criteria: FormCriteria = await ctx.call('forms.criteria.resolve', {
+      const criteria: ResolvedCriteria = await ctx.call('forms.criteria.resolve', {
         id: scope.criteria,
+        populate: 'signs',
         throwIfNotExist: false,
       });
 
-      if (criteria?.id) return { id: criteria.id, name: criteria.name };
+      if (criteria?.id) return criteria;
     }
 
     return null;
+  }
+
+  @Method
+  async validateTree(ctx: Context<CriteriaTreeParams & { id?: number }>) {
+    const { id, taxonomies, signs } = ctx.params;
+
+    if (taxonomies) await this.validateScopes(ctx, id, taxonomies);
+    if (signs) this.validateSigns(signs);
   }
 
   @Method
@@ -251,15 +258,8 @@ export default class FormCriteriaService extends moleculer.Service {
 
     if (!taxonomies && !signs) return criteria;
 
-    if (taxonomies) {
-      await this.validateScopes(ctx, criteria.id, taxonomies);
-      await this.replaceScopes(ctx, criteria.id, taxonomies);
-    }
-
-    if (signs) {
-      this.validateSigns(signs);
-      await this.replaceSigns(ctx, criteria.id, signs);
-    }
+    if (taxonomies) await this.replaceScopes(ctx, criteria.id, taxonomies);
+    if (signs) await this.replaceSigns(ctx, criteria.id, signs);
 
     return ctx.call('forms.criteria.resolve', {
       id: criteria.id,

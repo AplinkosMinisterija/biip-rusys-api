@@ -57,13 +57,18 @@ export type FormSettingsOptionByFormType = GenericObject<FormSettingsOptionByTyp
       name: {
         type: 'string',
         immutable: true,
-        default: ({ params }: FieldHookCallback) => optionCodeFromLabel(params.value),
+        onCreate: ({ value, params }: FieldHookCallback) =>
+          value || optionCodeFromLabel(params.value),
         validate: 'rejectDuplicateName',
       },
 
       value: 'string|required',
-      group: 'string|required',
-      formType: 'string',
+      group: { type: 'string', required: true, immutable: true },
+      formType: {
+        type: 'string',
+        // immutable only guards a column that already holds a value, and this one is nullable.
+        onUpdate: ({ entity }: FieldHookCallback) => entity.formType,
+      },
       active: {
         type: 'boolean',
         default: true,
@@ -83,7 +88,6 @@ export type FormSettingsOptionByFormType = GenericObject<FormSettingsOptionByTyp
     ...ADMIN_ONLY_MUTATIONS,
     remove: false,
     replace: false,
-    removeAllEntities: false,
   },
 })
 export default class FormSettingsOptionsService extends moleculer.Service {
@@ -110,9 +114,11 @@ export default class FormSettingsOptionsService extends moleculer.Service {
 
   @Method
   async rejectDuplicateName({ ctx, value, params, operation }: FieldHookCallback) {
-    if (operation !== 'create') return true;
+    // A row that carries a formType is already keyed by the partial unique index; only the
+    // formType-less rows need a check, and theirs spans every formType because the
+    // approved_forms ACTIVITY join matches on group + name alone, deleted rows included.
+    if (operation !== 'create' || params.formType) return true;
 
-    // The approved_forms ACTIVITY join matches on group + name alone, deleted rows included.
     const duplicates: number = await ctx.call('forms.settings.options.count', {
       query: { group: params.group, name: value },
       scope: false,

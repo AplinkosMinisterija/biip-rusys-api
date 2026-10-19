@@ -5,6 +5,7 @@ import { Action, Method, Service } from 'moleculer-decorators';
 import { faker } from '@faker-js/faker';
 import { FormType } from './forms.types.service';
 import { FormSettingsGroupType } from './forms.settings.options.service';
+import { EndpointType } from '../types';
 const fs = require('fs');
 
 const SEED_TIMEOUT = 10 * 60 * 1000;
@@ -105,7 +106,9 @@ export default class SeedService extends moleculer.Service {
     return true;
   }
 
-  @Action()
+  @Action({
+    types: [EndpointType.ADMIN],
+  })
   async criteria(ctx: Context<Record<string, unknown>>) {
     const criteriaCount: number = await ctx.call('forms.criteria.count');
 
@@ -890,6 +893,8 @@ export default class SeedService extends moleculer.Service {
         }
 
         await this.broker.call('seed.criteria', {}, { timeout: SEED_TIMEOUT });
-      });
+      })
+      // Migrations already ran; a seeding failure must not restart-loop the container.
+      .catch((err) => this.logger.error(err));
   }
 }
