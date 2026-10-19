@@ -1,4 +1,4 @@
-import { shouldRecomputePlaceOnRelevancyChange } from './functions';
+import { optionCodeFromLabel, shouldRecomputePlaceOnRelevancyChange } from './functions';
 
 describe('shouldRecomputePlaceOnRelevancyChange', () => {
   const approvedForm = {
@@ -75,5 +75,24 @@ describe('shouldRecomputePlaceOnRelevancyChange', () => {
         'forms.update',
       ),
     ).toBe(false);
+  });
+});
+
+describe('optionCodeFromLabel', () => {
+  it('strips Lithuanian diacritics and upper-snake-cases the label', () => {
+    expect(optionCodeFromLabel('Nerštavietė')).toBe('NERSTAVIETE');
+    expect(optionCodeFromLabel('Lerva/vikšras/nimfa')).toBe('LERVA_VIKSRAS_NIMFA');
+  });
+
+  it('drops punctuation and collapses separators', () => {
+    expect(optionCodeFromLabel('Veisimosi vieta(Lizdas, uoksas, tuokvietė ir pan.)')).toBe(
+      'VEISIMOSI_VIETA_LIZDAS_UOKSAS_TUOKVIETE_IR_PAN',
+    );
+  });
+
+  it('keeps a code stable when the label only differs by punctuation', () => {
+    expect(optionCodeFromLabel('Ramybės būsenoje/ žiemojantis')).toBe(
+      optionCodeFromLabel('Ramybės būsenoje / žiemojantis'),
+    );
   });
 });

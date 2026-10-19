@@ -17,6 +17,12 @@ export enum FormType {
   DEFAULT = 'DEFAULT',
 }
 
+export const ENDANGERED_FORM_TYPES = [
+  FormType.ENDANGERED_ANIMAL,
+  FormType.ENDANGERED_PLANT,
+  FormType.ENDANGERED_MUSHROOM,
+];
+
 const EndangeredFormActivitiesNonInformational = ['HABITATION'];
 
 @Service({

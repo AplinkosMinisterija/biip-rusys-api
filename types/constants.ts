@@ -235,6 +235,16 @@ export const TENANT_FIELD = {
   },
 };
 
+export const ADMIN_ONLY_MUTATIONS = {
+  create: { types: [EndpointType.ADMIN] },
+  update: { types: [EndpointType.ADMIN] },
+  replace: { types: [EndpointType.ADMIN] },
+  remove: { types: [EndpointType.ADMIN] },
+  // Both skip the per-entity validators and hooks the single-entity actions run.
+  createMany: false,
+  removeAllEntities: false,
+};
+
 export const COMMON_SCOPES = {
   notDeleted: {
     deletedAt: { $exists: false },
