@@ -1,7 +1,7 @@
 'use strict';
 
 import moleculer, { Context } from 'moleculer';
-import { Method, Service } from 'moleculer-decorators';
+import { Action, Method, Service } from 'moleculer-decorators';
 
 import DbConnection, { PopulateHandlerFn } from '../mixins/database.mixin';
 import {
@@ -19,10 +19,31 @@ import {
 } from './forms.criteria.taxonomies.service';
 import { FormCriteriaSign } from './forms.criteria.signs.service';
 import { FormCriteriaSignStage } from './forms.criteria.signs.stages.service';
+import { ENDANGERED_FORM_TYPES } from './forms.types.service';
+import { Taxonomy } from './taxonomies.service';
 
 export interface FormCriteria extends BaseModelInterface {
   name: string;
 }
+
+export type CriteriaOption = {
+  id: number;
+  name: string;
+  value: string;
+};
+
+export type CriteriaSign = CriteriaOption & {
+  stages: CriteriaOption[];
+};
+
+export type SpeciesCriteria = {
+  criteria: { id: number; name: string } | null;
+  signs: CriteriaSign[];
+};
+
+type OfferedOption = CriteriaOption & { active: boolean };
+type OfferedStage = { option?: OfferedOption };
+type OfferedSign = OfferedStage & { stages?: OfferedStage[] };
 
 export type CriteriaScopeParam = Partial<Record<CriteriaTaxonomyLevelType, number>>;
 
@@ -73,6 +94,14 @@ const TREE_PARAMS = {
 
 function hasDuplicates(ids: number[]) {
   return new Set(ids).size !== ids.length;
+}
+
+function isOffered<T extends OfferedStage>(row: T): row is T & { option: OfferedOption } {
+  return !!row.option?.active;
+}
+
+function toOption({ id, name, value }: OfferedOption): CriteriaOption {
+  return { id, name, value };
 }
 
 @Service({
@@ -159,6 +188,71 @@ function hasDuplicates(ids: number[]) {
   },
 })
 export default class FormCriteriaService extends moleculer.Service {
+  @Action({
+    rest: 'GET /species/:speciesId',
+    params: {
+      speciesId: { type: 'number', convert: true, integer: true, positive: true },
+    },
+  })
+  async bySpecies(ctx: Context<{ speciesId: number }>): Promise<SpeciesCriteria> {
+    const taxonomy: Taxonomy = await ctx.call('taxonomies.findBySpeciesId', {
+      id: ctx.params.speciesId,
+    });
+
+    const criteria = ENDANGERED_FORM_TYPES.includes(taxonomy.formType)
+      ? await this.findNearestCriteria(ctx, taxonomy)
+      : null;
+
+    if (!criteria) return { criteria: null, signs: [] };
+
+    const signs: OfferedSign[] = await ctx.call('forms.criteria.signs.find', {
+      query: { criteria: criteria.id },
+      fields: ['id', 'option', 'sortOrder', 'stages'],
+      populate: 'option,stages',
+      sort: 'sortOrder',
+    });
+
+    return {
+      criteria,
+      signs: signs.filter(isOffered).map((sign) => ({
+        ...toOption(sign.option),
+        stages: (sign.stages || []).filter(isOffered).map((stage) => toOption(stage.option)),
+      })),
+    };
+  }
+
+  @Method
+  async findNearestCriteria(
+    ctx: Context,
+    taxonomy: Taxonomy,
+  ): Promise<SpeciesCriteria['criteria']> {
+    const nodes: Record<CriteriaTaxonomyLevelType, number> = {
+      species: taxonomy.speciesId,
+      class: taxonomy.classId,
+      phylum: taxonomy.phylumId,
+      kingdom: taxonomy.kingdomId,
+    };
+
+    for (const level of CRITERIA_TAXONOMY_LEVELS) {
+      if (!nodes[level]) continue;
+
+      const scope: FormCriteriaTaxonomy = await ctx.call('forms.criteria.taxonomies.findOne', {
+        query: { [level]: nodes[level] },
+      });
+
+      if (!scope) continue;
+
+      const criteria: FormCriteria = await ctx.call('forms.criteria.resolve', {
+        id: scope.criteria,
+        throwIfNotExist: false,
+      });
+
+      if (criteria?.id) return { id: criteria.id, name: criteria.name };
+    }
+
+    return null;
+  }
+
   @Method
   async saveTree(ctx: Context<CriteriaTreeParams>, criteria: FormCriteria) {
     const { taxonomies, signs } = ctx.params;
