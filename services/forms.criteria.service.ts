@@ -42,8 +42,8 @@ export type SpeciesCriteria = {
 };
 
 type OfferedOption = CriteriaOption & { active: boolean };
-type OfferedStage = { option?: OfferedOption };
-type OfferedSign = OfferedStage & { stages?: OfferedStage[] };
+type Offered = { option?: OfferedOption };
+type OfferedSign = Offered & { stages?: Offered[] };
 
 export type CriteriaScopeParam = Partial<Record<CriteriaTaxonomyLevelType, number>>;
 
@@ -57,46 +57,38 @@ export type CriteriaTreeParams = {
   signs?: CriteriaSignParam[];
 };
 
-const SCOPE_PARAMS = {
-  type: 'array',
-  optional: true,
-  items: {
-    type: 'object',
-    props: {
-      kingdom: 'number|convert|optional',
-      phylum: 'number|convert|optional',
-      class: 'number|convert|optional',
-      species: 'number|convert|optional',
-    },
-  },
-};
-
-const SIGN_PARAMS = {
-  type: 'array',
-  optional: true,
-  items: {
-    type: 'object',
-    props: {
-      option: 'number|convert',
-      stages: {
-        type: 'array',
-        optional: true,
-        items: 'number|convert',
+const TREE_PARAMS = {
+  taxonomies: {
+    type: 'array',
+    optional: true,
+    items: {
+      type: 'object',
+      props: {
+        kingdom: 'number|convert|optional',
+        phylum: 'number|convert|optional',
+        class: 'number|convert|optional',
+        species: 'number|convert|optional',
       },
     },
   },
-};
-
-const TREE_PARAMS = {
-  taxonomies: SCOPE_PARAMS,
-  signs: SIGN_PARAMS,
+  signs: {
+    type: 'array',
+    optional: true,
+    items: {
+      type: 'object',
+      props: {
+        option: 'number|convert',
+        stages: { type: 'array', optional: true, items: 'number|convert' },
+      },
+    },
+  },
 };
 
 function hasDuplicates(ids: number[]) {
   return new Set(ids).size !== ids.length;
 }
 
-function isOffered<T extends OfferedStage>(row: T): row is T & { option: OfferedOption } {
+function isOffered<T extends Offered>(row: T): row is T & { option: OfferedOption } {
   return !!row.option?.active;
 }
 
