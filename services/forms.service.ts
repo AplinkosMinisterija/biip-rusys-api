@@ -1,5 +1,6 @@
 'use strict';
 
+import type { Knex } from 'knex';
 import moleculer, { Context, RestSchema } from 'moleculer';
 import { Action, Event, Method, Service } from 'moleculer-decorators';
 
@@ -37,7 +38,7 @@ import {
 } from '../utils/functions';
 import { emailCanBeSent, notifyFormAssignee, notifyOnFormUpdate } from '../utils/mails';
 import { FormHistoryTypes } from './forms.histories.service';
-import { FormSettingsOptions } from './forms.settings.options.service';
+import { FormSettingsGroupType, FormSettingsOptions } from './forms.settings.options.service';
 import { FormSettingSource } from './forms.settings.sources.service';
 import { FormType } from './forms.types.service';
 import { Place, PlaceStatus } from './places.service';
@@ -68,6 +69,40 @@ export const FormNoQuantityReason = {
   CLEANUP: 'CLEANUP',
   RESEARCH: 'RESEARCH',
 };
+
+type ClassifierReport = {
+  mapped: number;
+  byCode: Record<string, number>;
+  unmapped: { count: number; codes: Record<string, number> };
+  blank: number;
+};
+
+const CLASSIFIER_COLUMNS: Record<string, { code: string; id: string }> = {
+  [FormSettingsGroupType.ACTIVITY]: { code: 'activity', id: 'activity_id' },
+  [FormSettingsGroupType.EVOLUTION]: { code: 'evolution', id: 'evolution_id' },
+};
+
+// `approved_forms` resolves a sign by group and name alone and a stage by group, name and
+// form type; matching those exactly is what keeps every stored label unchanged.
+const OPTION_MATCH: Record<string, string> = {
+  [FormSettingsGroupType.ACTIVITY]: '',
+  [FormSettingsGroupType.EVOLUTION]:
+    'AND o.form_type = t.form_type AND t.species_id = f.species_id',
+};
+
+const OPTION_SOURCE: Record<string, string> = {
+  [FormSettingsGroupType.ACTIVITY]: 'form_settings_options o',
+  [FormSettingsGroupType.EVOLUTION]: 'form_settings_options o, taxonomies_all t',
+};
+
+const BACKFILL_BATCH_SIZE = 5000;
+
+function countByCode(rows: Array<{ code: string; count: string }>): Record<string, number> {
+  return rows.reduce((acc: Record<string, number>, row) => {
+    acc[row.code] = Number(row.count);
+    return acc;
+  }, {});
+}
 
 const populatePermissions = (field: string) => {
   return function (ctx: Context<{}, UserAuthMeta>, _values: any, forms: any[]) {
@@ -1217,6 +1252,122 @@ export default class FormsService extends moleculer.Service {
     }
 
     return invalid;
+  }
+
+  @Action({
+    types: [EndpointType.ADMIN],
+    params: {
+      batchSize: {
+        type: 'number',
+        convert: true,
+        integer: true,
+        positive: true,
+        default: BACKFILL_BATCH_SIZE,
+      },
+    },
+    timeout: 0,
+  })
+  async backfillClassifierIds(ctx: Context<{ batchSize: number }, UserAuthMeta>) {
+    const adapter = await this.getAdapter(ctx);
+    const report: Record<string, ClassifierReport> = {};
+
+    for (const group of Object.keys(CLASSIFIER_COLUMNS)) {
+      report[group] = await this.backfillClassifier(adapter.client, group, ctx.params.batchSize);
+    }
+
+    return report;
+  }
+
+  @Method
+  async backfillClassifier(db: Knex, group: string, batchSize: number): Promise<ClassifierReport> {
+    const { code, id } = CLASSIFIER_COLUMNS[group];
+
+    await this.rejectAmbiguousCodes(db, group);
+
+    const bounds = await db('forms').min({ min: 'id' }).max({ max: 'id' }).first();
+
+    let mapped = 0;
+
+    for (
+      let from = Number(bounds?.min ?? 0);
+      from <= Number(bounds?.max ?? -1);
+      from += batchSize
+    ) {
+      const result = await db.raw(
+        `UPDATE forms f SET ${id} = o.id
+         FROM ${OPTION_SOURCE[group]}
+         WHERE o."group" = ?
+           AND o.name = f.${code}
+           AND o.deleted_at IS NULL
+           ${OPTION_MATCH[group]}
+           AND f.${id} IS NULL
+           AND f.${code} IS NOT NULL
+           AND f.${code} <> ''
+           AND f.id >= ? AND f.id < ?`,
+        [group, from, from + batchSize],
+      );
+
+      mapped += Number(result.rowCount ?? 0);
+    }
+
+    const byCode = await db('forms')
+      .select(`${code} AS code`)
+      .count()
+      .whereNotNull(id)
+      .groupBy(code);
+
+    const unmapped = await db('forms')
+      .select(`${code} AS code`)
+      .count()
+      .whereNull(id)
+      .whereNotNull(code)
+      .whereNot(code, '')
+      .groupBy(code);
+
+    const blank = await db('forms').where(code, '').count().first();
+
+    return {
+      mapped,
+      byCode: countByCode(byCode),
+      unmapped: {
+        count: unmapped.reduce(
+          (total: number, row: { count: string }) => total + Number(row.count),
+          0,
+        ),
+        codes: countByCode(unmapped),
+      },
+      blank: Number(blank?.count ?? 0),
+    };
+  }
+
+  // The view resolves a label afresh on every refresh, so an ambiguous match only ever showed the
+  // wrong one; writing the id makes that choice permanent, which is worth refusing instead.
+  @Method
+  async rejectAmbiguousCodes(db: Knex, group: string) {
+    const { code, id } = CLASSIFIER_COLUMNS[group];
+
+    const { rows } = await db.raw(
+      `SELECT count(*) FROM (
+         SELECT f.id
+         FROM forms f, ${OPTION_SOURCE[group]}
+         WHERE o."group" = ?
+           AND o.name = f.${code}
+           AND o.deleted_at IS NULL
+           ${OPTION_MATCH[group]}
+           AND f.${id} IS NULL
+           AND f.${code} IS NOT NULL
+           AND f.${code} <> ''
+         GROUP BY f.id
+         HAVING count(*) > 1
+       ) ambiguous`,
+      [group],
+    );
+
+    const count = Number(rows[0]?.count ?? 0);
+
+    if (count) {
+      throwValidationError(`${count} forms match more than one ${group} option`, { group });
+    }
   }
 
   @Method
