@@ -56,7 +56,7 @@ async function replaceViews(knex, views) {
   }
 }
 
-const approvedFormsSelect = (joins) => `
+const approvedFormsSelect = (translates, joins) => `
   SELECT
     f.id,
     f.quantity,
@@ -76,8 +76,7 @@ const approvedFormsSelect = (joins) => `
     f.no_quantity_reason,
     fss.name AS source,
     fsom.value AS method_translate,
-    fsoa.value AS activity_translate,
-    fsoe.value AS evolution_translate,
+    ${translates},
     fsor.value AS no_quantity_reason_translate,
     ST_Transform(ST_Multi(
       CASE
@@ -105,15 +104,31 @@ const approvedFormsSelect = (joins) => `
   WHERE f.status = 'APPROVED'
 `;
 
-const approvedForms = approvedFormsSelect(`
+// The ids are filled in by `tools.backfillClassifierIds`, which can only run once the broker is
+// up — that is, after this migration. Until it has, the row still resolves through its code.
+const approvedForms = approvedFormsSelect(
+  `COALESCE(fsoa.value, fsoa_legacy.value) AS activity_translate,
+    COALESCE(fsoe.value, fsoe_legacy.value) AS evolution_translate`,
+  `
     LEFT JOIN form_settings_options fsoa ON fsoa.id = f.activity_id
-    LEFT JOIN form_settings_options fsoe ON fsoe.id = f.evolution_id`);
+    LEFT JOIN form_settings_options fsoe ON fsoe.id = f.evolution_id
+    LEFT JOIN form_settings_options fsoa_legacy
+      ON f.activity_id IS NULL AND fsoa_legacy.name = f.activity
+      AND fsoa_legacy.group = 'ACTIVITY'
+    LEFT JOIN form_settings_options fsoe_legacy
+      ON f.evolution_id IS NULL AND fsoe_legacy.name = f.evolution
+      AND fsoe_legacy.group = 'EVOLUTION' AND fsoe_legacy.form_type = t.form_type`,
+);
 
-const previousApprovedForms = approvedFormsSelect(`
+const previousApprovedForms = approvedFormsSelect(
+  `fsoa.value AS activity_translate,
+    fsoe.value AS evolution_translate`,
+  `
     LEFT JOIN form_settings_options fsoa
       ON fsoa.name = f.activity AND fsoa.group = 'ACTIVITY'
     LEFT JOIN form_settings_options fsoe
-      ON fsoe.name = f.evolution AND fsoe.group = 'EVOLUTION' AND fsoe.form_type = t.form_type`);
+      ON fsoe.name = f.evolution AND fsoe.group = 'EVOLUTION' AND fsoe.form_type = t.form_type`,
+);
 
 const RELEVANT_FORMS = `
   place_id IS NOT NULL AND status = 'APPROVED' AND is_relevant IS TRUE`;
@@ -124,7 +139,7 @@ const latestRelevantForm = (columns) => `
   WHERE ${RELEVANT_FORMS}
   ORDER BY place_id, observed_at DESC`;
 
-const placesWithTaxonomiesSelect = (latestColumns, joins) => `
+const placesWithTaxonomiesSelect = (latestColumns, translates, joins) => `
   SELECT
     p.id,
     p.code,
@@ -142,8 +157,7 @@ const placesWithTaxonomiesSelect = (latestColumns, joins) => `
     COALESCE(observations.relevant_forms_count, 0) AS relevant_forms_count,
     latest.description,
     latest.photos,
-    fsoa.value AS activity_translate,
-    fsoe.value AS evolution_translate,
+    ${translates},
     mhg.id AS hexagon_grid_id,
     ROUND(ST_X(ST_PointOnSurface(p.geom))::numeric, 2) || ' ' || ROUND(ST_Y(ST_PointOnSurface(p.geom))::numeric, 2) AS center_coordinates,
     ROUND(ST_Area(p.geom)::numeric, 2) AS area
@@ -166,13 +180,23 @@ const placesWithTaxonomiesSelect = (latestColumns, joins) => `
 
 const placesWithTaxonomies = placesWithTaxonomiesSelect(
   `, activity_id, evolution_id`,
+  `COALESCE(fsoa.value, fsoa_legacy.value) AS activity_translate,
+    COALESCE(fsoe.value, fsoe_legacy.value) AS evolution_translate`,
   `
     LEFT JOIN form_settings_options fsoa ON fsoa.id = latest.activity_id
-    LEFT JOIN form_settings_options fsoe ON fsoe.id = latest.evolution_id`,
+    LEFT JOIN form_settings_options fsoe ON fsoe.id = latest.evolution_id
+    LEFT JOIN form_settings_options fsoa_legacy
+      ON latest.activity_id IS NULL AND fsoa_legacy.name = latest.activity
+      AND fsoa_legacy.group = 'ACTIVITY'
+    LEFT JOIN form_settings_options fsoe_legacy
+      ON latest.evolution_id IS NULL AND fsoe_legacy.name = latest.evolution
+      AND fsoe_legacy.group = 'EVOLUTION' AND fsoe_legacy.form_type = t.form_type`,
 );
 
 const previousPlacesWithTaxonomies = placesWithTaxonomiesSelect(
   '',
+  `fsoa.value AS activity_translate,
+    fsoe.value AS evolution_translate`,
   `
     LEFT JOIN form_settings_options fsoa
       ON fsoa.name = latest.activity AND fsoa.group = 'ACTIVITY'
