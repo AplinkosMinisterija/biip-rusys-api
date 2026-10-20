@@ -83,3 +83,24 @@ export function toPositiveIntegerIds(values: unknown): number[] {
     .map((value) => (typeof value === 'number' ? value : Number(String(value).trim())))
     .filter((id) => Number.isInteger(id) && id > 0);
 }
+
+export type OfferedSign = {
+  id: number | string;
+  stages?: Array<{ id: number | string }>;
+};
+
+export function signIsOffered(signs: OfferedSign[], signId: number): boolean {
+  return signs.some((sign) => Number(sign.id) === signId);
+}
+
+export function stageIsOffered(
+  signs: OfferedSign[],
+  signId: number | null | undefined,
+  stageId: number,
+): boolean {
+  if (!signId) return false;
+
+  const sign = signs.find((offered) => Number(offered.id) === signId);
+
+  return !!sign?.stages?.some((stage) => Number(stage.id) === stageId);
+}
