@@ -104,3 +104,13 @@ export function stageIsOffered(
 
   return !!sign?.stages?.some((stage) => Number(stage.id) === stageId);
 }
+
+// Every historical protected-species form holds a deactivated classifier, so an
+// unchanged value must never be re-validated against the current criterion.
+export function classifierChanged(value: unknown, stored: unknown): boolean {
+  if (value === undefined) return false;
+
+  const toId = (id: unknown) => (id === null || id === undefined ? null : Number(id));
+
+  return toId(value) !== toId(stored);
+}

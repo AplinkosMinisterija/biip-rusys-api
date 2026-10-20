@@ -1,4 +1,5 @@
 import {
+  classifierChanged,
   signIsOffered,
   stageIsOffered,
   optionCodeFromLabel,
@@ -160,5 +161,34 @@ describe('stageIsOffered', () => {
 
   it('rejects a stage when no sign is chosen', () => {
     expect(stageIsOffered(signs, null, 11)).toBe(false);
+  });
+});
+
+describe('classifierChanged', () => {
+  it('skips a classifier the request did not carry', () => {
+    expect(classifierChanged(undefined, 16)).toBe(false);
+  });
+
+  // The portals submit the whole form, so an untouched classifier still arrives.
+  it('skips a value resubmitted unchanged', () => {
+    expect(classifierChanged(16, 16)).toBe(false);
+    expect(classifierChanged('16', 16)).toBe(false);
+  });
+
+  it('catches a value that really changed', () => {
+    expect(classifierChanged(17, 16)).toBe(true);
+  });
+
+  it('catches a classifier being set for the first time', () => {
+    expect(classifierChanged(16, null)).toBe(true);
+    expect(classifierChanged(16, undefined)).toBe(true);
+  });
+
+  it('catches a classifier being cleared', () => {
+    expect(classifierChanged(null, 16)).toBe(true);
+  });
+
+  it('skips clearing a classifier that was never set', () => {
+    expect(classifierChanged(null, null)).toBe(false);
   });
 });

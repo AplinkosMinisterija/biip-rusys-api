@@ -30,9 +30,14 @@ import {
 import { UserAuthMeta } from './api.service';
 
 import _ from 'lodash';
-import { parseToObject, shouldRecomputePlaceOnRelevancyChange } from '../utils/functions';
+import {
+  classifierChanged,
+  parseToObject,
+  shouldRecomputePlaceOnRelevancyChange,
+} from '../utils/functions';
 import { emailCanBeSent, notifyFormAssignee, notifyOnFormUpdate } from '../utils/mails';
 import { FormHistoryTypes } from './forms.histories.service';
+import { FormSettingsOptions } from './forms.settings.options.service';
 import { FormSettingSource } from './forms.settings.sources.service';
 import { FormType } from './forms.types.service';
 import { Place, PlaceStatus } from './places.service';
@@ -74,45 +79,57 @@ const populatePermissions = (field: string) => {
   };
 };
 
-async function validateActivity({ ctx, params, entity, value }: FieldHookCallback) {
-  const speciesId = entity?.speciesId || params?.species;
+async function validateActivityId({ params, entity, value }: FieldHookCallback) {
+  if (!classifierChanged(value, entity?.activityId)) return value;
 
-  const formType = await this.getFormType(ctx, speciesId);
-  const validate = !entity?.id || !!value;
+  const isValid = await this.broker.call('forms.types.validateActivity', {
+    species: entity?.speciesId || params?.species,
+    activityId: value,
+  });
 
-  if (validate) {
-    const isValid = await this.broker.call('forms.types.validateActivity', {
-      type: formType,
-      activity: value,
-    });
-
-    if (!isValid) {
-      return throwValidationError('Invalid activity', params);
-    }
+  if (!isValid) {
+    return throwValidationError('Invalid activity', params);
   }
 
   return value;
 }
 
-async function validateEvolution({ ctx, params, entity, value }: FieldHookCallback) {
-  const speciesId = entity?.speciesId || params?.species;
+async function validateEvolutionId({ params, entity, value }: FieldHookCallback) {
+  const activityId = params?.activityId === undefined ? entity?.activityId : params.activityId;
+  const signChanged = classifierChanged(params?.activityId, entity?.activityId);
 
-  const formType = await this.getFormType(ctx, speciesId);
-  const validate = !entity?.id || !!value;
+  // A stage is only ever offered through a sign, so a new sign makes an untouched
+  // stage worth re-checking.
+  if (!classifierChanged(value, entity?.evolutionId) && !signChanged) return value;
 
-  if (validate) {
-    const isValid = await this.broker.call('forms.types.validateEvolution', {
-      type: formType,
-      evolution: value,
-      activity: params?.activity || entity?.activity,
-    });
+  const isValid = await this.broker.call('forms.types.validateEvolution', {
+    species: entity?.speciesId || params?.species,
+    activityId,
+    evolutionId: value,
+  });
 
-    if (!isValid) {
-      return throwValidationError('Invalid evolution', params);
-    }
+  if (!isValid) {
+    return throwValidationError('Invalid evolution', params);
   }
 
   return value;
+}
+
+function classifierName(idParam: 'activityId' | 'evolutionId') {
+  // `set` wins over every other field hook, so a client can never write the code itself.
+  return async function ({ ctx, params, entity }: FieldHookCallback) {
+    const optionId = params?.[idParam];
+
+    if (!classifierChanged(optionId, entity?.[idParam])) return undefined;
+    if (optionId === null) return null;
+
+    const option: FormSettingsOptions = await ctx.call('forms.settings.options.resolve', {
+      id: optionId,
+      throwIfNotExist: false,
+    });
+
+    return option?.name ?? null;
+  };
 }
 
 async function validateMethod({ ctx, params, entity, value }: FieldHookCallback) {
@@ -146,7 +163,9 @@ export interface Form extends BaseModelInterface {
   tenant: number | Tenant;
   observedAt: Date | string;
   activity?: string;
+  activityId?: number;
   evolution?: string;
+  evolutionId?: number;
   method?: string;
   geomBufferSize?: number;
   isInformational: boolean;
@@ -188,18 +207,32 @@ export interface Form extends BaseModelInterface {
         integer: true,
       },
 
+      activityId: {
+        type: 'number',
+        columnType: 'integer',
+        columnName: 'activityId',
+        onCreate: validateActivityId,
+        onUpdate: validateActivityId,
+        onReplace: validateActivityId,
+      },
+
+      evolutionId: {
+        type: 'number',
+        columnType: 'integer',
+        columnName: 'evolutionId',
+        onCreate: validateEvolutionId,
+        onUpdate: validateEvolutionId,
+        onReplace: validateEvolutionId,
+      },
+
       activity: {
         type: 'string',
-        onCreate: validateActivity,
-        onUpdate: validateActivity,
-        onReplace: validateActivity,
+        set: classifierName('activityId'),
       },
 
       evolution: {
         type: 'string',
-        onCreate: validateEvolution,
-        onUpdate: validateEvolution,
-        onReplace: validateEvolution,
+        set: classifierName('evolutionId'),
       },
 
       method: {
@@ -890,39 +923,26 @@ export default class FormsService extends moleculer.Service {
   async checkFormData(
     ctx: Context<
       {
-        activity?: string;
-        evolution?: string;
+        activityId?: number;
+        evolutionId?: number;
         species: number;
         isInformational: boolean;
       },
       FormAutoApprove
     >,
   ) {
-    const { evolution, activity, species, isInformational } = ctx.params;
+    const { evolutionId, activityId, species, isInformational } = ctx.params;
 
-    const formType = await this.getFormType(ctx, species);
-
-    const valid = {
-      activity: true,
-      evolution: true,
+    return {
+      activity: await this.broker.call('forms.types.validateActivity', { species, activityId }),
+      evolution: await this.broker.call('forms.types.validateEvolution', {
+        species,
+        activityId,
+        evolutionId,
+      }),
       isInformational: !!isInformational,
       autoApprove: !!ctx.meta.autoApprove,
     };
-
-    if (formType) {
-      valid.activity = await this.broker.call('forms.types.validateActivity', {
-        type: formType,
-        activity,
-      });
-
-      valid.evolution = await this.broker.call('forms.types.validateEvolution', {
-        type: formType,
-        evolution,
-        activity,
-      });
-    }
-
-    return valid;
   }
 
   @Action({
