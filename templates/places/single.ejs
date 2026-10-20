@@ -37,7 +37,7 @@
 
   <div>Radavietės duomenys:</div>
 
-  <%- include('forms/table', {forms: place.forms, showCoordinates: false, translates: translates[species.speciesId],
+  <%- include('forms/table', {forms: place.forms, showCoordinates: false,
   hasEvolution: place.hasEvolution, hasActivity: place.hasActivity, hasArea: place.hasArea }); %> <% if
   (showCoordinates) { %>
   <div>Radavietės koordinatės (LKS-94 koordinačių sistema):</div>
