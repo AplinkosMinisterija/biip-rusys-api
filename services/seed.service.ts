@@ -54,7 +54,9 @@ function requireOptionId(options: Map<string, number>, group: string, name: stri
   name: 'seed',
 })
 export default class SeedService extends moleculer.Service {
-  @Action()
+  @Action({
+    types: [EndpointType.ADMIN],
+  })
   async real(ctx: Context<Record<string, unknown>>) {
     const usersCount: number = await ctx.call('users.count');
 
@@ -96,7 +98,9 @@ export default class SeedService extends moleculer.Service {
     return true;
   }
 
-  @Action()
+  @Action({
+    types: [EndpointType.ADMIN],
+  })
   async fake(ctx: Context<Record<string, unknown>>) {
     const kingdomsCount: number = await ctx.call('taxonomies.kingdoms.count');
 

@@ -56,7 +56,6 @@ const updateTaxonomies = async function () {
         remove: false,
         get: false,
         createMany: false,
-        removeAllEntities: false,
       },
       cache: {
         enabled: true,

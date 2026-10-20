@@ -137,10 +137,6 @@ export default function (opts: any = {}) {
         return;
       },
 
-      async removeAllEntities(ctx: any) {
-        return await this.clearEntities(ctx);
-      },
-
       async populateByProp(
         ctx: Context<{
           id: number | number[];
