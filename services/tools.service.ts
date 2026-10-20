@@ -5,7 +5,7 @@ import knex, { Knex } from 'knex';
 import moleculer, { Context } from 'moleculer';
 import { Action, Method, Service } from 'moleculer-decorators';
 import config from '../knexfile';
-import { EndpointType } from '../types';
+import { EndpointType, throwValidationError } from '../types';
 import { FormSettingsGroupType } from './forms.settings.options.service';
 
 type ClassifierColumn = { code: string; id: string };
@@ -80,6 +80,9 @@ export default class ToolsService extends moleculer.Service {
   @Method
   async backfillClassifier(db: Knex, group: string, batchSize: number): Promise<ClassifierReport> {
     const { code, id } = CLASSIFIER_COLUMNS[group];
+
+    await this.rejectAmbiguousCodes(db, group);
+
     const bounds = await db('forms').min({ min: 'id' }).max({ max: 'id' }).first();
 
     let mapped = 0;
@@ -103,7 +106,7 @@ export default class ToolsService extends moleculer.Service {
         [group, from, from + batchSize],
       );
 
-      mapped += result.rowCount;
+      mapped += Number(result.rowCount ?? 0);
     }
 
     const byCode = await db('forms')
@@ -131,6 +134,36 @@ export default class ToolsService extends moleculer.Service {
       },
       blank: Number(blank?.count ?? 0),
     };
+  }
+
+  // The view resolves a label afresh on every refresh, so an ambiguous match only ever showed the
+  // wrong one; writing the id makes that choice permanent, which is worth refusing instead.
+  @Method
+  async rejectAmbiguousCodes(db: Knex, group: string) {
+    const { code, id } = CLASSIFIER_COLUMNS[group];
+
+    const { rows } = await db.raw(
+      `SELECT count(*) FROM (
+         SELECT f.id
+         FROM forms f, ${OPTION_SOURCE[group]}
+         WHERE o."group" = ?
+           AND o.name = f.${code}
+           AND o.deleted_at IS NULL
+           ${OPTION_MATCH[group]}
+           AND f.${id} IS NULL
+           AND f.${code} IS NOT NULL
+           AND f.${code} <> ''
+         GROUP BY f.id
+         HAVING count(*) > 1
+       ) ambiguous`,
+      [group],
+    );
+
+    const count = Number(rows[0]?.count ?? 0);
+
+    if (count) {
+      throwValidationError(`${count} forms match more than one ${group} option`, { group });
+    }
   }
 
   @Action({

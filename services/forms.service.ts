@@ -79,10 +79,12 @@ const populatePermissions = (field: string) => {
   };
 };
 
-async function validateActivityId({ params, entity, value }: FieldHookCallback) {
+// `ctx.call` and not `this.broker.call`: the criterion is resolved through the taxonomy, and a
+// root context carries no user, so a hidden species would come back as "Taxonomy not found".
+async function validateActivityId({ ctx, params, entity, value }: FieldHookCallback) {
   if (!classifierChanged(value, entity?.activityId)) return value;
 
-  const isValid = await this.broker.call('forms.types.validateActivity', {
+  const isValid = await ctx.call('forms.types.validateActivity', {
     species: entity?.speciesId || params?.species,
     activityId: value,
   });
@@ -94,18 +96,19 @@ async function validateActivityId({ params, entity, value }: FieldHookCallback) 
   return value;
 }
 
-async function validateEvolutionId({ params, entity, value }: FieldHookCallback) {
+async function validateEvolutionId({ ctx, params, entity, value }: FieldHookCallback) {
   const activityId = params?.activityId === undefined ? entity?.activityId : params.activityId;
   const signChanged = classifierChanged(params?.activityId, entity?.activityId);
+  const stageChanged = classifierChanged(value, entity?.evolutionId);
 
   // A stage is only ever offered through a sign, so a new sign makes an untouched
   // stage worth re-checking.
-  if (!classifierChanged(value, entity?.evolutionId) && !signChanged) return value;
+  if (!stageChanged && !signChanged) return value;
 
-  const isValid = await this.broker.call('forms.types.validateEvolution', {
+  const isValid = await ctx.call('forms.types.validateEvolution', {
     species: entity?.speciesId || params?.species,
     activityId,
-    evolutionId: value,
+    evolutionId: stageChanged ? value : entity?.evolutionId,
   });
 
   if (!isValid) {
@@ -915,6 +918,8 @@ export default class FormsService extends moleculer.Service {
         type: 'number',
         convert: true,
       },
+      activityId: 'number|convert|optional|nullable',
+      evolutionId: 'number|convert|optional|nullable',
     },
     hooks: {
       before: ['validateIsInformational', 'validateStatusChange'],
@@ -934,8 +939,8 @@ export default class FormsService extends moleculer.Service {
     const { evolutionId, activityId, species, isInformational } = ctx.params;
 
     return {
-      activity: await this.broker.call('forms.types.validateActivity', { species, activityId }),
-      evolution: await this.broker.call('forms.types.validateEvolution', {
+      activity: await ctx.call('forms.types.validateActivity', { species, activityId }),
+      evolution: await ctx.call('forms.types.validateEvolution', {
         species,
         activityId,
         evolutionId,
