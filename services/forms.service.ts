@@ -1275,7 +1275,19 @@ export default class FormsService extends moleculer.Service {
       report[group] = await this.backfillClassifier(adapter.client, group, ctx.params.batchSize);
     }
 
-    return report;
+    // Raw SQL emits no entity events, so nothing else would pick the new ids up.
+    const refreshed = Object.values(report).some(({ mapped }) => mapped > 0);
+
+    if (refreshed) {
+      for (const view of [
+        MaterializedView.APPROVED_FORMS,
+        MaterializedView.PLACES_WITH_TAXONOMIES,
+      ]) {
+        await adapter.client.schema.refreshMaterializedView(view, true);
+      }
+    }
+
+    return { ...report, refreshed };
   }
 
   @Method
