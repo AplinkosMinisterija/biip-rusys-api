@@ -56,7 +56,7 @@ async function replaceViews(knex, views) {
   }
 }
 
-const approvedFormsSelect = ({ ids = '', translates, joins }) => `
+const approvedFormsSelect = ({ translates, joins }) => `
   SELECT
     f.id,
     f.quantity,
@@ -74,7 +74,6 @@ const approvedFormsSelect = ({ ids = '', translates, joins }) => `
     f.is_relevant,
     f.is_informational,
     f.no_quantity_reason,
-    ${ids}
     fss.name AS source,
     fsom.value AS method_translate,
     ${translates},
@@ -108,8 +107,6 @@ const approvedFormsSelect = ({ ids = '', translates, joins }) => `
 // The ids are filled in by `tools.backfillClassifierIds`, which can only run once the broker is
 // up — that is, after this migration. Until it has, the row still resolves through its code.
 const approvedForms = approvedFormsSelect({
-  ids: `f.activity_id,
-    f.evolution_id,`,
   translates: `COALESCE(fsoa.value, fsoa_legacy.value) AS activity_translate,
     COALESCE(fsoe.value, fsoe_legacy.value) AS evolution_translate`,
   joins: `
