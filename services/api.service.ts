@@ -4,7 +4,8 @@ import pick from 'lodash/pick';
 import moleculer, { Context, Errors } from 'moleculer';
 import { Action, Method, Service } from 'moleculer-decorators';
 import ApiGateway from 'moleculer-web';
-import { COMMON_DELETED_SCOPES, EndpointType, RequestMessage } from '../types';
+import { EndpointType, RequestMessage } from '../types';
+import { sanitizeClientQuery } from '../utils/requestSanitizer';
 import { Tenant } from './tenants.service';
 import { User } from './users.service';
 import { throwUnauthorizedError } from '../types';
@@ -19,6 +20,22 @@ function permissionsPolicyMiddleware(_req: any, res: any, next: any) {
     'accelerometer=(), camera=(), geolocation=(), gyroscope=(), magnetometer=(), microphone=(), payment=(), usb=()',
   );
   next();
+}
+
+// Belongs in `settings.use`, not `route.use`: moleculer-web composes a route as
+// [...bodyParsers, ...settings.use, ...route.use], so this sees a parsed body.
+function clientQuerySanitizerMiddleware(
+  req: { query?: unknown; body?: unknown },
+  _res: unknown,
+  next: (err?: unknown) => void,
+) {
+  try {
+    req.query = sanitizeClientQuery(req.query);
+    req.body = sanitizeClientQuery(req.body);
+    next();
+  } catch (err) {
+    next(err);
+  }
 }
 
 export interface UserAuthMeta {
@@ -64,32 +81,7 @@ export const AuthType = {
       // Permissions-Policy (which helmet no longer sets) is added separately.
       helmet({ contentSecurityPolicy: false }),
       permissionsPolicyMiddleware,
-      function (req: any, res: any, next: any) {
-        const removeScopes = (query: any) => {
-          if (!query) return query;
-
-          if (typeof query !== 'object') {
-            try {
-              query = JSON.parse(query);
-            } catch (err) {}
-          }
-
-          if (!query || typeof query !== 'object') return query;
-
-          if (query.scope === 'deleted') {
-            query.scope = COMMON_DELETED_SCOPES.join(',');
-          } else {
-            delete query.scope;
-          }
-
-          return query;
-        };
-
-        req.query = removeScopes(req.query);
-        req.body = removeScopes(req.body);
-
-        next();
-      },
+      clientQuerySanitizerMiddleware,
     ],
     routes: [
       {
