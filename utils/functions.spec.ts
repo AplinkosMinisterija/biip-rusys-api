@@ -1,4 +1,8 @@
-import { optionCodeFromLabel, shouldRecomputePlaceOnRelevancyChange } from './functions';
+import {
+  optionCodeFromLabel,
+  shouldRecomputePlaceOnRelevancyChange,
+  toPositiveIntegerIds,
+} from './functions';
 
 describe('shouldRecomputePlaceOnRelevancyChange', () => {
   const approvedForm = {
@@ -94,5 +98,20 @@ describe('optionCodeFromLabel', () => {
     expect(optionCodeFromLabel('Ramybės būsenoje/ žiemojantis')).toBe(
       optionCodeFromLabel('Ramybės būsenoje / žiemojantis'),
     );
+  });
+});
+
+describe('toPositiveIntegerIds', () => {
+  it('keeps the ids a map request really sends', () => {
+    expect(toPositiveIntegerIds([1, '2', 345])).toEqual([1, 2, 345]);
+    expect(toPositiveIntegerIds(7)).toEqual([7]);
+  });
+
+  // The ids are interpolated into `knex.raw`, so a non-numeric element would
+  // close the literal and continue the statement.
+  it('drops anything that is not a positive integer', () => {
+    expect(toPositiveIntegerIds(["1') OR 1=1 --"])).toEqual([]);
+    expect(toPositiveIntegerIds(['1;DROP TABLE forms', '', ' ', null, -3, 2.5, 'x'])).toEqual([]);
+    expect(toPositiveIntegerIds([1, "2') OR 1=1 --", 3])).toEqual([1, 3]);
   });
 });
