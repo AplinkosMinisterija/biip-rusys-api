@@ -9,6 +9,7 @@ import _, { snakeCase } from 'lodash';
 import PostgisMixin from 'moleculer-postgis';
 import { queryBooleanPlain } from '../types';
 import { getMapsGridStatsQuery } from '../utils/db.queries';
+import { toPositiveIntegerIds } from '../utils/functions';
 import { AuthType, UserAuthMeta } from './api.service';
 import {
   mapsInvaNoQuantityIntroducedFormsLayerId,
@@ -221,9 +222,10 @@ export default class MapsHexagonService extends moleculer.Service {
 
       // KEEP IN MIND: whereIn with bindings has limitations. So in our case if we have more than 100K of items - limitations are meet and query throws error
       if (id?.$in) {
-        return query.where(
-          adapter.client.raw(`${snakeCase(table)}.id in ('${id.$in.join("','")}')`),
-        );
+        const ids = toPositiveIntegerIds(id.$in);
+        if (!ids.length) return query.whereRaw('false');
+
+        return query.where(adapter.client.raw(`${snakeCase(table)}.id in (${ids.join(',')})`));
       } else if (!!id) {
         return query.where(`${snakeCase(table)}.id`, id);
       }

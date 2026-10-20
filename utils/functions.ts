@@ -73,3 +73,13 @@ export function parseToObject(data: object | string) {
 export function optionCodeFromLabel(label: string): string {
   return _.snakeCase(_.deburr(label)).toUpperCase();
 }
+
+// The ids reach `knex.raw` as literals (a bound `whereIn` breaks past ~100k
+// items), so anything that is not a plain positive integer is dropped here.
+export function toPositiveIntegerIds(values: unknown): number[] {
+  const list = Array.isArray(values) ? values : [values];
+
+  return list
+    .map((value) => (typeof value === 'number' ? value : Number(String(value).trim())))
+    .filter((id) => Number.isInteger(id) && id > 0);
+}
