@@ -56,7 +56,7 @@ async function replaceViews(knex, views) {
   }
 }
 
-const approvedFormsSelect = (translates, joins) => `
+const approvedFormsSelect = ({ ids = '', translates, joins }) => `
   SELECT
     f.id,
     f.quantity,
@@ -74,6 +74,7 @@ const approvedFormsSelect = (translates, joins) => `
     f.is_relevant,
     f.is_informational,
     f.no_quantity_reason,
+    ${ids}
     fss.name AS source,
     fsom.value AS method_translate,
     ${translates},
@@ -106,10 +107,12 @@ const approvedFormsSelect = (translates, joins) => `
 
 // The ids are filled in by `tools.backfillClassifierIds`, which can only run once the broker is
 // up — that is, after this migration. Until it has, the row still resolves through its code.
-const approvedForms = approvedFormsSelect(
-  `COALESCE(fsoa.value, fsoa_legacy.value) AS activity_translate,
+const approvedForms = approvedFormsSelect({
+  ids: `f.activity_id,
+    f.evolution_id,`,
+  translates: `COALESCE(fsoa.value, fsoa_legacy.value) AS activity_translate,
     COALESCE(fsoe.value, fsoe_legacy.value) AS evolution_translate`,
-  `
+  joins: `
     LEFT JOIN form_settings_options fsoa ON fsoa.id = f.activity_id
     LEFT JOIN form_settings_options fsoe ON fsoe.id = f.evolution_id
     LEFT JOIN form_settings_options fsoa_legacy
@@ -118,17 +121,17 @@ const approvedForms = approvedFormsSelect(
     LEFT JOIN form_settings_options fsoe_legacy
       ON f.evolution_id IS NULL AND fsoe_legacy.name = f.evolution
       AND fsoe_legacy.group = 'EVOLUTION' AND fsoe_legacy.form_type = t.form_type`,
-);
+});
 
-const previousApprovedForms = approvedFormsSelect(
-  `fsoa.value AS activity_translate,
+const previousApprovedForms = approvedFormsSelect({
+  translates: `fsoa.value AS activity_translate,
     fsoe.value AS evolution_translate`,
-  `
+  joins: `
     LEFT JOIN form_settings_options fsoa
       ON fsoa.name = f.activity AND fsoa.group = 'ACTIVITY'
     LEFT JOIN form_settings_options fsoe
       ON fsoe.name = f.evolution AND fsoe.group = 'EVOLUTION' AND fsoe.form_type = t.form_type`,
-);
+});
 
 const RELEVANT_FORMS = `
   place_id IS NOT NULL AND status = 'APPROVED' AND is_relevant IS TRUE`;
@@ -139,7 +142,7 @@ const latestRelevantForm = (columns) => `
   WHERE ${RELEVANT_FORMS}
   ORDER BY place_id, observed_at DESC`;
 
-const placesWithTaxonomiesSelect = (latestColumns, translates, joins) => `
+const placesWithTaxonomiesSelect = ({ latestColumns = '', translates, joins }) => `
   SELECT
     p.id,
     p.code,
@@ -178,11 +181,11 @@ const placesWithTaxonomiesSelect = (latestColumns, translates, joins) => `
     ${joins}
 `;
 
-const placesWithTaxonomies = placesWithTaxonomiesSelect(
-  `, activity_id, evolution_id`,
-  `COALESCE(fsoa.value, fsoa_legacy.value) AS activity_translate,
+const placesWithTaxonomies = placesWithTaxonomiesSelect({
+  latestColumns: `, activity_id, evolution_id`,
+  translates: `COALESCE(fsoa.value, fsoa_legacy.value) AS activity_translate,
     COALESCE(fsoe.value, fsoe_legacy.value) AS evolution_translate`,
-  `
+  joins: `
     LEFT JOIN form_settings_options fsoa ON fsoa.id = latest.activity_id
     LEFT JOIN form_settings_options fsoe ON fsoe.id = latest.evolution_id
     LEFT JOIN form_settings_options fsoa_legacy
@@ -191,15 +194,14 @@ const placesWithTaxonomies = placesWithTaxonomiesSelect(
     LEFT JOIN form_settings_options fsoe_legacy
       ON latest.evolution_id IS NULL AND fsoe_legacy.name = latest.evolution
       AND fsoe_legacy.group = 'EVOLUTION' AND fsoe_legacy.form_type = t.form_type`,
-);
+});
 
-const previousPlacesWithTaxonomies = placesWithTaxonomiesSelect(
-  '',
-  `fsoa.value AS activity_translate,
+const previousPlacesWithTaxonomies = placesWithTaxonomiesSelect({
+  translates: `fsoa.value AS activity_translate,
     fsoe.value AS evolution_translate`,
-  `
+  joins: `
     LEFT JOIN form_settings_options fsoa
       ON fsoa.name = latest.activity AND fsoa.group = 'ACTIVITY'
     LEFT JOIN form_settings_options fsoe
       ON fsoe.name = latest.evolution AND fsoe.group = 'EVOLUTION' AND fsoe.form_type = t.form_type`,
-);
+});
