@@ -1,13 +1,138 @@
 'use strict';
 
 import { createHash } from 'crypto';
+import knex, { Knex } from 'knex';
 import moleculer, { Context } from 'moleculer';
 import { Action, Method, Service } from 'moleculer-decorators';
+import config from '../knexfile';
+import { EndpointType } from '../types';
+import { FormSettingsGroupType } from './forms.settings.options.service';
+
+type ClassifierColumn = { code: string; id: string };
+
+type ClassifierReport = {
+  mapped: number;
+  byCode: Record<string, number>;
+  unmapped: { count: number; codes: Record<string, number> };
+  blank: number;
+};
+
+const CLASSIFIER_COLUMNS: Record<string, ClassifierColumn> = {
+  [FormSettingsGroupType.ACTIVITY]: { code: 'activity', id: 'activity_id' },
+  [FormSettingsGroupType.EVOLUTION]: { code: 'evolution', id: 'evolution_id' },
+};
+
+// `approved_forms` resolves a sign by group and name alone and a stage by group, name and
+// form type; matching those exactly is what keeps every stored label unchanged.
+const OPTION_MATCH: Record<string, string> = {
+  [FormSettingsGroupType.ACTIVITY]: '',
+  [FormSettingsGroupType.EVOLUTION]:
+    'AND o.form_type = t.form_type AND t.species_id = f.species_id',
+};
+
+const OPTION_SOURCE: Record<string, string> = {
+  [FormSettingsGroupType.ACTIVITY]: 'form_settings_options o',
+  [FormSettingsGroupType.EVOLUTION]: 'form_settings_options o, taxonomies_all t',
+};
+
+const DEFAULT_BATCH_SIZE = 5000;
+
+function countByCode(rows: Array<{ code: string; count: string }>): Record<string, number> {
+  return rows.reduce((acc: Record<string, number>, row) => {
+    acc[row.code] = Number(row.count);
+    return acc;
+  }, {});
+}
 
 @Service({
   name: 'tools',
 })
 export default class ToolsService extends moleculer.Service {
+  @Action({
+    types: [EndpointType.ADMIN],
+    params: {
+      batchSize: {
+        type: 'number',
+        convert: true,
+        integer: true,
+        positive: true,
+        default: DEFAULT_BATCH_SIZE,
+      },
+    },
+    timeout: 0,
+  })
+  async backfillClassifierIds(ctx: Context<{ batchSize: number }>) {
+    const db = knex(config);
+
+    try {
+      const report: Record<string, ClassifierReport> = {};
+
+      for (const group of Object.keys(CLASSIFIER_COLUMNS)) {
+        report[group] = await this.backfillClassifier(db, group, ctx.params.batchSize);
+      }
+
+      return report;
+    } finally {
+      await db.destroy();
+    }
+  }
+
+  @Method
+  async backfillClassifier(db: Knex, group: string, batchSize: number): Promise<ClassifierReport> {
+    const { code, id } = CLASSIFIER_COLUMNS[group];
+    const bounds = await db('forms').min({ min: 'id' }).max({ max: 'id' }).first();
+
+    let mapped = 0;
+
+    for (
+      let from = Number(bounds?.min ?? 0);
+      from <= Number(bounds?.max ?? -1);
+      from += batchSize
+    ) {
+      const result = await db.raw(
+        `UPDATE forms f SET ${id} = o.id
+         FROM ${OPTION_SOURCE[group]}
+         WHERE o."group" = ?
+           AND o.name = f.${code}
+           AND o.deleted_at IS NULL
+           ${OPTION_MATCH[group]}
+           AND f.${id} IS NULL
+           AND f.${code} IS NOT NULL
+           AND f.${code} <> ''
+           AND f.id >= ? AND f.id < ?`,
+        [group, from, from + batchSize],
+      );
+
+      mapped += result.rowCount;
+    }
+
+    const byCode = await db('forms')
+      .select(`${code} AS code`)
+      .count()
+      .whereNotNull(id)
+      .groupBy(code);
+
+    const unmapped = await db('forms')
+      .select(`${code} AS code`)
+      .count()
+      .whereNull(id)
+      .whereNotNull(code)
+      .whereNot(code, '')
+      .groupBy(code);
+
+    const blank = await db('forms').where(code, '').count().first();
+
+    return {
+      mapped,
+      byCode: countByCode(byCode),
+      unmapped: {
+        count: unmapped.reduce((total, row) => total + Number(row.count), 0),
+        codes: countByCode(unmapped),
+      },
+      blank: Number(blank?.count ?? 0),
+    };
+  }
+
   @Action({
     params: {
       url: 'string',
