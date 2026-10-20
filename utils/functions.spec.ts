@@ -1,4 +1,7 @@
 import {
+  classifierChanged,
+  signIsOffered,
+  stageIsOffered,
   optionCodeFromLabel,
   shouldRecomputePlaceOnRelevancyChange,
   toPositiveIntegerIds,
@@ -113,5 +116,79 @@ describe('toPositiveIntegerIds', () => {
     expect(toPositiveIntegerIds(["1') OR 1=1 --"])).toEqual([]);
     expect(toPositiveIntegerIds(['1;DROP TABLE forms', '', ' ', null, -3, 2.5, 'x'])).toEqual([]);
     expect(toPositiveIntegerIds([1, "2') OR 1=1 --", 3])).toEqual([1, 3]);
+  });
+});
+
+describe('signIsOffered', () => {
+  const signs = [{ id: 7, stages: [{ id: 11 }] }, { id: 8 }];
+
+  it('accepts a sign the criterion offers', () => {
+    expect(signIsOffered(signs, 7)).toBe(true);
+  });
+
+  it('rejects a sign from another criterion', () => {
+    expect(signIsOffered(signs, 99)).toBe(false);
+  });
+
+  it('rejects every sign when the species resolved to no criterion', () => {
+    expect(signIsOffered([], 7)).toBe(false);
+  });
+
+  // `id` is declared `type: 'string'` on every one of these services.
+  it('accepts a sign whose id came back as a string', () => {
+    expect(signIsOffered([{ id: '7' }], 7)).toBe(true);
+  });
+});
+
+describe('stageIsOffered', () => {
+  const signs = [{ id: 7, stages: [{ id: 11 }, { id: '12' }] }, { id: 8, stages: [] }, { id: 9 }];
+
+  it('accepts a stage offered for the chosen sign', () => {
+    expect(stageIsOffered(signs, 7, 11)).toBe(true);
+  });
+
+  it('accepts a stage whose id came back as a string', () => {
+    expect(stageIsOffered(signs, 7, 12)).toBe(true);
+  });
+
+  it('rejects a stage offered only for a different sign', () => {
+    expect(stageIsOffered(signs, 8, 11)).toBe(false);
+  });
+
+  it('rejects a stage when the chosen sign offers none', () => {
+    expect(stageIsOffered(signs, 9, 11)).toBe(false);
+  });
+
+  it('rejects a stage when no sign is chosen', () => {
+    expect(stageIsOffered(signs, null, 11)).toBe(false);
+  });
+});
+
+describe('classifierChanged', () => {
+  it('skips a classifier the request did not carry', () => {
+    expect(classifierChanged(undefined, 16)).toBe(false);
+  });
+
+  // The portals submit the whole form, so an untouched classifier still arrives.
+  it('skips a value resubmitted unchanged', () => {
+    expect(classifierChanged(16, 16)).toBe(false);
+    expect(classifierChanged('16', 16)).toBe(false);
+  });
+
+  it('catches a value that really changed', () => {
+    expect(classifierChanged(17, 16)).toBe(true);
+  });
+
+  it('catches a classifier being set for the first time', () => {
+    expect(classifierChanged(16, null)).toBe(true);
+    expect(classifierChanged(16, undefined)).toBe(true);
+  });
+
+  it('catches a classifier being cleared', () => {
+    expect(classifierChanged(null, 16)).toBe(true);
+  });
+
+  it('skips clearing a classifier that was never set', () => {
+    expect(classifierChanged(null, null)).toBe(false);
   });
 });

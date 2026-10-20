@@ -2,6 +2,8 @@
 
 import moleculer, { Context } from 'moleculer';
 import { Action, Method, Service } from 'moleculer-decorators';
+import { signIsOffered, stageIsOffered } from '../utils/functions';
+import type { SpeciesCriteria } from './forms.criteria.service';
 import { FormSettingsGroupType, FormSettingsOptionValues } from './forms.settings.options.service';
 
 export enum FormType {
@@ -23,7 +25,8 @@ export const ENDANGERED_FORM_TYPES = [
   FormType.ENDANGERED_MUSHROOM,
 ];
 
-const EndangeredFormActivitiesNonInformational = ['HABITATION'];
+const SPECIES_PARAM = 'number|convert';
+const OPTION_PARAM = 'number|convert|optional|nullable';
 
 @Service({
   name: 'forms.types',
@@ -31,54 +34,37 @@ const EndangeredFormActivitiesNonInformational = ['HABITATION'];
 export default class FormTypesService extends moleculer.Service {
   @Action({
     params: {
-      type: 'string',
+      species: SPECIES_PARAM,
+      activityId: OPTION_PARAM,
     },
   })
-  async validateActivity(ctx: Context<{ type: string; activity?: string }>) {
-    const { type, activity } = ctx.params;
-    let valid = !activity;
+  async validateActivity(ctx: Context<{ species: number; activityId?: number }>) {
+    const { species, activityId } = ctx.params;
 
-    const options: FormSettingsOptionValues = await ctx.call(
-      'forms.settings.options.getTranslates',
-      { formType: type, group: FormSettingsGroupType.ACTIVITY },
-    );
+    if (!activityId) return true;
 
-    if (!!Object.keys(options).length) {
-      valid = Object.keys(options).includes(activity);
-    }
+    const { signs } = await this.resolveCriteria(ctx, species);
 
-    return valid;
+    return signIsOffered(signs, activityId);
   }
 
   @Action({
     params: {
-      type: 'string',
+      species: SPECIES_PARAM,
+      activityId: OPTION_PARAM,
+      evolutionId: OPTION_PARAM,
     },
   })
-  async validateEvolution(ctx: Context<{ type: string; activity?: string; evolution?: string }>) {
-    const { type, activity, evolution } = ctx.params;
-    let valid = !evolution;
+  async validateEvolution(
+    ctx: Context<{ species: number; activityId?: number; evolutionId?: number }>,
+  ) {
+    const { species, activityId, evolutionId } = ctx.params;
 
-    const options: FormSettingsOptionValues = await ctx.call(
-      'forms.settings.options.getTranslates',
-      { formType: type, group: FormSettingsGroupType.EVOLUTION },
-    );
+    if (!evolutionId) return true;
 
-    if (!!Object.keys(options).length) {
-      // Specific cases for endangered animals
-      if (type === FormType.ENDANGERED_ANIMAL) {
-        if (this.isValid(activity, ['OBSERVED_ALIVE', 'OTHER'])) {
-          valid = this.isValid(evolution, ['IMMATURE', 'MATURE']);
-        } else if (this.isValid(activity, EndangeredFormActivitiesNonInformational)) {
-          valid = Object.keys(options).includes(evolution);
-        }
-        // in other cases for endangered animals - evolution should be null
-      } else {
-        valid = Object.keys(options).includes(evolution);
-      }
-    }
+    const { signs } = await this.resolveCriteria(ctx, species);
 
-    return valid;
+    return stageIsOffered(signs, activityId, evolutionId);
   }
 
   @Action({
@@ -102,15 +88,8 @@ export default class FormTypesService extends moleculer.Service {
     return valid;
   }
 
-
   @Method
-  isValid(field: string, options: any) {
-    if (!field) return false;
-
-    if (!Array.isArray(options)) {
-      options = Object.keys(options);
-    }
-
-    return (options as string[]).includes(field);
+  resolveCriteria(ctx: Context, speciesId: number): Promise<SpeciesCriteria> {
+    return ctx.call('forms.criteria.bySpecies', { speciesId });
   }
 }
