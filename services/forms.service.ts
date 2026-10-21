@@ -101,7 +101,7 @@ const BACKFILL_BATCH_SIZE = 5000;
 // does not resolve leaves the bare id in place of the object, so a form would lose its label.
 const CLASSIFIER_POPULATE = {
   action: 'forms.settings.options.resolve',
-  params: { fields: ['id', 'name', 'value'], scope: false },
+  params: { fields: ['id', 'name', 'value', 'active'], scope: false },
 };
 
 function countByCode(rows: Array<{ code: string; count: string }>): Record<string, number> {
