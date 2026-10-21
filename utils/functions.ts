@@ -84,25 +84,43 @@ export function toPositiveIntegerIds(values: unknown): number[] {
     .filter((id) => Number.isInteger(id) && id > 0);
 }
 
-export type OfferedSign = {
+export type OfferedStage = {
   id: number | string;
-  stages?: Array<{ id: number | string }>;
 };
+
+export type OfferedSign = OfferedStage & {
+  stages?: OfferedStage[];
+};
+
+export type OfferedCriteria = {
+  signs: OfferedSign[];
+  stages?: OfferedStage[];
+};
+
+export function hasDuplicates(ids: number[]): boolean {
+  return new Set(ids).size !== ids.length;
+}
 
 export function signIsOffered(signs: OfferedSign[], signId: number): boolean {
   return signs.some((sign) => Number(sign.id) === signId);
 }
 
+function offers(stages: OfferedStage[] | undefined, stageId: number): boolean {
+  return !!stages?.some((stage) => Number(stage.id) === stageId);
+}
+
 export function stageIsOffered(
-  signs: OfferedSign[],
+  criteria: OfferedCriteria,
   signId: number | null | undefined,
   stageId: number,
 ): boolean {
+  // A criterion that offers no sign carries its stages itself; every other one hangs them
+  // off the chosen sign.
+  if (!criteria.signs?.length) return offers(criteria.stages, stageId);
+
   if (!signId) return false;
 
-  const sign = signs.find((offered) => Number(offered.id) === signId);
-
-  return !!sign?.stages?.some((stage) => Number(stage.id) === stageId);
+  return offers(criteria.signs.find((offered) => Number(offered.id) === signId)?.stages, stageId);
 }
 
 // Every historical protected-species form holds a deactivated classifier, so an

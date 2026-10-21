@@ -19,8 +19,10 @@ import {
 } from './forms.criteria.taxonomies.service';
 import { FormCriteriaSign } from './forms.criteria.signs.service';
 import { FormCriteriaSignStage } from './forms.criteria.signs.stages.service';
+import { FormCriteriaStage } from './forms.criteria.stages.service';
 import { ENDANGERED_FORM_TYPES } from './forms.types.service';
 import { Taxonomy } from './taxonomies.service';
+import { hasDuplicates } from '../utils/functions';
 
 export interface FormCriteria extends BaseModelInterface {
   name: string;
@@ -39,9 +41,15 @@ export type CriteriaSign = CriteriaOption & {
 export type SpeciesCriteria = {
   criteria: { id: number; name: string } | null;
   signs: CriteriaSign[];
+  stages: CriteriaOption[];
 };
 
-type ResolvedCriteria = { id: number; name: string; signs?: OfferedSign[] };
+type ResolvedCriteria = {
+  id: number;
+  name: string;
+  signs?: OfferedSign[];
+  stages?: Offered[];
+};
 
 type OfferedOption = CriteriaOption & { active: boolean };
 type Offered = { option?: OfferedOption };
@@ -57,6 +65,7 @@ export type CriteriaSignParam = {
 export type CriteriaTreeParams = {
   taxonomies?: CriteriaScopeParam[];
   signs?: CriteriaSignParam[];
+  stages?: number[];
 };
 
 const TREE_PARAMS = {
@@ -84,11 +93,8 @@ const TREE_PARAMS = {
       },
     },
   },
+  stages: { type: 'array', optional: true, items: 'number|convert' },
 };
-
-function hasDuplicates(ids: number[]) {
-  return new Set(ids).size !== ids.length;
-}
 
 function isOffered<T extends Offered>(row: T): row is T & { option: OfferedOption } {
   return !!row.option?.active;
@@ -149,6 +155,22 @@ function toOption({ id, name, value }: OfferedOption): CriteriaOption {
         },
       },
 
+      stages: {
+        virtual: true,
+        type: 'array',
+        populate: {
+          keyField: 'id',
+          handler: PopulateHandlerFn('forms.criteria.stages.populateByProp'),
+          params: {
+            queryKey: 'criteria',
+            fields: ['id', 'option', 'sortOrder', 'criteria'],
+            populate: 'option',
+            sort: 'sortOrder',
+            mappingMulti: true,
+          },
+        },
+      },
+
       ...COMMON_FIELDS,
     },
 
@@ -201,9 +223,10 @@ export default class FormCriteriaService extends moleculer.Service {
       ? await this.findNearestCriteria(ctx, taxonomy)
       : null;
 
-    if (!criteria) return { criteria: null, signs: [] };
+    if (!criteria) return { criteria: null, signs: [], stages: [] };
 
     const signs: OfferedSign[] = criteria.signs || [];
+    const stages: Offered[] = criteria.stages || [];
 
     return {
       criteria: { id: criteria.id, name: criteria.name },
@@ -211,6 +234,7 @@ export default class FormCriteriaService extends moleculer.Service {
         ...toOption(sign.option),
         stages: (sign.stages || []).filter(isOffered).map((stage) => toOption(stage.option)),
       })),
+      stages: stages.filter(isOffered).map((stage) => toOption(stage.option)),
     };
   }
 
@@ -234,7 +258,7 @@ export default class FormCriteriaService extends moleculer.Service {
 
       const criteria: ResolvedCriteria = await ctx.call('forms.criteria.resolve', {
         id: scope.criteria,
-        populate: 'signs',
+        populate: 'signs,stages',
         throwIfNotExist: false,
       });
 
@@ -246,24 +270,50 @@ export default class FormCriteriaService extends moleculer.Service {
 
   @Method
   async validateTree(ctx: Context<CriteriaTreeParams & { id?: number }>) {
-    const { id, taxonomies, signs } = ctx.params;
+    const { id, taxonomies, signs, stages } = ctx.params;
 
     if (taxonomies) await this.validateScopes(ctx, id, taxonomies);
     if (signs) this.validateSigns(signs);
+    if (stages && hasDuplicates(stages)) {
+      throwValidationError('A criteria cannot offer the same stage twice');
+    }
+
+    await this.validateExclusive(ctx, id, signs, stages);
+  }
+
+  // An absent param leaves the stored rows standing, so counting the params alone would let a
+  // signs-only update land on a criteria that already offers stages.
+  @Method
+  async validateExclusive(
+    ctx: Context,
+    id: number | undefined,
+    signs?: CriteriaSignParam[],
+    stages?: number[],
+  ) {
+    const stored = (service: string) =>
+      id ? ctx.call<number, { query: object }>(`${service}.count`, { query: { criteria: id } }) : 0;
+
+    const signCount = signs ? signs.length : await stored('forms.criteria.signs');
+    const stageCount = stages ? stages.length : await stored('forms.criteria.stages');
+
+    if (signCount && stageCount) {
+      throwValidationError('A criteria offers either signs or stages, never both');
+    }
   }
 
   @Method
   async saveTree(ctx: Context<CriteriaTreeParams>, criteria: FormCriteria) {
-    const { taxonomies, signs } = ctx.params;
+    const { taxonomies, signs, stages } = ctx.params;
 
-    if (!taxonomies && !signs) return criteria;
+    if (!taxonomies && !signs && !stages) return criteria;
 
     if (taxonomies) await this.replaceScopes(ctx, criteria.id, taxonomies);
     if (signs) await this.replaceSigns(ctx, criteria.id, signs);
+    if (stages) await this.replaceStages(ctx, criteria.id, stages);
 
     return ctx.call('forms.criteria.resolve', {
       id: criteria.id,
-      populate: 'taxonomies,signs',
+      populate: 'taxonomies,signs,stages',
     });
   }
 
@@ -271,6 +321,7 @@ export default class FormCriteriaService extends moleculer.Service {
   async removeTree(ctx: Context, id: number) {
     await this.replaceScopes(ctx, id, []);
     await this.replaceSigns(ctx, id, []);
+    await this.replaceStages(ctx, id, []);
 
     return id;
   }
@@ -324,6 +375,25 @@ export default class FormCriteriaService extends moleculer.Service {
 
     for (const scope of scopes) {
       await ctx.call('forms.criteria.taxonomies.create', { ...scope, criteria: criteriaId });
+    }
+  }
+
+  @Method
+  async replaceStages(ctx: Context, criteriaId: number, stages: number[]) {
+    const existing: FormCriteriaStage[] = await ctx.call('forms.criteria.stages.find', {
+      query: { criteria: criteriaId },
+    });
+
+    for (const stage of existing) {
+      await ctx.call('forms.criteria.stages.remove', { id: stage.id });
+    }
+
+    for (const [sortOrder, option] of stages.entries()) {
+      await ctx.call('forms.criteria.stages.create', {
+        criteria: criteriaId,
+        option,
+        sortOrder,
+      });
     }
   }
 
