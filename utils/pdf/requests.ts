@@ -53,7 +53,29 @@ function formatAreaText(area?: number): string {
   }`;
 }
 
-function getFormData(form: Form, translatesAndFormTypes?: RequestClassifiers) {
+// An `approved_forms` row spells the classifiers the other way round from a form entity: the id
+// sits on `activityId` and the code on `activity`. Both shapes reach the same export table.
+type ExportForm = Omit<Form, 'activity' | 'evolution'> & {
+  activity?: string;
+  activityId?: number;
+  evolution?: string;
+  evolutionId?: number;
+};
+
+function toExportForm(form: Form): ExportForm {
+  const optionId = (option?: number | FormSettingsOptions) =>
+    typeof option === 'object' ? option?.id : option;
+
+  return {
+    ...form,
+    activity: form.activityCode,
+    activityId: optionId(form.activity),
+    evolution: form.evolutionCode,
+    evolutionId: optionId(form.evolution),
+  };
+}
+
+function getFormData(form: ExportForm, translatesAndFormTypes?: RequestClassifiers) {
   const speciesId = (form.species || (form as any).speciesId) as number;
   const { formType, byCode, byIdOrCode } = speciesClassifiers(translatesAndFormTypes, speciesId);
   const isInvasivePlant = formType === FormType.INVASIVE_PLANT;
@@ -256,7 +278,7 @@ export async function getInformationalForms(
     {},
   );
 
-  const forms: Form[] = await ctx.call('forms.find', {
+  const entities: Form[] = await ctx.call('forms.find', {
     query: {
       id: {
         $in: informationalForms.map((i) => i.formId),
@@ -264,6 +286,8 @@ export async function getInformationalForms(
     },
     populate: ['source'],
   });
+
+  const forms = entities.map(toExportForm);
 
   const mappedForms = forms.reduce((acc: { [key: string]: any }, form) => {
     acc[`${form.species}`] = acc[`${form.species}`] || {

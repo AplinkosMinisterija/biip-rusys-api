@@ -97,6 +97,13 @@ const OPTION_SOURCE: Record<string, string> = {
 
 const BACKFILL_BATCH_SIZE = 5000;
 
+// Unfiltered on purpose: every pre-2026 form points at a deactivated option, and an option that
+// does not resolve leaves the bare id in place of the object, so a form would lose its label.
+const CLASSIFIER_POPULATE = {
+  action: 'forms.settings.options.resolve',
+  params: { fields: ['id', 'name', 'value'], scope: false },
+};
+
 function countByCode(rows: Array<{ code: string; count: string }>): Record<string, number> {
   return rows.reduce((acc: Record<string, number>, row) => {
     acc[row.code] = Number(row.count);
@@ -116,7 +123,7 @@ const populatePermissions = (field: string) => {
 
 // `ctx.call` and not `this.broker.call`: the criterion is resolved through the taxonomy, and a
 // root context carries no user, so a hidden species would come back as "Taxonomy not found".
-async function validateActivityId({ ctx, params, entity, value }: FieldHookCallback) {
+async function validateActivity({ ctx, params, entity, value }: FieldHookCallback) {
   if (!classifierChanged(value, entity?.activityId)) return value;
 
   const isValid = await ctx.call('forms.types.validateActivity', {
@@ -131,9 +138,9 @@ async function validateActivityId({ ctx, params, entity, value }: FieldHookCallb
   return value;
 }
 
-async function validateEvolutionId({ ctx, params, entity, value }: FieldHookCallback) {
-  const activityId = params?.activityId === undefined ? entity?.activityId : params.activityId;
-  const signChanged = classifierChanged(params?.activityId, entity?.activityId);
+async function validateEvolution({ ctx, params, entity, value }: FieldHookCallback) {
+  const activityId = params?.activity === undefined ? entity?.activityId : params.activity;
+  const signChanged = classifierChanged(params?.activity, entity?.activityId);
   const stageChanged = classifierChanged(value, entity?.evolutionId);
 
   // A stage is only ever offered through a sign, so a new sign makes an untouched
@@ -153,12 +160,14 @@ async function validateEvolutionId({ ctx, params, entity, value }: FieldHookCall
   return value;
 }
 
-function classifierName(idParam: 'activityId' | 'evolutionId') {
+function classifierCode(field: 'activity' | 'evolution') {
+  const column = `${field}Id` as const;
+
   // `set` wins over every other field hook, so a client can never write the code itself.
   return async function ({ ctx, params, entity }: FieldHookCallback) {
-    const optionId = params?.[idParam];
+    const optionId = params?.[field];
 
-    if (!classifierChanged(optionId, entity?.[idParam])) return undefined;
+    if (!classifierChanged(optionId, entity?.[column])) return undefined;
     if (optionId === null) return null;
 
     const option: FormSettingsOptions = await ctx.call('forms.settings.options.resolve', {
@@ -200,10 +209,10 @@ export interface Form extends BaseModelInterface {
   species: number | Taxonomy;
   tenant: number | Tenant;
   observedAt: Date | string;
-  activity?: string;
-  activityId?: number;
-  evolution?: string;
-  evolutionId?: number;
+  activity?: number | FormSettingsOptions;
+  activityCode?: string;
+  evolution?: number | FormSettingsOptions;
+  evolutionCode?: string;
   method?: string;
   geomBufferSize?: number;
   isInformational: boolean;
@@ -245,32 +254,36 @@ export interface Form extends BaseModelInterface {
         integer: true,
       },
 
-      activityId: {
+      activity: {
         type: 'number',
         columnType: 'integer',
         columnName: 'activityId',
-        onCreate: validateActivityId,
-        onUpdate: validateActivityId,
-        onReplace: validateActivityId,
-      },
-
-      evolutionId: {
-        type: 'number',
-        columnType: 'integer',
-        columnName: 'evolutionId',
-        onCreate: validateEvolutionId,
-        onUpdate: validateEvolutionId,
-        onReplace: validateEvolutionId,
-      },
-
-      activity: {
-        type: 'string',
-        set: classifierName('activityId'),
+        populate: CLASSIFIER_POPULATE,
+        onCreate: validateActivity,
+        onUpdate: validateActivity,
+        onReplace: validateActivity,
       },
 
       evolution: {
+        type: 'number',
+        columnType: 'integer',
+        columnName: 'evolutionId',
+        populate: CLASSIFIER_POPULATE,
+        onCreate: validateEvolution,
+        onUpdate: validateEvolution,
+        onReplace: validateEvolution,
+      },
+
+      activityCode: {
         type: 'string',
-        set: classifierName('evolutionId'),
+        columnName: 'activity',
+        set: classifierCode('activity'),
+      },
+
+      evolutionCode: {
+        type: 'string',
+        columnName: 'evolution',
+        set: classifierCode('evolution'),
       },
 
       method: {
@@ -953,8 +966,8 @@ export default class FormsService extends moleculer.Service {
         type: 'number',
         convert: true,
       },
-      activityId: 'number|convert|optional|nullable',
-      evolutionId: 'number|convert|optional|nullable',
+      activity: 'number|convert|optional|nullable',
+      evolution: 'number|convert|optional|nullable',
     },
     hooks: {
       before: ['validateIsInformational', 'validateStatusChange'],
@@ -963,22 +976,25 @@ export default class FormsService extends moleculer.Service {
   async checkFormData(
     ctx: Context<
       {
-        activityId?: number;
-        evolutionId?: number;
+        activity?: number;
+        evolution?: number;
         species: number;
         isInformational: boolean;
       },
       FormAutoApprove
     >,
   ) {
-    const { evolutionId, activityId, species, isInformational } = ctx.params;
+    const { evolution, activity, species, isInformational } = ctx.params;
 
     return {
-      activity: await ctx.call('forms.types.validateActivity', { species, activityId }),
+      activity: await ctx.call('forms.types.validateActivity', {
+        species,
+        activityId: activity,
+      }),
       evolution: await ctx.call('forms.types.validateEvolution', {
         species,
-        activityId,
-        evolutionId,
+        activityId: activity,
+        evolutionId: evolution,
       }),
       isInformational: !!isInformational,
       autoApprove: !!ctx.meta.autoApprove,
