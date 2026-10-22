@@ -275,7 +275,11 @@ export default class FormCriteriaService extends moleculer.Service {
     if (taxonomies) await this.validateScopes(ctx, id, taxonomies);
     if (signs) this.validateSigns(signs);
     if (stages && hasDuplicates(stages)) {
-      throwValidationError('A criteria cannot offer the same stage twice');
+      throwValidationError(
+        'A criteria cannot offer the same stage twice',
+        undefined,
+        'CRITERIA_DUPLICATE_STAGE',
+      );
     }
 
     await this.validateExclusive(ctx, id, signs, stages);
@@ -297,7 +301,11 @@ export default class FormCriteriaService extends moleculer.Service {
     const stageCount = stages ? stages.length : await stored('forms.criteria.signs.stages');
 
     if (signCount && stageCount) {
-      throwValidationError('A criteria offers either signs or stages, never both');
+      throwValidationError(
+        'A criteria offers either signs or stages, never both',
+        undefined,
+        'CRITERIA_SIGNS_OR_STAGES',
+      );
     }
   }
 
@@ -332,9 +340,11 @@ export default class FormCriteriaService extends moleculer.Service {
       const levels = CRITERIA_TAXONOMY_LEVELS.filter((level) => scope[level]);
 
       if (levels.length !== 1) {
-        return throwValidationError('A criteria scope must name exactly one taxonomic node', {
-          scope,
-        });
+        return throwValidationError(
+          'A criteria scope must name exactly one taxonomic node',
+          { scope },
+          'CRITERIA_SCOPE_NOT_ONE_NODE',
+        );
       }
 
       const level = levels[0];
@@ -343,9 +353,11 @@ export default class FormCriteriaService extends moleculer.Service {
       });
 
       if (claimed.some((row) => `${row.criteria}` !== `${criteriaId}`)) {
-        throwValidationError('This taxonomic node is already scoped by another criteria', {
-          scope,
-        });
+        throwValidationError(
+          'This taxonomic node is already scoped by another criteria',
+          { scope },
+          'CRITERIA_NODE_ALREADY_SCOPED',
+        );
       }
     }
   }
@@ -353,12 +365,20 @@ export default class FormCriteriaService extends moleculer.Service {
   @Method
   validateSigns(signs: CriteriaSignParam[]) {
     if (hasDuplicates(signs.map(({ option }) => option))) {
-      throwValidationError('A criteria cannot offer the same sign twice');
+      throwValidationError(
+        'A criteria cannot offer the same sign twice',
+        undefined,
+        'CRITERIA_DUPLICATE_SIGN',
+      );
     }
 
     for (const sign of signs) {
       if (hasDuplicates(sign.stages || [])) {
-        throwValidationError('A sign cannot offer the same stage twice', { sign });
+        throwValidationError(
+          'A sign cannot offer the same stage twice',
+          { sign },
+          'CRITERIA_DUPLICATE_STAGE',
+        );
       }
     }
   }

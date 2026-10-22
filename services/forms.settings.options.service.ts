@@ -12,6 +12,7 @@ import {
   COMMON_SCOPES,
   FieldHookCallback,
   GenericObject,
+  throwValidationError,
 } from '../types';
 import { optionCodeFromLabel } from '../utils/functions';
 
@@ -129,10 +130,19 @@ export default class FormSettingsOptionsService extends moleculer.Service {
       query.id = { $ne: entity.id };
     }
 
-    const duplicates: number = await ctx.call('forms.settings.options.count', { query });
+    const [duplicate]: FormSettingsOptions[] = await ctx.call('forms.settings.options.find', {
+      query,
+      limit: 1,
+    });
 
-    if (duplicates) {
-      return `Label "${value}" already exists in group "${group}"`;
+    if (duplicate) {
+      // Whether the clash is with a retired value decides what the administrator does next:
+      // switch that one back on, or pick another label.
+      return throwValidationError(
+        `Label "${value}" already exists in group "${group}"`,
+        { field: 'value', value, active: duplicate.active },
+        duplicate.active ? 'OPTION_LABEL_TAKEN' : 'OPTION_LABEL_TAKEN_INACTIVE',
+      );
     }
 
     return true;
@@ -151,13 +161,21 @@ export default class FormSettingsOptionsService extends moleculer.Service {
       query.formType = { $exists: false };
     }
 
-    const duplicates: number = await ctx.call('forms.settings.options.count', {
+    const [duplicate]: FormSettingsOptions[] = await ctx.call('forms.settings.options.find', {
       query,
       scope: false,
+      limit: 1,
     });
 
-    if (duplicates) {
-      return `Option "${value}" already exists in group "${params.group}"`;
+    if (duplicate) {
+      // The code is derived from the label, so this fires before the label check and is what
+      // the administrator actually sees. Whether the row it clashes with is retired decides
+      // what they do next: switch that one back on, or pick another label.
+      return throwValidationError(
+        `Option "${value}" already exists in group "${params.group}"`,
+        { field: 'name', value, active: duplicate.active },
+        duplicate.active ? 'OPTION_LABEL_TAKEN' : 'OPTION_LABEL_TAKEN_INACTIVE',
+      );
     }
 
     return true;

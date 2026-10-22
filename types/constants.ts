@@ -33,8 +33,14 @@ export function throwUnauthorizedError(message?: string, data?: any): Errors.Mol
   );
 }
 
-export function throwValidationError(message?: string, data?: any): Errors.MoleculerError {
-  throw new Moleculer.Errors.ValidationError(message || `Not valid.`, 'VALIDATION_ERROR', data);
+// The portals pick the message to show by type, so a shared VALIDATION_ERROR leaves every
+// failure reading as "unexpected error".
+export function throwValidationError(
+  message?: string,
+  data?: any,
+  type = 'VALIDATION_ERROR',
+): Errors.MoleculerError {
+  throw new Moleculer.Errors.ValidationError(message || `Not valid.`, type, data);
 }
 
 export function throwNotFoundError(message?: string, data?: any): Errors.MoleculerError {
