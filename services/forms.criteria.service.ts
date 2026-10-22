@@ -19,7 +19,6 @@ import {
 } from './forms.criteria.taxonomies.service';
 import { FormCriteriaSign } from './forms.criteria.signs.service';
 import { FormCriteriaSignStage } from './forms.criteria.signs.stages.service';
-import { FormCriteriaStage } from './forms.criteria.stages.service';
 import { ENDANGERED_FORM_TYPES } from './forms.types.service';
 import { Taxonomy } from './taxonomies.service';
 import { hasDuplicates } from '../utils/functions';
@@ -161,7 +160,7 @@ function toOption({ id, name, value }: OfferedOption): CriteriaOption {
         type: 'array',
         populate: {
           keyField: 'id',
-          handler: PopulateHandlerFn('forms.criteria.stages.populateByProp'),
+          handler: PopulateHandlerFn('forms.criteria.signs.stages.populateByProp'),
           params: {
             queryKey: 'criteria',
             fields: ['id', 'option', 'sortOrder', 'criteria'],
@@ -295,7 +294,7 @@ export default class FormCriteriaService extends moleculer.Service {
       id ? ctx.call<number, { query: object }>(`${service}.count`, { query: { criteria: id } }) : 0;
 
     const signCount = signs ? signs.length : await stored('forms.criteria.signs');
-    const stageCount = stages ? stages.length : await stored('forms.criteria.stages');
+    const stageCount = stages ? stages.length : await stored('forms.criteria.signs.stages');
 
     if (signCount && stageCount) {
       throwValidationError('A criteria offers either signs or stages, never both');
@@ -381,16 +380,16 @@ export default class FormCriteriaService extends moleculer.Service {
 
   @Method
   async replaceStages(ctx: Context, criteriaId: number, stages: number[]) {
-    const existing: FormCriteriaStage[] = await ctx.call('forms.criteria.stages.find', {
+    const existing: FormCriteriaSignStage[] = await ctx.call('forms.criteria.signs.stages.find', {
       query: { criteria: criteriaId },
     });
 
     for (const stage of existing) {
-      await ctx.call('forms.criteria.stages.remove', { id: stage.id });
+      await ctx.call('forms.criteria.signs.stages.remove', { id: stage.id });
     }
 
     for (const [sortOrder, option] of stages.entries()) {
-      await ctx.call('forms.criteria.stages.create', {
+      await ctx.call('forms.criteria.signs.stages.create', {
         criteria: criteriaId,
         option,
         sortOrder,

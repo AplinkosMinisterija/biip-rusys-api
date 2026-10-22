@@ -15,7 +15,6 @@ const CRITERIA_SERVICES = [
   'forms.criteria.taxonomies',
   'forms.criteria.signs',
   'forms.criteria.signs.stages',
-  'forms.criteria.stages',
 ];
 
 const REPLACED_BY_CRITERIA_GROUPS: string[] = [

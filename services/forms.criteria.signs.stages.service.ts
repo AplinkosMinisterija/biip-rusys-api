@@ -14,7 +14,8 @@ import {
 import { FormSettingsOptions } from './forms.settings.options.service';
 
 export interface FormCriteriaSignStage extends BaseModelInterface {
-  criteriaSign: number;
+  criteriaSign?: number;
+  criteria?: number;
   option: number | FormSettingsOptions;
   sortOrder: number;
 }
@@ -38,12 +39,19 @@ export interface FormCriteriaSignStage extends BaseModelInterface {
         secure: true,
       },
 
+      // Exactly one parent is set, which a CHECK constraint enforces.
       criteriaSign: {
         type: 'number',
         columnType: 'integer',
         columnName: 'criteriaSignId',
-        required: true,
         populate: 'forms.criteria.signs.resolve',
+      },
+
+      criteria: {
+        type: 'number',
+        columnType: 'integer',
+        columnName: 'criteriaId',
+        populate: 'forms.criteria.resolve',
       },
 
       option: {
