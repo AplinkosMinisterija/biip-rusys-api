@@ -133,6 +133,7 @@ function toOption({ id, name, value }: OfferedOption): CriteriaOption {
           params: {
             queryKey: 'criteria',
             fields: ['id', 'kingdom', 'phylum', 'class', 'species', 'criteria'],
+            populate: 'kingdom,phylum,class,species',
             sort: 'id',
             mappingMulti: true,
           },
