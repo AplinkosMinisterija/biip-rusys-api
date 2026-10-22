@@ -62,9 +62,9 @@ export default class FormTypesService extends moleculer.Service {
 
     if (!evolutionId) return true;
 
-    const { signs } = await this.resolveCriteria(ctx, species);
+    const criteria = await this.resolveCriteria(ctx, species);
 
-    return stageIsOffered(signs, activityId, evolutionId);
+    return stageIsOffered(criteria, activityId, evolutionId);
   }
 
   @Action({

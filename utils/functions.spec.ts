@@ -1,5 +1,7 @@
 import {
   classifierChanged,
+  hasDuplicates,
+  OfferedCriteria,
   signIsOffered,
   stageIsOffered,
   optionCodeFromLabel,
@@ -141,26 +143,67 @@ describe('signIsOffered', () => {
 });
 
 describe('stageIsOffered', () => {
-  const signs = [{ id: 7, stages: [{ id: 11 }, { id: '12' }] }, { id: 8, stages: [] }, { id: 9 }];
+  const criteria = {
+    signs: [{ id: 7, stages: [{ id: 11 }, { id: '12' }] }, { id: 8, stages: [] }, { id: 9 }],
+  };
 
   it('accepts a stage offered for the chosen sign', () => {
-    expect(stageIsOffered(signs, 7, 11)).toBe(true);
+    expect(stageIsOffered(criteria, 7, 11)).toBe(true);
   });
 
   it('accepts a stage whose id came back as a string', () => {
-    expect(stageIsOffered(signs, 7, 12)).toBe(true);
+    expect(stageIsOffered(criteria, 7, 12)).toBe(true);
   });
 
   it('rejects a stage offered only for a different sign', () => {
-    expect(stageIsOffered(signs, 8, 11)).toBe(false);
+    expect(stageIsOffered(criteria, 8, 11)).toBe(false);
   });
 
   it('rejects a stage when the chosen sign offers none', () => {
-    expect(stageIsOffered(signs, 9, 11)).toBe(false);
+    expect(stageIsOffered(criteria, 9, 11)).toBe(false);
   });
 
   it('rejects a stage when no sign is chosen', () => {
-    expect(stageIsOffered(signs, null, 11)).toBe(false);
+    expect(stageIsOffered(criteria, null, 11)).toBe(false);
+  });
+
+  describe('a criterion that offers no sign', () => {
+    const signless: OfferedCriteria = { signs: [], stages: [{ id: 21 }, { id: '22' }] };
+
+    it('accepts a stage it offers directly', () => {
+      expect(stageIsOffered(signless, null, 21)).toBe(true);
+    });
+
+    it('accepts a stage whose id came back as a string', () => {
+      expect(stageIsOffered(signless, null, 22)).toBe(true);
+    });
+
+    it('rejects a stage it does not offer', () => {
+      expect(stageIsOffered(signless, null, 99)).toBe(false);
+    });
+
+    it('rejects every stage when the species resolved to no criterion', () => {
+      expect(stageIsOffered({ signs: [], stages: [] }, null, 21)).toBe(false);
+    });
+
+    // An older API serves no `stages` key at all during a rolling deploy.
+    it('rejects every stage when the criterion carries no stages key', () => {
+      expect(stageIsOffered({ signs: [] }, null, 21)).toBe(false);
+    });
+  });
+});
+
+describe('hasDuplicates', () => {
+  it('is false for distinct ids', () => {
+    expect(hasDuplicates([1, 2, 3])).toBe(false);
+  });
+
+  it('is false for an empty list', () => {
+    expect(hasDuplicates([])).toBe(false);
+  });
+
+  it('is true when an id repeats', () => {
+    expect(hasDuplicates([1, 2, 1])).toBe(true);
   });
 });
 

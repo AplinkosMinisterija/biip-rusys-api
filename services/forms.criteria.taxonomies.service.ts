@@ -70,7 +70,7 @@ export interface FormCriteriaTaxonomy extends BaseModelInterface {
         columnName: 'kingdomId',
         populate: {
           action: 'taxonomies.kingdoms.resolve',
-          params: { fields: ['id', 'name'] },
+          params: { fields: ['id', 'name', 'nameLatin'] },
         },
       },
 
@@ -80,7 +80,7 @@ export interface FormCriteriaTaxonomy extends BaseModelInterface {
         columnName: 'phylumId',
         populate: {
           action: 'taxonomies.phylums.resolve',
-          params: { fields: ['id', 'name'] },
+          params: { fields: ['id', 'name', 'nameLatin'] },
         },
       },
 
@@ -90,7 +90,7 @@ export interface FormCriteriaTaxonomy extends BaseModelInterface {
         columnName: 'classId',
         populate: {
           action: 'taxonomies.classes.resolve',
-          params: { fields: ['id', 'name'] },
+          params: { fields: ['id', 'name', 'nameLatin'] },
         },
       },
 
@@ -100,7 +100,7 @@ export interface FormCriteriaTaxonomy extends BaseModelInterface {
         columnName: 'speciesId',
         populate: {
           action: 'taxonomies.species.resolve',
-          params: { fields: ['id', 'name'] },
+          params: { fields: ['id', 'name', 'nameLatin'] },
         },
       },
 
