@@ -45,6 +45,8 @@ async function replaceViews(knex, views) {
     await knex.raw(`CREATE INDEX ${index}${NEW_SUFFIX} ON ${name}${NEW_SUFFIX} USING GIST (geom)`);
   }
 
+  // Without a bound the DROP waits on ACCESS EXCLUSIVE and queues every new QGIS read behind it.
+  await knex.raw(`SET LOCAL lock_timeout = '10s'`);
   await knex.raw(`DROP MATERIALIZED VIEW ${Object.keys(views).join(', ')}`);
 
   for (const name of Object.keys(views)) {
