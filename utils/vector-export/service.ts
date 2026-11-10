@@ -14,7 +14,10 @@ export function createVectorExportRequestsService(
     mixins: [BullMqMixin],
     settings: {
       bullmq: {
-        worker: { concurrency: 5 },
+        // One at a time per format: ogr2ogr runs in the shared 512M tools
+        // container, which also serves UETK, and three formats already queue
+        // in parallel.
+        worker: { concurrency: 1 },
         job: {
           attempts: 5,
           failParentOnFailure: true,
