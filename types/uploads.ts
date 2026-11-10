@@ -5,10 +5,23 @@ export const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg'];
 
 export const FILE_TYPES = ['application/pdf', 'application/geo+json'];
 
+// Either zip mimetype can arrive, depending on the OS mime table.
+export const ZIP_FILE_TYPES = ['application/zip', 'application/x-zip-compressed'];
+
+// The official OGC mimetype for a GeoPackage, which is a single SQLite file.
+export const GPKG_MIMETYPE = 'application/geopackage+sqlite3';
+export const GPKG_FILE_TYPES = [GPKG_MIMETYPE];
+
 export const ALL_FILE_TYPES = [...IMAGE_TYPES, ...FILE_TYPES];
 
+// The mime-types table has no entry for GeoPackage — without this fallback
+// mime.extension() returns false and uploaded objects get named "<name>.false".
+const EXTENSION_BY_UNLISTED_MIMETYPE: Record<string, string> = {
+  [GPKG_MIMETYPE]: 'gpkg',
+};
+
 export function getExtention(mimetype: string) {
-  return mime.extension(mimetype);
+  return EXTENSION_BY_UNLISTED_MIMETYPE[mimetype] || mime.extension(mimetype);
 }
 
 export function getMimetype(filename: string) {
