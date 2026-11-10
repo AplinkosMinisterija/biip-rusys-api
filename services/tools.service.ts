@@ -1,8 +1,26 @@
 'use strict';
 
-import { createHash } from 'crypto';
 import moleculer, { Context } from 'moleculer';
 import { Action, Method, Service } from 'moleculer-decorators';
+import { toReadableStream } from '../utils/functions';
+import type { VectorExportPayload } from '../utils/vector-export/requests';
+
+// Every tools vector endpoint takes the same body; the format is the URL.
+const VECTOR_EXPORT_PARAMS = {
+  layers: {
+    type: 'array',
+    items: {
+      type: 'object',
+      props: {
+        name: 'string',
+        geojson: 'object',
+        fields: 'array',
+      },
+    },
+  },
+  name: 'string',
+  srid: 'number',
+};
 
 @Service({
   name: 'tools',
@@ -121,6 +139,63 @@ export default class ToolsService extends moleculer.Service {
           reject(err?.message || 'Error while getting pdf');
         });
     });
+  }
+
+  @Action({
+    params: VECTOR_EXPORT_PARAMS,
+    timeout: 0,
+  })
+  async makeShp(ctx: Context<VectorExportPayload>): Promise<NodeJS.ReadableStream> {
+    return this.fetchVectorExport('/shp', ctx.params);
+  }
+
+  @Action({
+    params: VECTOR_EXPORT_PARAMS,
+    timeout: 0,
+  })
+  async makeGdb(ctx: Context<VectorExportPayload>): Promise<NodeJS.ReadableStream> {
+    return this.fetchVectorExport('/gdb', ctx.params);
+  }
+
+  @Action({
+    params: VECTOR_EXPORT_PARAMS,
+    timeout: 0,
+  })
+  async makeGpkg(ctx: Context<VectorExportPayload>): Promise<NodeJS.ReadableStream> {
+    return this.fetchVectorExport('/gpkg', ctx.params);
+  }
+
+  @Method
+  async fetchVectorExport(
+    path: '/gdb' | '/gpkg' | '/shp',
+    params: VectorExportPayload,
+  ): Promise<NodeJS.ReadableStream> {
+    const { layers, name, srid } = params;
+    const response = await fetch(`${this.toolsHost()}${path}`, {
+      method: 'POST',
+      body: JSON.stringify({
+        layers,
+        name,
+        srid,
+      }),
+      headers: {
+        'Content-Type': 'application/json',
+      },
+    });
+
+    if (!response.ok) {
+      const detail = await response.text().catch(() => '');
+      throw new Error(`tools ${path} returned ${response.status}: ${detail || '<empty body>'}`);
+    }
+
+    // Without this, toReadableStream(undefined) yields a stream that never ends
+    // and the MinIO upload hangs forever under timeout: 0.
+    if (!response.body) {
+      throw new Error(`tools ${path} returned ${response.status} with an empty body`);
+    }
+
+    // minio-js cannot consume a web ReadableStream.
+    return toReadableStream(response.body.getReader());
   }
 
   @Method
