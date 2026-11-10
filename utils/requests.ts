@@ -42,9 +42,21 @@ export function getSpeciesEntryDateTitle(speciesById: SpeciesById, speciesId: nu
   return isInvasive ? 'Įvedimo į INVA data' : 'Įvedimo į SRIS data';
 }
 
+// The translate fields are derived by the query, so this is not a `Form`.
+export interface ObservationFormRow {
+  id: number;
+  description?: string;
+  createdAt?: string;
+  observedAt?: string;
+  source?: string;
+  quantityTranslate?: string;
+  activityTranslate?: string;
+  evolutionTranslate?: string;
+}
+
 // An informational form has no place, so its place columns read '-'.
 export function getObservationFormProperties(
-  form: any,
+  form: ObservationFormRow,
   taxonomy: TaxonomyContext,
   place?: ObservationPlaceRef,
 ) {

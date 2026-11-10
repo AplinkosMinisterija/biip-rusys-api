@@ -1190,7 +1190,10 @@ export default class RequestsService extends moleculer.Service {
     }
 
     // initiateGeojsonGenerate answers with a bare BullMQ job, the others with a flow.
-    const result: any = await ctx.call(initiateAction, { id: ctx.params.id });
+    const result = await ctx.call<
+      { job?: { id?: string }; id?: string },
+      { id: number }
+    >(initiateAction, { id: ctx.params.id });
 
     return {
       generating: !!(result?.job?.id || result?.id),

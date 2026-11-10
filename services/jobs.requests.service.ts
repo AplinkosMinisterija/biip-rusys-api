@@ -119,7 +119,10 @@ export default class JobsRequestsService extends moleculer.Service {
       footer: footerHtml,
     });
 
-    const folder = getRequestFolderName(request.createdBy as any as User, request.tenant as Tenant);
+    const folder = getRequestFolderName(
+      request.createdBy as unknown as User,
+      request.tenant as Tenant,
+    );
 
     const result: any = await ctx.call(
       'minio.uploadFile',
@@ -258,7 +261,10 @@ export default class JobsRequestsService extends moleculer.Service {
       yield `]}`; // Close GeoJSON structure
     }
 
-    const folder = getRequestFolderName(request.createdBy as any as User, request.tenant as Tenant);
+    const folder = getRequestFolderName(
+      request.createdBy as unknown as User,
+      request.tenant as Tenant,
+    );
 
     const stream = Readable.from(fetchGeoJSONChunks(100));
     const pass = new PassThrough();

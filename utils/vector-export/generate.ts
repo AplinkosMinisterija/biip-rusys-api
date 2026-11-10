@@ -106,7 +106,7 @@ export async function generateAndSaveVectorExport(
     const stream: NodeJS.ReadableStream = await ctx.call(format.toolsAction, payload);
 
     const folder = getRequestFolderName(
-      request?.createdBy as any as User,
+      request?.createdBy as unknown as User,
       request?.tenant as Tenant,
     );
 
@@ -137,13 +137,13 @@ export async function generateAndSaveVectorExport(
     );
 
     return { generated: true, url: uploadedFile.url };
-  } catch (error: any) {
+  } catch (error) {
     // Rethrow: a swallowed rejection leaves the request looking successful
     // while no file was ever produced.
     const elapsed = Date.now() - startTime;
     logger.error(`[${label}] Generation failed after ${elapsed}ms for request ${id}`, {
-      message: error.message,
-      stack: error.stack,
+      message: error instanceof Error ? error.message : String(error),
+      stack: error instanceof Error ? error.stack : undefined,
     });
     throw error;
   }
