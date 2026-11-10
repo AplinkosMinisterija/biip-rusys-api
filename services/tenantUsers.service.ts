@@ -517,12 +517,20 @@ export default class TenantUsersService extends moleculer.Service {
     types: [EndpointType.ADMIN, EndpointType.TENANT_ADMIN],
   })
   async updateUser(ctx: Context<{ userId: number; tenantId: number; role: string }, UserAuthMeta>) {
-    const { profile } = ctx.meta;
+    const { user: currentUser, profile } = ctx.meta;
     const { userId, tenantId, role } = ctx.params;
-    if (
-      profile?.id &&
-      (Number(profile?.id) !== tenantId || profile?.role !== TenantUserRole.ADMIN)
-    ) {
+
+    // Only a system admin, or the tenant's own admin acting on that tenant, may
+    // change a member's role. A missing profile must NOT be treated as
+    // authorized: this action is also reached internally from
+    // `users.updateUser` (PATCH /users/:id), which any member can call without
+    // an `x-profile` header — otherwise a plain member could promote themselves
+    // to TENANT_ADMIN here.
+    const isSystemAdmin = currentUser?.type === UserType.ADMIN;
+    const isTenantAdmin =
+      !!profile?.id && Number(profile.id) === tenantId && profile.role === TenantUserRole.ADMIN;
+
+    if (!isSystemAdmin && !isTenantAdmin) {
       throw new moleculer.Errors.MoleculerClientError(
         'Tenant is not accessable.',
         401,

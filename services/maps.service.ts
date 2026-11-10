@@ -104,10 +104,9 @@ export default class MapsService extends moleculer.Service {
         convert: true,
       },
     },
-    auth: AuthType.PUBLIC,
     rest: 'GET /requests/:id/geom',
   })
-  async getRequestGeom(ctx: Context<{ id: number }>) {
+  async getRequestGeom(ctx: Context<{ id: number }, UserAuthMeta>) {
     const request: Request = await ctx.call('requests.resolve', {
       id: ctx.params.id,
       populate: 'geom',
@@ -205,10 +204,9 @@ export default class MapsService extends moleculer.Service {
         convert: true,
       },
     },
-    auth: AuthType.PUBLIC,
     rest: 'GET /requests/:id/items',
   })
-  async getRequestItems(ctx: Context<{ id: number }>) {
+  async getRequestItems(ctx: Context<{ id: number }, UserAuthMeta>) {
     const { id } = ctx.params;
     const request: Request = await ctx.call('requests.resolve', {
       id: ctx.params.id,
