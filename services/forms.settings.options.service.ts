@@ -1,22 +1,26 @@
 'use strict';
 
 import moleculer, { Context } from 'moleculer';
-import { Action, Service } from 'moleculer-decorators';
+import { Action, Method, Service } from 'moleculer-decorators';
 
 import DbConnection from '../mixins/database.mixin';
 import {
+  ADMIN_ONLY_MUTATIONS,
   BaseModelInterface,
   COMMON_DEFAULT_SCOPES,
   COMMON_FIELDS,
   COMMON_SCOPES,
+  FieldHookCallback,
   GenericObject,
 } from '../types';
+import { optionCodeFromLabel } from '../utils/functions';
 
 export interface FormSettingsOptions extends BaseModelInterface {
   name: string;
   value: string;
   group: string;
   formType: string;
+  active: boolean;
 }
 
 export const FormSettingsGroupType = {
@@ -38,7 +42,6 @@ export type FormSettingsOptionByFormType = GenericObject<FormSettingsOptionByTyp
     DbConnection({
       collection: 'formSettingsOptions',
       createActions: {},
-      rest: null,
     }),
   ],
 
@@ -51,10 +54,25 @@ export type FormSettingsOptionByFormType = GenericObject<FormSettingsOptionByTyp
         secure: true,
       },
 
-      name: 'string|required',
-      value: 'string|required',
-      group: 'string|required',
-      formType: 'string',
+      name: {
+        type: 'string',
+        immutable: true,
+        onCreate: ({ value, params }: FieldHookCallback) =>
+          value || optionCodeFromLabel(params.value),
+        validate: 'rejectDuplicateName',
+      },
+
+      value: { type: 'string', required: true, validate: 'rejectDuplicateLabel' },
+      group: { type: 'string', required: true, immutable: true },
+      formType: {
+        type: 'string',
+        // immutable only guards a column that already holds a value, and this one is nullable.
+        onUpdate: ({ entity }: FieldHookCallback) => entity.formType,
+      },
+      active: {
+        type: 'boolean',
+        default: true,
+      },
 
       ...COMMON_FIELDS,
     },
@@ -64,6 +82,12 @@ export type FormSettingsOptionByFormType = GenericObject<FormSettingsOptionByTyp
     },
 
     defaultScopes: [...COMMON_DEFAULT_SCOPES],
+  },
+
+  actions: {
+    ...ADMIN_ONLY_MUTATIONS,
+    remove: false,
+    replace: false,
   },
 })
 export default class FormSettingsOptionsService extends moleculer.Service {
@@ -86,5 +110,56 @@ export default class FormSettingsOptionsService extends moleculer.Service {
       acc[item.name] = item.value;
       return acc;
     }, {});
+  }
+
+  @Method
+  async rejectDuplicateLabel({ ctx, value, params, entity }: FieldHookCallback) {
+    // Two rows only ever meet in one picker when they share a group and a formType, which is
+    // why METHOD may repeat "Stebėjimas" across form types but ACTIVITY may not repeat it twice.
+    const group = entity?.group || params.group;
+    const formType = entity?.formType || params.formType;
+
+    const query: GenericObject<unknown> = {
+      group,
+      value,
+      formType: formType || { $exists: false },
+    };
+
+    if (entity?.id) {
+      query.id = { $ne: entity.id };
+    }
+
+    const duplicates: number = await ctx.call('forms.settings.options.count', { query });
+
+    if (duplicates) {
+      return `Label "${value}" already exists in group "${group}"`;
+    }
+
+    return true;
+  }
+
+  @Method
+  async rejectDuplicateName({ ctx, value, params, operation }: FieldHookCallback) {
+    if (operation !== 'create') return true;
+
+    // The partial unique index keys the rows that carry a formType, so those may legitimately
+    // repeat a code across form types. It cannot see the formType-less rows, and the
+    // approved_forms ACTIVITY join matches on group + name alone, deleted rows included — so a
+    // pair is a duplicate as soon as either side has no formType.
+    const query: GenericObject<unknown> = { group: params.group, name: value };
+    if (params.formType) {
+      query.formType = { $exists: false };
+    }
+
+    const duplicates: number = await ctx.call('forms.settings.options.count', {
+      query,
+      scope: false,
+    });
+
+    if (duplicates) {
+      return `Option "${value}" already exists in group "${params.group}"`;
+    }
+
+    return true;
   }
 }

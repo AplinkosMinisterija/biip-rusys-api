@@ -12,12 +12,12 @@ import {
   DeepQuery,
   EndpointType,
   FieldHookCallback,
+  FormStatus,
   throwNotFoundError,
   throwUnauthorizedError,
 } from '../types';
 import { parseToObject } from '../utils/functions';
 import { UserAuthMeta } from './api.service';
-import { FormStatus } from './forms.service';
 import { Tenant } from './tenants.service';
 import { TenantUserRole } from './tenantUsers.service';
 

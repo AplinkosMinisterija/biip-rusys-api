@@ -9,6 +9,7 @@ import _, { snakeCase } from 'lodash';
 import PostgisMixin from 'moleculer-postgis';
 import { queryBooleanPlain } from '../types';
 import { getMapsGridStatsQuery } from '../utils/db.queries';
+import { toPositiveIntegerIds } from '../utils/functions';
 import { AuthType, UserAuthMeta } from './api.service';
 import {
   mapsInvaNoQuantityIntroducedFormsLayerId,
@@ -221,9 +222,10 @@ export default class MapsHexagonService extends moleculer.Service {
 
       // KEEP IN MIND: whereIn with bindings has limitations. So in our case if we have more than 100K of items - limitations are meet and query throws error
       if (id?.$in) {
-        return query.where(
-          adapter.client.raw(`${snakeCase(table)}.id in ('${id.$in.join("','")}')`),
-        );
+        const ids = toPositiveIntegerIds(id.$in);
+        if (!ids.length) return query.whereRaw('false');
+
+        return query.where(adapter.client.raw(`${snakeCase(table)}.id in (${ids.join(',')})`));
       } else if (!!id) {
         return query.where(`${snakeCase(table)}.id`, id);
       }
@@ -237,7 +239,13 @@ export default class MapsHexagonService extends moleculer.Service {
         adapter,
         table,
         _.merge(options, { speciesType: TaxonomySpeciesType.ENDANGERED }),
-      ).whereNull(`${table}.deletedAt`);
+      )
+        .whereNull(`${table}.deletedAt`)
+        // A place whose observations were all moved away or marked irrelevant
+        // keeps the geometry it had back then, so counting it here (and drawing
+        // it on the QGIS `radavietes*` layers) would report data that is no
+        // longer relevant.
+        .where(`${table}.relevantFormsCount`, '>', 0);
 
       if (options.places?.id) {
         addIdQuery(placesQuery, table, options.places.id);
@@ -253,7 +261,9 @@ export default class MapsHexagonService extends moleculer.Service {
         adapter,
         table,
         _.merge(options, { speciesType: TaxonomySpeciesType.INVASIVE }),
-      ).whereNull(`${table}.deletedAt`);
+      )
+        .whereNull(`${table}.deletedAt`)
+        .where(`${table}.relevantFormsCount`, '>', 0);
 
       if (options.places?.id) {
         addIdQuery(placesQuery, table, options.places.id);
@@ -269,7 +279,9 @@ export default class MapsHexagonService extends moleculer.Service {
         adapter,
         table,
         _.merge(options, { speciesType: TaxonomySpeciesType.INTRODUCED }),
-      ).whereNull(`${table}.deletedAt`);
+      )
+        .whereNull(`${table}.deletedAt`)
+        .where(`${table}.relevantFormsCount`, '>', 0);
 
       if (options.places?.id) {
         addIdQuery(placesQuery, table, options.places.id);

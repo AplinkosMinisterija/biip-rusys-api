@@ -1,8 +1,7 @@
 name: Deploy to Staging
 
 on:
-  push:
-    branches: [main]
+  workflow_dispatch:
 
 jobs:
   deploy-staging:
@@ -16,3 +15,5 @@ jobs:
       environment: Staging
       enable-sentry: true
       docker-image: ghcr.io/AplinkosMinisterija/biip-rusys-api
+      cache-from: type=registry,ref=ghcr.io/aplinkosministerija/biip-rusys-api:buildcache
+      cache-to: type=registry,ref=ghcr.io/aplinkosministerija/biip-rusys-api:buildcache,mode=max,image-manifest=true,oci-mediatypes=true,ignore-error=true

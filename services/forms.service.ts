@@ -1,5 +1,6 @@
 'use strict';
 
+import type { Knex } from 'knex';
 import moleculer, { Context, RestSchema } from 'moleculer';
 import { Action, Event, Method, Service } from 'moleculer-decorators';
 
@@ -20,6 +21,7 @@ import {
   EndpointType,
   EntityChangedParams,
   FieldHookCallback,
+  FormStatus,
   queryBoolean,
   TENANT_FIELD,
   throwValidationError,
@@ -29,23 +31,20 @@ import {
 import { UserAuthMeta } from './api.service';
 
 import _ from 'lodash';
-import { parseToObject } from '../utils/functions';
+import {
+  classifierChanged,
+  parseToObject,
+  shouldRecomputePlaceOnRelevancyChange,
+} from '../utils/functions';
 import { emailCanBeSent, notifyFormAssignee, notifyOnFormUpdate } from '../utils/mails';
 import { FormHistoryTypes } from './forms.histories.service';
+import { FormSettingsGroupType, FormSettingsOptions } from './forms.settings.options.service';
 import { FormSettingSource } from './forms.settings.sources.service';
 import { FormType } from './forms.types.service';
 import { Place, PlaceStatus } from './places.service';
 import { Taxonomy } from './taxonomies.service';
 import { Tenant } from './tenants.service';
 import { User, USERS_DEFAULT_SCOPES, UserType } from './users.service';
-
-export const FormStatus = {
-  CREATED: 'CREATED',
-  SUBMITTED: 'SUBMITTED',
-  REJECTED: 'REJECTED',
-  RETURNED: 'RETURNED',
-  APPROVED: 'APPROVED',
-};
 
 const VISIBLE_TO_USER_SCOPE = 'visibleToUser';
 
@@ -71,6 +70,47 @@ export const FormNoQuantityReason = {
   RESEARCH: 'RESEARCH',
 };
 
+type ClassifierReport = {
+  mapped: number;
+  byCode: Record<string, number>;
+  unmapped: { count: number; codes: Record<string, number> };
+  blank: number;
+};
+
+const CLASSIFIER_COLUMNS: Record<string, { code: string; id: string }> = {
+  [FormSettingsGroupType.ACTIVITY]: { code: 'activity', id: 'activity_id' },
+  [FormSettingsGroupType.EVOLUTION]: { code: 'evolution', id: 'evolution_id' },
+};
+
+// `approved_forms` resolves a sign by group and name alone and a stage by group, name and
+// form type; matching those exactly is what keeps every stored label unchanged.
+const OPTION_MATCH: Record<string, string> = {
+  [FormSettingsGroupType.ACTIVITY]: '',
+  [FormSettingsGroupType.EVOLUTION]:
+    'AND o.form_type = t.form_type AND t.species_id = f.species_id',
+};
+
+const OPTION_SOURCE: Record<string, string> = {
+  [FormSettingsGroupType.ACTIVITY]: 'form_settings_options o',
+  [FormSettingsGroupType.EVOLUTION]: 'form_settings_options o, taxonomies_all t',
+};
+
+const BACKFILL_BATCH_SIZE = 5000;
+
+// Unfiltered on purpose: every pre-2026 form points at a deactivated option, and an option that
+// does not resolve leaves the bare id in place of the object, so a form would lose its label.
+const CLASSIFIER_POPULATE = {
+  action: 'forms.settings.options.resolve',
+  params: { fields: ['id', 'name', 'value'], scope: false },
+};
+
+function countByCode(rows: Array<{ code: string; count: string }>): Record<string, number> {
+  return rows.reduce((acc: Record<string, number>, row) => {
+    acc[row.code] = Number(row.count);
+    return acc;
+  }, {});
+}
+
 const populatePermissions = (field: string) => {
   return function (ctx: Context<{}, UserAuthMeta>, _values: any, forms: any[]) {
     const { user, profile } = ctx?.meta;
@@ -81,45 +121,62 @@ const populatePermissions = (field: string) => {
   };
 };
 
+// `ctx.call` and not `this.broker.call`: the criterion is resolved through the taxonomy, and a
+// root context carries no user, so a hidden species would come back as "Taxonomy not found".
 async function validateActivity({ ctx, params, entity, value }: FieldHookCallback) {
-  const speciesId = entity?.speciesId || params?.species;
+  if (!classifierChanged(value, entity?.activityId)) return value;
 
-  const formType = await this.getFormType(ctx, speciesId);
-  const validate = !entity?.id || !!value;
+  const isValid = await ctx.call('forms.types.validateActivity', {
+    species: entity?.speciesId || params?.species,
+    activityId: value,
+  });
 
-  if (validate) {
-    const isValid = await this.broker.call('forms.types.validateActivity', {
-      type: formType,
-      activity: value,
-    });
-
-    if (!isValid) {
-      return throwValidationError('Invalid activity', params);
-    }
+  if (!isValid) {
+    return throwValidationError('Invalid activity', params);
   }
 
   return value;
 }
 
 async function validateEvolution({ ctx, params, entity, value }: FieldHookCallback) {
-  const speciesId = entity?.speciesId || params?.species;
+  const activityId = params?.activity === undefined ? entity?.activityId : params.activity;
+  const signChanged = classifierChanged(params?.activity, entity?.activityId);
+  const stageChanged = classifierChanged(value, entity?.evolutionId);
 
-  const formType = await this.getFormType(ctx, speciesId);
-  const validate = !entity?.id || !!value;
+  // A stage is only ever offered through a sign, so a new sign makes an untouched
+  // stage worth re-checking.
+  if (!stageChanged && !signChanged) return value;
 
-  if (validate) {
-    const isValid = await this.broker.call('forms.types.validateEvolution', {
-      type: formType,
-      evolution: value,
-      activity: params?.activity || entity?.activity,
-    });
+  const isValid = await ctx.call('forms.types.validateEvolution', {
+    species: entity?.speciesId || params?.species,
+    activityId,
+    evolutionId: stageChanged ? value : entity?.evolutionId,
+  });
 
-    if (!isValid) {
-      return throwValidationError('Invalid evolution', params);
-    }
+  if (!isValid) {
+    return throwValidationError('Invalid evolution', params);
   }
 
   return value;
+}
+
+function classifierCode(field: 'activity' | 'evolution') {
+  const column = `${field}Id` as const;
+
+  // `set` wins over every other field hook, so a client can never write the code itself.
+  return async function ({ ctx, params, entity }: FieldHookCallback) {
+    const optionId = params?.[field];
+
+    if (!classifierChanged(optionId, entity?.[column])) return undefined;
+    if (optionId === null) return null;
+
+    const option: FormSettingsOptions = await ctx.call('forms.settings.options.resolve', {
+      id: optionId,
+      throwIfNotExist: false,
+    });
+
+    return option?.name ?? null;
+  };
 }
 
 async function validateMethod({ ctx, params, entity, value }: FieldHookCallback) {
@@ -152,8 +209,10 @@ export interface Form extends BaseModelInterface {
   species: number | Taxonomy;
   tenant: number | Tenant;
   observedAt: Date | string;
-  activity?: string;
-  evolution?: string;
+  activity?: number | FormSettingsOptions;
+  activityCode?: string;
+  evolution?: number | FormSettingsOptions;
+  evolutionCode?: string;
   method?: string;
   geomBufferSize?: number;
   isInformational: boolean;
@@ -196,17 +255,35 @@ export interface Form extends BaseModelInterface {
       },
 
       activity: {
-        type: 'string',
+        type: 'number',
+        columnType: 'integer',
+        columnName: 'activityId',
+        populate: CLASSIFIER_POPULATE,
         onCreate: validateActivity,
         onUpdate: validateActivity,
         onReplace: validateActivity,
       },
 
       evolution: {
-        type: 'string',
+        type: 'number',
+        columnType: 'integer',
+        columnName: 'evolutionId',
+        populate: CLASSIFIER_POPULATE,
         onCreate: validateEvolution,
         onUpdate: validateEvolution,
         onReplace: validateEvolution,
+      },
+
+      activityCode: {
+        type: 'string',
+        columnName: 'activity',
+        set: classifierCode('activity'),
+      },
+
+      evolutionCode: {
+        type: 'string',
+        columnName: 'evolution',
+        set: classifierCode('evolution'),
       },
 
       method: {
@@ -889,6 +966,8 @@ export default class FormsService extends moleculer.Service {
         type: 'number',
         convert: true,
       },
+      activity: 'number|convert|optional|nullable',
+      evolution: 'number|convert|optional|nullable',
     },
     hooks: {
       before: ['validateIsInformational', 'validateStatusChange'],
@@ -897,8 +976,8 @@ export default class FormsService extends moleculer.Service {
   async checkFormData(
     ctx: Context<
       {
-        activity?: string;
-        evolution?: string;
+        activity?: number;
+        evolution?: number;
         species: number;
         isInformational: boolean;
       },
@@ -907,29 +986,19 @@ export default class FormsService extends moleculer.Service {
   ) {
     const { evolution, activity, species, isInformational } = ctx.params;
 
-    const formType = await this.getFormType(ctx, species);
-
-    const valid = {
-      activity: true,
-      evolution: true,
+    return {
+      activity: await ctx.call('forms.types.validateActivity', {
+        species,
+        activityId: activity,
+      }),
+      evolution: await ctx.call('forms.types.validateEvolution', {
+        species,
+        activityId: activity,
+        evolutionId: evolution,
+      }),
       isInformational: !!isInformational,
       autoApprove: !!ctx.meta.autoApprove,
     };
-
-    if (formType) {
-      valid.activity = await this.broker.call('forms.types.validateActivity', {
-        type: formType,
-        activity,
-      });
-
-      valid.evolution = await this.broker.call('forms.types.validateEvolution', {
-        type: formType,
-        evolution,
-        activity,
-      });
-    }
-
-    return valid;
   }
 
   @Action({
@@ -1098,8 +1167,12 @@ export default class FormsService extends moleculer.Service {
       ids = [ids];
     }
 
+    // Place geometry derives from APPROVED relevant forms only — counting
+    // non-approved ones here would let the last approved relevant form go
+    // irrelevant and leave the place with an empty geometry.
     const query: any = {
       isRelevant: queryBoolean('isRelevant', true),
+      status: FormStatus.APPROVED,
     };
 
     if (ids?.length) {
@@ -1195,6 +1268,134 @@ export default class FormsService extends moleculer.Service {
     }
 
     return invalid;
+  }
+
+  @Action({
+    types: [EndpointType.ADMIN],
+    params: {
+      batchSize: {
+        type: 'number',
+        convert: true,
+        integer: true,
+        positive: true,
+        default: BACKFILL_BATCH_SIZE,
+      },
+    },
+    timeout: 0,
+  })
+  async backfillClassifierIds(ctx: Context<{ batchSize: number }, UserAuthMeta>) {
+    const adapter = await this.getAdapter(ctx);
+    const report: Record<string, ClassifierReport> = {};
+
+    for (const group of Object.keys(CLASSIFIER_COLUMNS)) {
+      report[group] = await this.backfillClassifier(adapter.client, group, ctx.params.batchSize);
+    }
+
+    // Raw SQL emits no entity events, so nothing else would pick the new ids up.
+    const refreshed = Object.values(report).some(({ mapped }) => mapped > 0);
+
+    if (refreshed) {
+      for (const view of [
+        MaterializedView.APPROVED_FORMS,
+        MaterializedView.PLACES_WITH_TAXONOMIES,
+      ]) {
+        await adapter.client.schema.refreshMaterializedView(view, true);
+      }
+    }
+
+    return { ...report, refreshed };
+  }
+
+  @Method
+  async backfillClassifier(db: Knex, group: string, batchSize: number): Promise<ClassifierReport> {
+    const { code, id } = CLASSIFIER_COLUMNS[group];
+
+    await this.rejectAmbiguousCodes(db, group);
+
+    const bounds = await db('forms').min({ min: 'id' }).max({ max: 'id' }).first();
+
+    let mapped = 0;
+
+    for (
+      let from = Number(bounds?.min ?? 0);
+      from <= Number(bounds?.max ?? -1);
+      from += batchSize
+    ) {
+      const result = await db.raw(
+        `UPDATE forms f SET ${id} = o.id
+         FROM ${OPTION_SOURCE[group]}
+         WHERE o."group" = ?
+           AND o.name = f.${code}
+           AND o.deleted_at IS NULL
+           ${OPTION_MATCH[group]}
+           AND f.${id} IS NULL
+           AND f.${code} IS NOT NULL
+           AND f.${code} <> ''
+           AND f.id >= ? AND f.id < ?`,
+        [group, from, from + batchSize],
+      );
+
+      mapped += Number(result.rowCount ?? 0);
+    }
+
+    const byCode = await db('forms')
+      .select(`${code} AS code`)
+      .count()
+      .whereNotNull(id)
+      .groupBy(code);
+
+    const unmapped = await db('forms')
+      .select(`${code} AS code`)
+      .count()
+      .whereNull(id)
+      .whereNotNull(code)
+      .whereNot(code, '')
+      .groupBy(code);
+
+    const blank = await db('forms').where(code, '').count().first();
+
+    return {
+      mapped,
+      byCode: countByCode(byCode),
+      unmapped: {
+        count: unmapped.reduce(
+          (total: number, row: { count: string }) => total + Number(row.count),
+          0,
+        ),
+        codes: countByCode(unmapped),
+      },
+      blank: Number(blank?.count ?? 0),
+    };
+  }
+
+  // The view resolves a label afresh on every refresh, so an ambiguous match only ever showed the
+  // wrong one; writing the id makes that choice permanent, which is worth refusing instead.
+  @Method
+  async rejectAmbiguousCodes(db: Knex, group: string) {
+    const { code, id } = CLASSIFIER_COLUMNS[group];
+
+    const { rows } = await db.raw(
+      `SELECT count(*) FROM (
+         SELECT f.id
+         FROM forms f, ${OPTION_SOURCE[group]}
+         WHERE o."group" = ?
+           AND o.name = f.${code}
+           AND o.deleted_at IS NULL
+           ${OPTION_MATCH[group]}
+           AND f.${id} IS NULL
+           AND f.${code} IS NOT NULL
+           AND f.${code} <> ''
+         GROUP BY f.id
+         HAVING count(*) > 1
+       ) ambiguous`,
+      [group],
+    );
+
+    const count = Number(rows[0]?.count ?? 0);
+
+    if (count) {
+      throwValidationError(`${count} forms match more than one ${group} option`, { group });
+    }
   }
 
   @Method
@@ -1579,6 +1780,19 @@ export default class FormsService extends moleculer.Service {
         } else {
           await this.assignPlaceIfNeeded(ctx, prevForm);
         }
+      }
+    }
+
+    if (
+      shouldRecomputePlaceOnRelevancyChange(form, prevForm, ctx.options?.parentCtx?.action?.name)
+    ) {
+      const { comment } = (ctx.options?.parentCtx?.params as { comment?: string }) || {};
+      try {
+        await ctx.emit('places.changed', { id: form.place, comment });
+      } catch (err) {
+        // A failed recompute must not turn into an unhandled rejection —
+        // the relevancy change itself is already persisted.
+        this.logger.error('Failed to recompute place after form relevancy change', err);
       }
     }
 

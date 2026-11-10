@@ -236,7 +236,7 @@ export default class MapsService extends moleculer.Service {
   @Action({
     rest: 'GET /auth',
   })
-  async generateToken(ctx: Context<{ server?: boolean }, UserAuthMeta>) {
+  async generateToken(ctx: Context<{}, UserAuthMeta>) {
     const { user } = ctx.meta;
 
     if (user?.id && !user.isExpert && user.type !== UserType.ADMIN) {
@@ -252,11 +252,22 @@ export default class MapsService extends moleculer.Service {
       tenantId: ctx.meta.profile?.id,
     };
 
-    if (ctx.params.server) {
-      data.s = 1;
-    }
-
     const token = await this.generateTokenFromPayload(data);
+
+    return {
+      token,
+      expires: moment().add(1, 'day').format(),
+    };
+  }
+
+  // A server token (`s: 1`) resolves to `isServer`, which bypasses all
+  // authorization and map layer filtering — it is strictly for internal
+  // server-side rendering (PDF/screenshot generation). This action has no REST
+  // alias, so it is reachable only via service-to-service calls; the privilege
+  // must never be derivable from a client-supplied request parameter.
+  @Action()
+  async generateServerToken(ctx: Context) {
+    const token = await this.generateTokenFromPayload({ s: 1 });
 
     return {
       token,

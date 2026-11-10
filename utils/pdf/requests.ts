@@ -10,6 +10,10 @@ import { Context } from 'moleculer';
 import { Moment } from 'moment';
 import moment from 'moment-timezone';
 import { Form } from '../../services/forms.service';
+import {
+  FormSettingsGroupType,
+  FormSettingsOptions,
+} from '../../services/forms.settings.options.service';
 import { FormType } from '../../services/forms.types.service';
 import { Place, PlaceStatusTranslates } from '../../services/places.service';
 import { Request } from '../../services/requests.service';
@@ -17,6 +21,7 @@ import { Taxonomy } from '../../services/taxonomies.service';
 import { TaxonomySpeciesType } from '../../services/taxonomies.species.service';
 import { getFormsByDateAndPlaceIds } from '../db.queries';
 import { toMD5Hash } from '../functions';
+import { buildClassifiers, RequestClassifiers, speciesClassifiers } from './classifiers';
 import _ from 'lodash';
 
 const dateFormat = 'YYYY-MM-DD';
@@ -48,14 +53,32 @@ function formatAreaText(area?: number): string {
   }`;
 }
 
-function getFormData(form: Form, translatesAndFormTypes?: any) {
-  const speciesId = (form.species || (form as any).speciesId) as number;
-  const formTranslatesAndFormType = translatesAndFormTypes?.[speciesId];
-  const formType = formTranslatesAndFormType?.formType;
-  const isInvasivePlant = formType === FormType.INVASIVE_PLANT;
+// An `approved_forms` row spells the classifiers the other way round from a form entity: the id
+// sits on `activityId` and the code on `activity`. Both shapes reach the same export table.
+type ExportForm = Omit<Form, 'activity' | 'evolution'> & {
+  activity?: string;
+  activityId?: number;
+  evolution?: string;
+  evolutionId?: number;
+};
 
-  const getTranslate = (key: string, value: any) =>
-    formTranslatesAndFormType?.[key]?.[value] ?? '-';
+function toExportForm(form: Form): ExportForm {
+  const optionId = (option?: number | FormSettingsOptions) =>
+    typeof option === 'object' ? option?.id : option;
+
+  return {
+    ...form,
+    activity: form.activityCode,
+    activityId: optionId(form.activity),
+    evolution: form.evolutionCode,
+    evolutionId: optionId(form.evolution),
+  };
+}
+
+function getFormData(form: ExportForm, translatesAndFormTypes?: RequestClassifiers) {
+  const speciesId = (form.species || (form as any).speciesId) as number;
+  const { formType, byCode, byIdOrCode } = speciesClassifiers(translatesAndFormTypes, speciesId);
+  const isInvasivePlant = formType === FormType.INVASIVE_PLANT;
 
   return {
     id: form.id,
@@ -71,45 +94,44 @@ function getFormData(form: Form, translatesAndFormTypes?: any) {
     photos: form.photos?.map((p) => p.url) || [],
     description: form.description,
     quantity: form.quantity,
-    quantityTranslate: isInvasivePlant ? getTranslate('METHOD', form.method) : `${form.quantity}`,
-    activityTranslate: getTranslate('ACTIVITY', form.activity),
-    methodTranslate: getTranslate('METHOD', form.method),
-    evolutionTranslate: getTranslate('EVOLUTION', form.evolution),
+    quantityTranslate: isInvasivePlant
+      ? byCode(FormSettingsGroupType.METHOD, form.method)
+      : `${form.quantity}`,
+    activityTranslate: byIdOrCode(FormSettingsGroupType.ACTIVITY, form.activityId, form.activity),
+    methodTranslate: byCode(FormSettingsGroupType.METHOD, form.method),
+    evolutionTranslate: byIdOrCode(
+      FormSettingsGroupType.EVOLUTION,
+      form.evolutionId,
+      form.evolution,
+    ),
     status: '',
   };
 }
 
 async function getTranslatesAndFormTypes(ctx: Context, speciesIds: number[]) {
-  const species: any[] = await ctx.call('taxonomies.findBySpeciesId', {
+  const species: Taxonomy[] = await ctx.call('taxonomies.findBySpeciesId', {
     id: speciesIds,
     showHidden: true,
   });
 
-  const options: any[] = await ctx.call('forms.settings.options.find');
+  const formTypes = [...new Set((species || []).map((item) => item.formType).filter(Boolean))];
 
-  const translatesByFromType = options?.reduce((acc: any, item) => {
-    if (!item.formType || !item.group || !item.name || !item.value) return acc;
-    acc[item.formType] = acc[item.formType] || {};
-    acc[item.formType][item.group] = acc[item.formType][item.group] || {};
-    acc[item.formType][item.group][item.name] = item.value;
-    return acc;
-  }, {});
+  // An id can point at any row of these two groups, whatever form type the species carries.
+  // Deactivated rows stay in: an extract has to keep the wording the observation was filed with.
+  const options: FormSettingsOptions[] = await ctx.call('forms.settings.options.find', {
+    query: {
+      $or: [
+        { group: { $in: [FormSettingsGroupType.ACTIVITY, FormSettingsGroupType.EVOLUTION] } },
+        { formType: { $in: formTypes } },
+      ],
+    },
+  });
 
-  return species.reduce((acc: any, item) => {
-    if (!item.formType || !item.speciesId) return acc;
-    return {
-      ...acc,
-      [item.speciesId]: translatesByFromType[item.formType]
-        ? { ...translatesByFromType[item.formType], formType: item.formType }
-        : {},
-    };
-  }, {});
+  return buildClassifiers(species, options);
 }
 
 export async function getMapsSearchParams(ctx: Context): Promise<URLSearchParams> {
-  const mapsToken: any = await ctx.call('maps.generateToken', {
-    server: true,
-  });
+  const mapsToken: any = await ctx.call('maps.generateServerToken');
 
   const searchParams = new URLSearchParams();
   searchParams.set('auth', mapsToken.token);
@@ -157,7 +179,7 @@ export async function getPlaces(
   requestId: number,
   opts: {
     date: string;
-    translatesAndFormTypes?: any;
+    translatesAndFormTypes?: RequestClassifiers;
     limit?: number;
     offset?: number;
   },
@@ -234,7 +256,12 @@ export async function getPlaces(
 export async function getInformationalForms(
   ctx: Context,
   requestId: number,
-  opts: { date: string; translatesAndFormTypes?: any; offset?: number; limit?: number },
+  opts: {
+    date: string;
+    translatesAndFormTypes?: RequestClassifiers;
+    offset?: number;
+    limit?: number;
+  },
 ) {
   const informationalForms: Array<{
     formId: number;
@@ -251,7 +278,7 @@ export async function getInformationalForms(
     {},
   );
 
-  const forms: Form[] = await ctx.call('forms.find', {
+  const entities: Form[] = await ctx.call('forms.find', {
     query: {
       id: {
         $in: informationalForms.map((i) => i.formId),
@@ -259,6 +286,8 @@ export async function getInformationalForms(
     },
     populate: ['source'],
   });
+
+  const forms = entities.map(toExportForm);
 
   const mappedForms = forms.reduce((acc: { [key: string]: any }, form) => {
     acc[`${form.species}`] = acc[`${form.species}`] || {

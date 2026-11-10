@@ -1,0 +1,339 @@
+[
+  {
+    "name": "Vabzdžiai",
+    "level": "phylum",
+    "nodes": [
+      "Vabzdžiai"
+    ],
+    "signs": [
+      {
+        "sign": "STEBETAS_GYVAS",
+        "stages": [
+          "KIAUSINIS",
+          "LERVA_VIKSRAS_NIMFA",
+          "VIKSRU_LIZDAS",
+          "LELIUKE",
+          "SUAUGES_INDIVIDAS"
+        ]
+      },
+      {
+        "sign": "SKLEIDZIAMAS_GARSAS",
+        "stages": []
+      },
+      {
+        "sign": "ISNARA_TUSCIAS_KOKONAS",
+        "stages": []
+      },
+      {
+        "sign": "MAITINIMOSI_ZYMES_ISGRAUZIMAI_URVELIAI_MINOS_IR_KT",
+        "stages": []
+      },
+      {
+        "sign": "EKSKREMENTAI",
+        "stages": []
+      },
+      {
+        "sign": "NEGYVAS_INDIVIDAS",
+        "stages": [
+          "LERVA_VIKSRAS_NIMFA",
+          "SUAUGES_INDIVIDAS"
+        ]
+      },
+      {
+        "sign": "NERASTA",
+        "stages": []
+      }
+    ]
+  },
+  {
+    "name": "Žuvys ir apskritažiomeniai",
+    "level": "phylum",
+    "nodes": [
+      "Žuvys"
+    ],
+    "signs": [
+      {
+        "sign": "STEBETAS_GYVAS",
+        "stages": [
+          "JAUNAS_NESUBRENDES_INDIVIDAS",
+          "SUAUGES_INDIVIDAS"
+        ]
+      },
+      {
+        "sign": "NERSTAVIETE",
+        "stages": []
+      },
+      {
+        "sign": "NEGYVAS_INDIVIDAS",
+        "stages": [
+          "JAUNAS_NESUBRENDES_INDIVIDAS",
+          "SUAUGES_INDIVIDAS"
+        ]
+      },
+      {
+        "sign": "NERASTA",
+        "stages": []
+      }
+    ]
+  },
+  {
+    "name": "Varliagyviai",
+    "level": "phylum",
+    "nodes": [
+      "Varliagyviai"
+    ],
+    "signs": [
+      {
+        "sign": "STEBETAS_GYVAS",
+        "stages": [
+          "KURKULAI",
+          "JAUNAS_NESUBRENDES_INDIVIDAS",
+          "SUAUGES_INDIVIDAS",
+          "NERSIANTYS_INDIVIDAI"
+        ]
+      },
+      {
+        "sign": "KITI_BUVIMO_POZYMIAI",
+        "stages": []
+      },
+      {
+        "sign": "NEGYVAS_INDIVIDAS",
+        "stages": [
+          "KURKULAI",
+          "JAUNAS_NESUBRENDES_INDIVIDAS",
+          "SUAUGES_INDIVIDAS"
+        ]
+      },
+      {
+        "sign": "NERASTA",
+        "stages": []
+      }
+    ]
+  },
+  {
+    "name": "Ropliai",
+    "level": "phylum",
+    "nodes": [
+      "Ropliai"
+    ],
+    "signs": [
+      {
+        "sign": "STEBETAS_GYVAS",
+        "stages": [
+          "KIAUSINIS",
+          "JAUNAS_NESUBRENDES_INDIVIDAS",
+          "SUAUGES_INDIVIDAS"
+        ]
+      },
+      {
+        "sign": "KITI_BUVIMO_POZYMIAI",
+        "stages": []
+      },
+      {
+        "sign": "NEGYVAS_INDIVIDAS",
+        "stages": [
+          "KIAUSINIS",
+          "JAUNAS_NESUBRENDES_INDIVIDAS",
+          "SUAUGES_INDIVIDAS"
+        ]
+      },
+      {
+        "sign": "NERASTA",
+        "stages": []
+      }
+    ]
+  },
+  {
+    "name": "Paukščiai",
+    "level": "phylum",
+    "nodes": [
+      "Paukščiai"
+    ],
+    "signs": [
+      {
+        "sign": "STEBETAS_GYVAS",
+        "stages": [
+          "JAUNAS_NESUBRENDES_INDIVIDAS",
+          "SUAUGES_INDIVIDAS_SU_JAUNIKLIU",
+          "SUAUGES_INDIVIDAS",
+          "SUAUGES_TERITORINIS_INDIVIDAS",
+          "INDIVIDU_SANKAUPA",
+          "NEZINOMA"
+        ]
+      },
+      {
+        "sign": "VEISIMOSI_VIETA_LIZDAS_UOKSAS_TUOKVIETE_IR_PAN",
+        "stages": [
+          "KIAUSINIS",
+          "JAUNAS_NESUBRENDES_INDIVIDAS",
+          "SUAUGES_INDIVIDAS_SU_JAUNIKLIU",
+          "SUAUGES_INDIVIDAS",
+          "NESTEBETAS_INDIVIDAS"
+        ]
+      },
+      {
+        "sign": "BALSAS_GARSAS",
+        "stages": [
+          "SUAUGES_INDIVIDAS",
+          "JAUNAS_NESUBRENDES_INDIVIDAS"
+        ]
+      },
+      {
+        "sign": "KITI_BUVIMO_POZYMIAI",
+        "stages": [
+          "KIAUSINIS",
+          "JAUNAS_NESUBRENDES_INDIVIDAS",
+          "SUAUGES_INDIVIDAS",
+          "NEZINOMA"
+        ]
+      },
+      {
+        "sign": "NEGYVAS_INDIVIDAS",
+        "stages": [
+          "JAUNAS_NESUBRENDES_INDIVIDAS",
+          "SUAUGES_INDIVIDAS",
+          "NEZINOMA"
+        ]
+      },
+      {
+        "sign": "NERASTA",
+        "stages": []
+      }
+    ]
+  },
+  {
+    "name": "Žinduoliai",
+    "level": "phylum",
+    "nodes": [
+      "Žinduoliai"
+    ],
+    "signs": [
+      {
+        "sign": "STEBETAS_GYVAS",
+        "stages": [
+          "JAUNAS_NESUBRENDES_INDIVIDAS",
+          "SUAUGES_INDIVIDAS",
+          "SUAUGES_INDIVIDAS_SU_JAUNIKLIU"
+        ]
+      },
+      {
+        "sign": "VEISIMOSI_VIETA_INKILAS_KOLONIJA_UOKSAS_OLA_IR_KT",
+        "stages": [
+          "JAUNAS_NESUBRENDES_INDIVIDAS",
+          "SUAUGES_INDIVIDAS",
+          "SUAUGES_INDIVIDAS_SU_JAUNIKLIU",
+          "NESTEBETAS_INDIVIDAS"
+        ]
+      },
+      {
+        "sign": "ZIEMOS_IMIGIS_HIBERNACIJA",
+        "stages": []
+      },
+      {
+        "sign": "BALSAS_GARSAS",
+        "stages": []
+      },
+      {
+        "sign": "KITI_BUVIMO_POZYMIAI",
+        "stages": []
+      },
+      {
+        "sign": "NEGYVAS_INDIVIDAS",
+        "stages": [
+          "JAUNAS_NESUBRENDES_INDIVIDAS",
+          "SUAUGES_INDIVIDAS"
+        ]
+      },
+      {
+        "sign": "NERASTA",
+        "stages": []
+      }
+    ]
+  },
+  {
+    "name": "Augalai",
+    "level": "kingdom",
+    "nodes": [
+      "Augalai"
+    ],
+    "signs": [
+      {
+        "sign": "RASTAS",
+        "stages": [
+          "DAIGAS_NEZYDINTIS_AUGALAS",
+          "ZYDINTIS_SEKLAS_AR_SPORAS_DUODANTIS_AUGALAS_ISKAITANT_EINAMAISIAIS_METAIS_NUDZIUVUSIUS",
+          "SAUSAS_ZUVES_ARBA_PERNYKSTIS_AUGALAS_AUGALO_LIEKANOS"
+        ]
+      },
+      {
+        "sign": "NERASTA",
+        "stages": []
+      }
+    ]
+  },
+  {
+    "name": "Grybai ir kerpės",
+    "level": "kingdom",
+    "nodes": [
+      "Grybai"
+    ],
+    "signs": [
+      {
+        "sign": "RASTAS",
+        "stages": []
+      },
+      {
+        "sign": "NERASTA",
+        "stages": []
+      }
+    ]
+  },
+  {
+    "name": "Moliuskai",
+    "level": "phylum",
+    "nodes": [
+      "Moliuskai"
+    ],
+    "signs": [
+      {
+        "sign": "STEBETAS_GYVAS",
+        "stages": []
+      },
+      {
+        "sign": "RAMYBES_BUSENOJE_ZIEMOJANTIS",
+        "stages": []
+      },
+      {
+        "sign": "NEGYVAS_INDIVIDAS",
+        "stages": []
+      },
+      {
+        "sign": "NERASTA",
+        "stages": []
+      }
+    ]
+  },
+  {
+    "name": "Vėžiagyviai / Žieduotosios kirmėlės / Voragyviai",
+    "level": "phylum",
+    "nodes": [
+      "Vėžiagyviai",
+      "Žieduotosios kirmėlės",
+      "Voragyviai"
+    ],
+    "signs": [
+      {
+        "sign": "STEBETAS_GYVAS",
+        "stages": []
+      },
+      {
+        "sign": "NEGYVAS_INDIVIDAS",
+        "stages": []
+      },
+      {
+        "sign": "NERASTA",
+        "stages": []
+      }
+    ]
+  }
+]

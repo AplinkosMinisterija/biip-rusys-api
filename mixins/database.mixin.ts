@@ -137,10 +137,6 @@ export default function (opts: any = {}) {
         return;
       },
 
-      async removeAllEntities(ctx: any) {
-        return await this.clearEntities(ctx);
-      },
-
       async populateByProp(
         ctx: Context<{
           id: number | number[];
@@ -239,7 +235,7 @@ export default function (opts: any = {}) {
       async refreshMaterializedView(ctx: Context, name: string) {
         const adapter = await this.getAdapter(ctx);
 
-        await adapter.client.schema.refreshMaterializedView(name);
+        await adapter.client.schema.refreshMaterializedView(name, true);
         return {
           success: true,
         };

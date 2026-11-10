@@ -14,6 +14,14 @@ export enum EndpointType {
   SELF = 'SELF',
 }
 
+export const FormStatus = {
+  CREATED: 'CREATED',
+  SUBMITTED: 'SUBMITTED',
+  REJECTED: 'REJECTED',
+  RETURNED: 'RETURNED',
+  APPROVED: 'APPROVED',
+};
+
 export const ADDITIONAL_CACHE_KEYS = () => ['#user.type', '#user.isExpert'];
 
 export function throwUnauthorizedError(message?: string, data?: any): Errors.MoleculerError {
@@ -225,6 +233,15 @@ export const TENANT_FIELD = {
     populate: 'tenants.resolve',
     onCreate: ({ ctx }: FieldHookCallback) => ctx.meta.profile?.id,
   },
+};
+
+export const ADMIN_ONLY_MUTATIONS = {
+  create: { types: [EndpointType.ADMIN] },
+  update: { types: [EndpointType.ADMIN] },
+  replace: { types: [EndpointType.ADMIN] },
+  remove: { types: [EndpointType.ADMIN] },
+  // Skips the per-entity validators and hooks the single-entity actions run.
+  createMany: false,
 };
 
 export const COMMON_SCOPES = {
