@@ -99,12 +99,12 @@ export interface RequestPlace {
   placeCode: string;
   geom?: FeatureCollection;
   forms?: RequestObservationForm[];
-  placeStatusTranslate: string;
+  placeStatusTranslate?: string;
   placeArea?: number;
-  placeAreaText: string;
-  placeCreatedAt: string;
-  placeLastObservedAt: string;
-  placeFirstObservedAt: string;
+  placeAreaText?: string;
+  placeCreatedAt?: string;
+  placeLastObservedAt?: string;
+  placeFirstObservedAt?: string;
 }
 
 // Informational forms arrive grouped by species id.
@@ -144,18 +144,28 @@ function toMultiGeometry(geometry: Geometry): Geometry | null {
   return { type: multiType, coordinates: [geometry.coordinates] } as Geometry;
 }
 
-// One entity can hold several geometries, which share its properties.
-function buildFeaturesFromGeom(
-  geom: FeatureCollection,
-  properties: PlaceExportFeature | ObservationExportFeature,
-): ExportFeature[] {
+// A truthy `geom` may still carry nothing a driver accepts; validator and builder must agree.
+function toExportGeometries(geom?: FeatureCollection): Geometry[] {
+  if (!geom) return [];
+
   return getGeometries(geom)
     .flatMap((g: Geometry | GeometryCollection) =>
       g?.type === 'GeometryCollection' ? (g as GeometryCollection).geometries : [g as Geometry],
     )
     .map(toMultiGeometry)
-    .filter((geometry): geometry is Geometry => !!geometry)
-    .map((geometry) => ({ type: 'Feature' as const, geometry, properties }));
+    .filter((geometry): geometry is Geometry => !!geometry);
+}
+
+// One entity can hold several geometries, which share its properties.
+function buildFeaturesFromGeom(
+  geom: FeatureCollection,
+  properties: PlaceExportFeature | ObservationExportFeature,
+): ExportFeature[] {
+  return toExportGeometries(geom).map((geometry) => ({
+    type: 'Feature' as const,
+    geometry,
+    properties,
+  }));
 }
 
 // The tools vector-export contract: one geometry type per layer. Mixed layers
@@ -258,7 +268,7 @@ function buildObservationFeatures(
   });
 
   Object.values(informationalForms || {}).forEach((speciesGroup) => {
-    speciesGroup.forms?.forEach((form: any) => {
+    speciesGroup.forms?.forEach((form) => {
       features.push(...buildObservationFeaturesFromForm(form, form.species, speciesById));
     });
   });
@@ -400,8 +410,8 @@ export function validateVectorExportData(
     };
   }
 
-  const placesWithGeom = places.filter((p) => !!p.geom).length;
-  const observationsWithGeom = forms.filter((f) => !!f.geom).length;
+  const placesWithGeom = places.filter((p) => toExportGeometries(p.geom).length).length;
+  const observationsWithGeom = forms.filter((f) => toExportGeometries(f.geom).length).length;
 
   if (!placesWithGeom && !observationsWithGeom) {
     return {

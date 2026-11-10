@@ -1,8 +1,9 @@
-import { Context, LoggerInstance } from 'moleculer';
+import { Errors } from 'moleculer';
+import type { Context, LoggerInstance } from 'moleculer';
 import type { FileUploadResponse } from '../../services/minio.service';
-import { Request } from '../../services/requests.service';
-import { Tenant } from '../../services/tenants.service';
-import { User } from '../../services/users.service';
+import type { Request } from '../../services/requests.service';
+import type { Tenant } from '../../services/tenants.service';
+import type { User } from '../../services/users.service';
 import { GPKG_FILE_TYPES, GPKG_MIMETYPE, ZIP_FILE_TYPES } from '../../types';
 import { getRequestData } from '../pdf/requests';
 import { getRequestFolderName } from '../requests';
@@ -138,13 +139,18 @@ export async function generateAndSaveVectorExport(
 
     return { generated: true, url: uploadedFile.url };
   } catch (error) {
-    // Rethrow: a swallowed rejection leaves the request looking successful
-    // while no file was ever produced.
     const elapsed = Date.now() - startTime;
     logger.error(`[${label}] Generation failed after ${elapsed}ms for request ${id}`, {
       message: error instanceof Error ? error.message : String(error),
       stack: error instanceof Error ? error.stack : undefined,
     });
-    throw error;
+
+    // Named, because the failed job is read alone; the cause stays in the log, as `data` reaches a response body.
+    throw new Errors.MoleculerError(
+      `${label} export failed for request ${id}`,
+      500,
+      'VECTOR_EXPORT_FAILED',
+      { requestId: id, format: label },
+    );
   }
 }

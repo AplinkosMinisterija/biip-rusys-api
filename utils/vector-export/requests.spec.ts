@@ -233,5 +233,12 @@ describe('validateVectorExportData', () => {
 
   it('accepts a request with one place geometry', () => {
     expect(validateVectorExportData({ places: [place()] })).toMatchObject({ valid: true });
+
+    const emptyGeom = { places: [place({ geom: geom() })], informationalForms: {} };
+
+    expect({
+      valid: validateVectorExportData(emptyGeom).valid,
+      layers: buildVectorExportPayload(request, emptyGeom).layers.length,
+    }).toEqual({ valid: false, layers: 0 });
   });
 });

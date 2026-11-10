@@ -1190,10 +1190,10 @@ export default class RequestsService extends moleculer.Service {
     }
 
     // initiateGeojsonGenerate answers with a bare BullMQ job, the others with a flow.
-    const result = await ctx.call<
-      { job?: { id?: string }; id?: string },
-      { id: number }
-    >(initiateAction, { id: ctx.params.id });
+    const result = await ctx.call<{ job?: { id?: string }; id?: string }, { id: number }>(
+      initiateAction,
+      { id: ctx.params.id },
+    );
 
     return {
       generating: !!(result?.job?.id || result?.id),
@@ -1213,7 +1213,13 @@ export default class RequestsService extends moleculer.Service {
     for (const [documentType, { field, generateAction }] of Object.entries(GENERATED_DOCUMENTS)) {
       if (request[field] || !request.documentTypes?.includes(documentType)) continue;
 
-      void this.broker.call(generateAction, { id: request.id });
+      // Fire-and-forget by design, but an unhandled rejection is fatal on node 18.
+      void this.broker.call(generateAction, { id: request.id }).catch((err: unknown) => {
+        this.logger.error(
+          `Could not start ${documentType} generation for request ${request.id}`,
+          err instanceof Error ? err.message : String(err),
+        );
+      });
     }
   }
 
