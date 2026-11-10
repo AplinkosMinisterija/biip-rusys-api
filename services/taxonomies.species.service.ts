@@ -20,6 +20,7 @@ import { TaxonomyClass } from './taxonomies.classes.service';
 import { TaxonomyKingdom } from './taxonomies.kingdoms.service';
 import { TaxonomyPhylum } from './taxonomies.phylums.service';
 import { UserType } from './users.service';
+import { TaxonomySpeciesType, TaxonomySpeciesTypeTranslate } from '../types/constants';
 
 export interface TaxonomySpecies extends BaseModelInterface {
   name: string;
@@ -35,17 +36,9 @@ export interface TaxonomySpecies extends BaseModelInterface {
   formNeedsApproval?: boolean;
 }
 
-export const TaxonomySpeciesType = {
-  INVASIVE: 'INVASIVE',
-  ENDANGERED: 'ENDANGERED',
-  INTRODUCED: 'INTRODUCED',
-};
-
-export const TaxonomySpeciesTypeTranslate = {
-  [TaxonomySpeciesType.INVASIVE]: 'Invazinė',
-  [TaxonomySpeciesType.ENDANGERED]: 'Saugoma',
-  [TaxonomySpeciesType.INTRODUCED]: 'Svetimžemė',
-};
+// Re-exported from types/constants so a pure util can read them without
+// pulling the service graph (the services import each other in a cycle).
+export { TaxonomySpeciesType, TaxonomySpeciesTypeTranslate };
 
 const publicPopulate = ['class', 'conventions'];
 

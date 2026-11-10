@@ -22,6 +22,18 @@ export const FormStatus = {
   APPROVED: 'APPROVED',
 };
 
+export const TaxonomySpeciesType = {
+  INVASIVE: 'INVASIVE',
+  ENDANGERED: 'ENDANGERED',
+  INTRODUCED: 'INTRODUCED',
+};
+
+export const TaxonomySpeciesTypeTranslate = {
+  [TaxonomySpeciesType.INVASIVE]: 'Invazinė',
+  [TaxonomySpeciesType.ENDANGERED]: 'Saugoma',
+  [TaxonomySpeciesType.INTRODUCED]: 'Svetimžemė',
+};
+
 export const ADDITIONAL_CACHE_KEYS = () => ['#user.type', '#user.isExpert'];
 
 export function throwUnauthorizedError(message?: string, data?: any): Errors.MoleculerError {
