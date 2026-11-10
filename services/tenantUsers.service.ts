@@ -520,12 +520,8 @@ export default class TenantUsersService extends moleculer.Service {
     const { user: currentUser, profile } = ctx.meta;
     const { userId, tenantId, role } = ctx.params;
 
-    // Only a system admin, or the tenant's own admin acting on that tenant, may
-    // change a member's role. A missing profile must NOT be treated as
-    // authorized: this action is also reached internally from
-    // `users.updateUser` (PATCH /users/:id), which any member can call without
-    // an `x-profile` header — otherwise a plain member could promote themselves
-    // to TENANT_ADMIN here.
+    // A missing profile is not authorization: this action is also reached from
+    // `users.updateUser`, which any member can call without an `x-profile`.
     const isSystemAdmin = currentUser?.type === UserType.ADMIN;
     const isTenantAdmin =
       !!profile?.id && Number(profile.id) === tenantId && profile.role === TenantUserRole.ADMIN;

@@ -26,8 +26,8 @@ export function toMD5Hash(text: string) {
   return createHash('md5').update(text).digest('hex');
 }
 
-// Keyed hash — use where the digest is a capability/authorization token so it
-// cannot be forged from public inputs (unlike a plain, keyless md5/sha).
+// Keyed digest for capability tokens: unlike toMD5Hash it cannot be recomputed
+// from public inputs.
 export function toHmacHash(text: string, secret: string) {
   return createHmac('sha256', secret).update(text).digest('hex');
 }

@@ -21,11 +21,7 @@ import { Tenant } from './tenants.service';
 import { User } from './users.service';
 
 export function getRequestSecret(request: Request) {
-  // Gates the public request HTML endpoint. `id` is an enumerable integer and
-  // `createdAt` is returned on the request, so a keyless md5 of them was
-  // forgeable; key the digest with a server secret so it cannot be recomputed
-  // from public data. Both generation and validation call this, so the shared
-  // key keeps them in sync with no stored state.
+  // Keyed: `id` is enumerable and `createdAt` is public, so an unkeyed digest is forgeable.
   return toHmacHash(
     `id=${request.id}&date=${moment(request.createdAt).format('YYYYMMDDHHmmss')}`,
     process.env.JWT_MAPS_SECRET,

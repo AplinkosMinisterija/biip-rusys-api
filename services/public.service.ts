@@ -66,8 +66,6 @@ export default class PublicService extends moleculer.Service {
     };
   }
 
-  // Flushing the whole cache is an admin-only maintenance action — it was
-  // unauthenticated, letting anyone repeatedly wipe the cache (availability).
   @Action({
     rest: 'POST /cache/clean',
     types: [EndpointType.ADMIN],
