@@ -293,6 +293,7 @@ export default class JobsRequestsService extends moleculer.Service {
       id: 'number',
     },
     timeout: 0,
+    visibility: 'protected',
   })
   async initiatePdfGenerate(ctx: Context<{ id: number }>) {
     const data: any[] = [];
@@ -360,6 +361,7 @@ export default class JobsRequestsService extends moleculer.Service {
       id: 'number',
     },
     timeout: 0,
+    visibility: 'protected',
   })
   async initiateShpGenerate(ctx: Context<{ id: number }>) {
     const { id } = ctx.params;
@@ -371,6 +373,7 @@ export default class JobsRequestsService extends moleculer.Service {
       id: 'number',
     },
     timeout: 0,
+    visibility: 'protected',
   })
   async initiateGdbGenerate(ctx: Context<{ id: number }>) {
     const { id } = ctx.params;
@@ -382,6 +385,7 @@ export default class JobsRequestsService extends moleculer.Service {
       id: 'number',
     },
     timeout: 0,
+    visibility: 'protected',
   })
   async initiateGpkgGenerate(ctx: Context<{ id: number }>) {
     const { id } = ctx.params;
@@ -393,6 +397,7 @@ export default class JobsRequestsService extends moleculer.Service {
       id: 'number',
     },
     timeout: 0,
+    visibility: 'protected',
   })
   async initiateGeojsonGenerate(ctx: Context<{ id: number }>) {
     const { id } = ctx.params;

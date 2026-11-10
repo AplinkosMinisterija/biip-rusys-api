@@ -29,6 +29,7 @@ export function createVectorExportRequestsService(
           id: 'number',
         },
         timeout: 0,
+        visibility: 'protected',
         handler(ctx: Context<{ id: number }>) {
           return generateAndSaveVectorExport(ctx, this.logger, ctx.params.id, format);
         },
@@ -38,6 +39,7 @@ export function createVectorExportRequestsService(
           id: 'number',
         },
         timeout: 0,
+        visibility: 'protected',
         async handler(ctx: Context<{ id: number }>) {
           const job = await this.localQueue(ctx, actionNames.generate, { id: ctx.params.id });
           this.logger.info(

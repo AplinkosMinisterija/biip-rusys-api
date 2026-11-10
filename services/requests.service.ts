@@ -1,6 +1,6 @@
 'use strict';
 
-import moleculer, { Context, RestSchema } from 'moleculer';
+import moleculer, { ActionSchema, Context, RestSchema } from 'moleculer';
 import { Action, Event, Method, Service } from 'moleculer-decorators';
 
 import DbConnection from '../mixins/database.mixin';
@@ -88,9 +88,15 @@ const GENERATED_DOCUMENTS: Record<string, { field: keyof Request; generateAction
   },
 };
 
-const SAVE_GENERATED_FILE_PARAMS = {
-  id: 'number',
-  url: 'string',
+// Only the generation workers write these; the gateway whitelists every action
+// by path, so without `protected` any caller could point a request's download
+// at a URL of their choosing.
+const SAVE_GENERATED_FILE_ACTION: ActionSchema = {
+  params: {
+    id: 'number',
+    url: 'string',
+  },
+  visibility: 'protected',
 };
 
 const TaxonomyTypes = {
@@ -605,27 +611,27 @@ export default class RequestsService extends moleculer.Service {
     );
   }
 
-  @Action({ params: SAVE_GENERATED_FILE_PARAMS })
+  @Action(SAVE_GENERATED_FILE_ACTION)
   saveGeneratedPdf(ctx: Context<{ id: number; url: string }>) {
     return this.saveGeneratedFile(ctx, 'generatedFile');
   }
 
-  @Action({ params: SAVE_GENERATED_FILE_PARAMS })
+  @Action(SAVE_GENERATED_FILE_ACTION)
   saveGeneratedGeojson(ctx: Context<{ id: number; url: string }>) {
     return this.saveGeneratedFile(ctx, 'generatedFileGeojson');
   }
 
-  @Action({ params: SAVE_GENERATED_FILE_PARAMS })
+  @Action(SAVE_GENERATED_FILE_ACTION)
   saveGeneratedShp(ctx: Context<{ id: number; url: string }>) {
     return this.saveGeneratedFile(ctx, 'generatedFileShp');
   }
 
-  @Action({ params: SAVE_GENERATED_FILE_PARAMS })
+  @Action(SAVE_GENERATED_FILE_ACTION)
   saveGeneratedGdb(ctx: Context<{ id: number; url: string }>) {
     return this.saveGeneratedFile(ctx, 'generatedFileGdb');
   }
 
-  @Action({ params: SAVE_GENERATED_FILE_PARAMS })
+  @Action(SAVE_GENERATED_FILE_ACTION)
   saveGeneratedGpkg(ctx: Context<{ id: number; url: string }>) {
     return this.saveGeneratedFile(ctx, 'generatedFileGpkg');
   }
