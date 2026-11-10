@@ -2,7 +2,7 @@
 
 import moleculer, { Context } from 'moleculer';
 import { Action, Method, Service } from 'moleculer-decorators';
-import { DBPagination, throwNotFoundError } from '../types';
+import { DBPagination, EndpointType, throwNotFoundError } from '../types';
 import { AuthType } from './api.service';
 import { Convention } from './conventions.service';
 import { Taxonomy } from './taxonomies.service';
@@ -68,7 +68,7 @@ export default class PublicService extends moleculer.Service {
 
   @Action({
     rest: 'POST /cache/clean',
-    auth: AuthType.PUBLIC,
+    types: [EndpointType.ADMIN],
   })
   cleanCache() {
     this.broker.cacher.clean();

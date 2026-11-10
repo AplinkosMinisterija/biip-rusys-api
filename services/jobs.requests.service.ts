@@ -6,7 +6,7 @@ import moment from 'moment';
 import { PassThrough, Readable } from 'stream';
 import BullMqMixin from '../mixins/bullmq.mixin';
 import { FILE_TYPES, throwNotFoundError, throwValidationError } from '../types';
-import { toMD5Hash, toReadableStream } from '../utils/functions';
+import { toHmacHash, toMD5Hash, toReadableStream } from '../utils/functions';
 import { getTemplateHtml } from '../utils/html';
 import {
   getInformationalForms,
@@ -21,7 +21,11 @@ import { Tenant } from './tenants.service';
 import { User } from './users.service';
 
 export function getRequestSecret(request: Request) {
-  return toMD5Hash(`id=${request.id}&date=${moment(request.createdAt).format('YYYYMMDDHHmmss')}`);
+  // Keyed: `id` is enumerable and `createdAt` is public, so an unkeyed digest is forgeable.
+  return toHmacHash(
+    `id=${request.id}&date=${moment(request.createdAt).format('YYYYMMDDHHmmss')}`,
+    process.env.JWT_MAPS_SECRET,
+  );
 }
 @Service({
   name: 'jobs.requests',

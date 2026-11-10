@@ -1,4 +1,4 @@
-import { createHash } from 'crypto';
+import { createHash, createHmac } from 'crypto';
 import _ from 'lodash';
 import { Readable } from 'stream';
 import { FormStatus } from '../types';
@@ -24,6 +24,12 @@ export function toReadableStream(fetchReadable: any): NodeJS.ReadableStream {
 
 export function toMD5Hash(text: string) {
   return createHash('md5').update(text).digest('hex');
+}
+
+// Keyed digest for capability tokens: unlike toMD5Hash it cannot be recomputed
+// from public inputs.
+export function toHmacHash(text: string, secret: string) {
+  return createHmac('sha256', secret).update(text).digest('hex');
 }
 
 const FORMS_SINGLE_UPDATE_ACTION = 'forms.update';

@@ -6,6 +6,7 @@ import {
   stageIsOffered,
   optionCodeFromLabel,
   shouldRecomputePlaceOnRelevancyChange,
+  toHmacHash,
   toPositiveIntegerIds,
 } from './functions';
 
@@ -233,5 +234,21 @@ describe('classifierChanged', () => {
 
   it('skips clearing a classifier that was never set', () => {
     expect(classifierChanged(null, null)).toBe(false);
+  });
+});
+
+describe('toHmacHash', () => {
+  it('is stable for the same text and key', () => {
+    expect(toHmacHash('id=1&date=20260716114012', 'key')).toBe(
+      toHmacHash('id=1&date=20260716114012', 'key'),
+    );
+  });
+
+  it('changes when the key changes', () => {
+    expect(toHmacHash('id=1', 'key')).not.toBe(toHmacHash('id=1', 'other-key'));
+  });
+
+  it('changes when the text changes', () => {
+    expect(toHmacHash('id=1', 'key')).not.toBe(toHmacHash('id=2', 'key'));
   });
 });
