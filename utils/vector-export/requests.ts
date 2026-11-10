@@ -50,31 +50,32 @@ export interface PlaceExportFeature {
   speciesId: number;
   speciesName: string;
   speciesNameLatin: string;
-  placeStatus: string;
+  placeStatus: string | null;
   placeArea: number;
-  placeAreaText: string;
-  placeCreatedAt: string;
-  placeLastObservedAt: string;
-  placeFirstObservedAt: string;
+  placeAreaText: string | null;
+  placeCreatedAt: string | null;
+  placeLastObservedAt: string | null;
+  placeFirstObservedAt: string | null;
 }
 
+// `null`, never undefined: JSON.stringify drops an undefined value and the VRT then names a missing field.
 export interface ObservationExportFeature {
   type: 'observation';
   formId: number;
-  speciesId?: number;
+  speciesId: number | null;
   speciesName: string;
   speciesNameLatin: string;
   speciesType: string;
   quantity: number;
   quantityTranslate: string;
-  description?: string;
-  observedAt?: string;
-  createdAt?: string;
-  source?: string;
-  activity?: string;
-  evolution?: string;
-  placeId?: number;
-  placeCode?: string;
+  description: string | null;
+  observedAt: string | null;
+  createdAt: string | null;
+  source: string | null;
+  activity: string | null;
+  evolution: string | null;
+  placeId: number | null;
+  placeCode: string | null;
 }
 
 // The slices of getRequestData() output that the vector export consumes.
@@ -193,12 +194,12 @@ function buildPlaceFeatures(places: RequestPlace[], speciesById: SpeciesById): E
         speciesId: place.species,
         speciesName: species?.speciesName || 'N/A',
         speciesNameLatin: species?.speciesNameLatin || '',
-        placeStatus: place.placeStatusTranslate,
+        placeStatus: place.placeStatusTranslate ?? null,
         placeArea: place.placeArea || 0,
-        placeAreaText: place.placeAreaText,
-        placeCreatedAt: place.placeCreatedAt,
-        placeLastObservedAt: place.placeLastObservedAt,
-        placeFirstObservedAt: place.placeFirstObservedAt,
+        placeAreaText: place.placeAreaText ?? null,
+        placeCreatedAt: place.placeCreatedAt ?? null,
+        placeLastObservedAt: place.placeLastObservedAt ?? null,
+        placeFirstObservedAt: place.placeFirstObservedAt ?? null,
       }),
     );
   });
@@ -219,20 +220,20 @@ function buildObservationFeaturesFromForm(
   return buildFeaturesFromGeom(form.geom, {
     type: 'observation',
     formId: form.id,
-    speciesId,
+    speciesId: speciesId ?? null,
     speciesName: species?.speciesName || 'N/A',
     speciesNameLatin: species?.speciesNameLatin || '',
     speciesType: TaxonomySpeciesTypeTranslate[species?.speciesType] || '',
     quantity: form.quantity || 0,
     quantityTranslate: form.quantityTranslate || '0',
-    description: form.description,
-    observedAt: form.observedAt,
-    createdAt: form.createdAt,
-    source: form.source,
-    activity: form.activityTranslate,
-    evolution: form.evolutionTranslate,
-    placeId: place?.id,
-    placeCode: place?.placeCode,
+    description: form.description ?? null,
+    observedAt: form.observedAt ?? null,
+    createdAt: form.createdAt ?? null,
+    source: form.source ?? null,
+    activity: form.activityTranslate ?? null,
+    evolution: form.evolutionTranslate ?? null,
+    placeId: place?.id ?? null,
+    placeCode: place?.placeCode ?? null,
   });
 }
 

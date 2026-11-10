@@ -135,8 +135,9 @@ describe('buildVectorExportPayload', () => {
     const [observation] = layer(layers, 'Stebejimai').geojson.features;
     const properties = observation.properties as ObservationExportFeature;
     expect(properties.formId).toBe(77);
-    expect(properties.placeId).toBeUndefined();
-    expect(properties.placeCode).toBeUndefined();
+    // Not undefined: JSON.stringify drops the key and the VRT then names a missing field.
+    expect(properties.placeId).toBeNull();
+    expect(properties.placeCode).toBeNull();
   });
 
   it('writes the species type in Lithuanian, never the enum value', () => {
@@ -161,6 +162,41 @@ describe('buildVectorExportPayload', () => {
       expect(shortNames.filter((shortName) => shortName.length > 10)).toEqual([]);
       expect(new Set(shortNames).size).toBe(fields.length);
       expect(name).toMatch(/^[A-Za-z0-9_]+$/);
+    });
+  });
+
+  it('writes every declared field on every feature, so the VRT never names a missing source', () => {
+    const bare = place({
+      placeStatusTranslate: undefined,
+      placeAreaText: undefined,
+      placeCreatedAt: undefined,
+      placeLastObservedAt: undefined,
+      placeFirstObservedAt: undefined,
+    });
+    const { layers } = buildVectorExportPayload(request, {
+      places: [bare],
+      informationalForms: {
+        '7': {
+          forms: [
+            form({
+              species: 7,
+              description: undefined,
+              activityTranslate: undefined,
+              evolutionTranslate: undefined,
+            }),
+          ],
+        },
+      },
+      speciesById,
+    });
+
+    layers.forEach(({ name, fields, geojson }) => {
+      geojson.features.forEach((feature) => {
+        // The round-trip is what the pipeline does to the payload.
+        const serialized = Object.keys(JSON.parse(JSON.stringify(feature.properties)));
+        const missing = fields.map((f) => f.name).filter((n) => !serialized.includes(n));
+        expect({ name, missing }).toEqual({ name, missing: [] });
+      });
     });
   });
 
