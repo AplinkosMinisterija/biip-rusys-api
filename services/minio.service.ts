@@ -6,11 +6,11 @@ import { Action, Method, Service } from 'moleculer-decorators';
 import MinioMixin from 'moleculer-minio';
 import moment from 'moment';
 import {
-  IMAGE_TYPES,
-  MultipartMeta,
   getExtention,
   getMimetype,
   getPublicFileName,
+  IMAGE_TYPES,
+  MultipartMeta,
   throwNotFoundError,
   throwUnableToUploadError,
   throwUnsupportedMimetypeError,
@@ -18,6 +18,19 @@ import {
 import { AuthType, UserAuthMeta } from './api.service';
 
 export const BUCKET_NAME = () => process.env.MINIO_BUCKET || 'rusys';
+
+// What minio.uploadFile resolves to. `url` is private or public depending on
+// the isPrivate flag; presignedUrl is set only when presign was requested.
+export interface FileUploadResponse {
+  success: boolean;
+  url: string;
+  size: number;
+  filename: string;
+  path: string;
+  privateUrl: string;
+  publicUrl: string;
+  presignedUrl?: string;
+}
 
 @Service({
   name: 'minio',
@@ -131,13 +144,13 @@ export default class MinioService extends Moleculer.Service {
       { timeout: 0 },
     );
 
-    const url = await ctx.call('minio.getUrl', {
+    const url: string = await ctx.call('minio.getUrl', {
       objectName: objectFileName,
       isPrivate,
       bucketName,
     });
 
-    const response: any = {
+    const response: FileUploadResponse = {
       success: true,
       url,
       size,
@@ -148,8 +161,7 @@ export default class MinioService extends Moleculer.Service {
     };
 
     if (presign) {
-      const presignedUrl: string = await this.getPresignedUrl(ctx, objectFileName, bucketName);
-      response.presignedUrl = presignedUrl;
+      response.presignedUrl = await this.getPresignedUrl(ctx, objectFileName, bucketName);
     }
 
     return response;
