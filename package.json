@@ -127,6 +127,7 @@
     "extends": "@aplinkosministerija/eslint-config-biip-api"
   },
   "resolutions": {
-    "moleculer-postgis": "github:AplinkosMinisterija/moleculer-postgis#v0.4.0"
+    "moleculer-postgis": "github:AplinkosMinisterija/moleculer-postgis#v0.4.0",
+    "mongo-query-to-postgres-jsonb": "^0.2.19"
   }
 }
