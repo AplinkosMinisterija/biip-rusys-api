@@ -12,8 +12,9 @@ layout itself is in the codemap.
 | CRUD + status flow + document generation entry points | `services/requests.service.ts` |
 | the queued jobs that build PDF and GeoJSON | `services/jobs.requests.service.ts` |
 | the queued jobs that build SHP / GDB / GPKG | `services/{shp,gdb,gpkg}.requests.service.ts` → `utils/vector-export/service.ts` |
-| the format-agnostic export payload (layers, fields, SRID) | `utils/vector-export/requests.ts` |
-| upload + persist + history for one generated file | `utils/vector-export/generate.ts` |
+| export features + the declared fields per layer | `utils/vector-export/requests.ts` |
+| streaming those features to one file per layer | `utils/vector-export/layer-files.ts` |
+| upload + handover + persist + history for one generated file | `utils/vector-export/generate.ts` |
 | the HTTP calls into biip-tools | `services/tools.service.ts` |
 | data the PDF and the vector exports share | `utils/requests.ts` |
 
@@ -37,17 +38,32 @@ render from: adding a member makes a new checkbox appear in `biip-rusys-web` and
   inside the ZIP, and diacritics there are mojibake on Windows. One payload serves all
   three formats, so the restriction of the narrowest format applies to all of them.
 - **One layer holds one geometry type.** Shapefile and OpenFileGDB both reject a mixed
-  layer, so `splitLayerByGeometryType` splits and `toMultiGeometry` promotes singles to
-  their `Multi*` variant. Both sub-layers must keep identical fields or the two files
-  disagree.
+  layer, so `layer-files.ts › append` routes each feature to a file per geometry type and
+  `requests.ts › toMultiGeometry` promotes singles to their `Multi*` variant. All of a
+  layer's files share one `fields` constant, so they cannot disagree. A layer that turned
+  out to hold a single type gets the plain name back by a rename at the end — with
+  streaming, the set of types is only known after the last page.
 - **Shapefile field names are the short `shortName`,** never the long name: DBF caps a
   field name at 10 characters and supports no aliases. GPKG and GDB get the long name plus
   a Lithuanian `alternativeName`, written through an OGR VRT wrapper in biip-tools. A
   colliding or over-long `shortName` makes GDAL rename the field to `FIELD_1` without
   failing, so `utils/vector-export/requests.spec.ts` pins uniqueness and length.
-- **The export budget is bounded by the client, not the server.** Node's global fetch
-  (undici) abandons a response at 300s, so `VECTOR_EXPORT_TIMEOUT_MS` in biip-tools is
-  4 minutes. Raising it there only turns a legible timeout into `fetch failed` here.
+- **A layer reaches biip-tools as a presigned MinIO url, never inline.** The gateway caps
+  a json body at 25MB — about 70k features — and 300k features is ~105MB, which also OOMs
+  the 512M tools container while it is being built. `layer-files.ts` writes a file per
+  layer (168MB peak RSS at 600k features), `generate.ts` uploads each as a private object
+  under `<request folder>/tmp` with `presign: true` and no `name`, and removes them in a
+  `finally`. biip-tools fetches a url only when its host is in
+  `VECTOR_EXPORT_SOURCE_HOSTS` (set per environment in biip-infra to that environment's
+  `MINIO_ENDPOINT`); unset means it fetches nothing.
+- **The conversion is still bounded by the caller.** Node's global fetch (undici) abandons
+  a response after 300s of waiting for headers, and tools answers only when ogr2ogr is
+  done — measured 18–23s for 300k features. There is no timeout knob (undici is not a
+  declared dependency); the fix, when needed, is `node:http` in `tools.service.ts`.
+- **Every action on `tools.service.ts` is `visibility: 'protected'`.** Each one takes a
+  url and fetches it, so a published one is a fetcher pointed wherever an authenticated
+  caller likes. moleculer-web refuses to publish any action whose visibility is set and
+  not `published` (`moleculer-web/src/index.js:552`).
 - **Vector export workers run `concurrency: 1`** (`utils/vector-export/service.ts`), not
   the repo's usual 5: each format has its own worker and ogr2ogr runs in a 512M tools
   container that also serves UETK.
@@ -65,7 +81,9 @@ render from: adding a member makes a new checkbox appear in `biip-rusys-web` and
   only — `utils/vector-export/requests.ts` is deliberately service-free for this reason.
   See `pdf-requests-util-cannot-be-imported-in-jest`.
 - **`minio.uploadFile` must not be passed a `name`** for a generated file, or the object
-  key stops matching what the download URL builds.
+  key stops matching what the download URL builds. The temp layer objects rely on the same
+  default for a different reason: a random key is not derivable and two formats of one
+  request cannot collide.
 - **Migrations run before the broker starts,** so a backfill action can never precede
   them, and a migration must not read taxonomies (they are imported at runtime). A failed
   migration restart-loops the container; Compose calls it unhealthy after ~30s.
