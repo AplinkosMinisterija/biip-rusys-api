@@ -50,6 +50,7 @@ export default class ToolsService extends moleculer.Service {
         optional: true,
       },
     },
+    visibility: 'protected',
     timeout: 0,
   })
   async makeScreenshot(
@@ -107,6 +108,8 @@ export default class ToolsService extends moleculer.Service {
         optional: true,
       },
     },
+    // Every action here takes a url and fetches it; the gateway whitelists `**`, so without this they are callable by any authenticated request.
+    visibility: 'protected',
     timeout: 0,
   })
   async makePdf(ctx: Context<{ url: string; header?: string; footer?: string }>) {
@@ -150,6 +153,7 @@ export default class ToolsService extends moleculer.Service {
 
   @Action({
     params: VECTOR_EXPORT_PARAMS,
+    visibility: 'protected',
     timeout: 0,
   })
   async makeShp(ctx: Context<VectorExportPayload>): Promise<NodeJS.ReadableStream> {
@@ -158,6 +162,7 @@ export default class ToolsService extends moleculer.Service {
 
   @Action({
     params: VECTOR_EXPORT_PARAMS,
+    visibility: 'protected',
     timeout: 0,
   })
   async makeGdb(ctx: Context<VectorExportPayload>): Promise<NodeJS.ReadableStream> {
@@ -166,6 +171,7 @@ export default class ToolsService extends moleculer.Service {
 
   @Action({
     params: VECTOR_EXPORT_PARAMS,
+    visibility: 'protected',
     timeout: 0,
   })
   async makeGpkg(ctx: Context<VectorExportPayload>): Promise<NodeJS.ReadableStream> {
