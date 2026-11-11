@@ -2,7 +2,7 @@
 
 import moleculer, { Context } from 'moleculer';
 import { Action, Method, Service } from 'moleculer-decorators';
-import { toReadableStream } from '../utils/functions';
+import { postJson, readText } from '../utils/http';
 import type { VectorExportLayerSource } from '../utils/vector-export/requests';
 
 // The layer travels as a presigned url: a 300k-feature collection is ~130MB, well past the gateway's body limit.
@@ -184,31 +184,16 @@ export default class ToolsService extends moleculer.Service {
     params: VectorExportPayload,
   ): Promise<NodeJS.ReadableStream> {
     const { layers, name, srid } = params;
-    const response = await fetch(`${this.toolsHost()}${path}`, {
-      method: 'POST',
-      body: JSON.stringify({
-        layers,
-        name,
-        srid,
-      }),
-      headers: {
-        'Content-Type': 'application/json',
-      },
-    });
+    // Not `fetch`: undici abandons a response after 300s of waiting for headers, and tools answers only once ogr2ogr is done.
+    const response = await postJson(`${this.toolsHost()}${path}`, { layers, name, srid });
+    const status = response.statusCode || 0;
 
-    if (!response.ok) {
-      const detail = await response.text().catch(() => '');
-      throw new Error(`tools ${path} returned ${response.status}: ${detail || '<empty body>'}`);
+    if (status < 200 || status > 299) {
+      const detail = await readText(response).catch(() => '');
+      throw new Error(`tools ${path} returned ${status}: ${detail || '<empty body>'}`);
     }
 
-    // Without this, toReadableStream(undefined) yields a stream that never ends
-    // and the MinIO upload hangs forever under timeout: 0.
-    if (!response.body) {
-      throw new Error(`tools ${path} returned ${response.status} with an empty body`);
-    }
-
-    // minio-js cannot consume a web ReadableStream.
-    return toReadableStream(response.body.getReader());
+    return response;
   }
 
   @Method
