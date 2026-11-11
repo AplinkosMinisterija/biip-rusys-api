@@ -126,11 +126,85 @@ const MULTI_TYPE_BY_GEOMETRY_TYPE: Record<string, MultiGeometryType> = {
   MultiPolygon: 'MultiPolygon',
 };
 
+export const PLACE_LAYER_NAME = 'Radavietes';
+export const OBSERVATION_LAYER_NAME = 'Stebejimai';
+
+export const PLACE_EXPORT_FIELDS: VectorExportField[] = [
+  { name: 'placeId', shortName: 'RADAV_ID', type: 'Integer', alias: 'Radavietės ID' },
+  { name: 'placeCode', shortName: 'RADAV_KOD', type: 'String', alias: 'Radavietės kodas' },
+  { name: 'speciesId', shortName: 'RUSIS_ID', type: 'Integer', alias: 'Rūšies ID' },
+  { name: 'speciesName', shortName: 'RUSIS_PAV', type: 'String', alias: 'Rūšies pavadinimas' },
+  {
+    name: 'speciesNameLatin',
+    shortName: 'RUSIS_LOT',
+    type: 'String',
+    alias: 'Rūšies lotyniškas pavadinimas',
+  },
+  { name: 'placeStatus', shortName: 'BUSENA', type: 'String', alias: 'Radavietės būsena' },
+  { name: 'placeArea', shortName: 'PLOTAS_M2', type: 'Real', alias: 'Radavietės plotas (m²)' },
+  { name: 'placeAreaText', shortName: 'PLOTAS', type: 'String', alias: 'Radavietės plotas' },
+  {
+    name: 'placeCreatedAt',
+    shortName: 'SUKURTA',
+    type: 'Date',
+    alias: 'Radavietės sukūrimo data',
+  },
+  {
+    name: 'placeLastObservedAt',
+    shortName: 'PASK_STEB',
+    type: 'Date',
+    alias: 'Paskutinio stebėjimo data',
+  },
+  {
+    name: 'placeFirstObservedAt',
+    shortName: 'PIRM_STEB',
+    type: 'Date',
+    alias: 'Pirmo stebėjimo data',
+  },
+];
+
+export const OBSERVATION_EXPORT_FIELDS: VectorExportField[] = [
+  { name: 'formId', shortName: 'ANKET_ID', type: 'Integer', alias: 'Anketos ID' },
+  { name: 'speciesId', shortName: 'RUSIS_ID', type: 'Integer', alias: 'Rūšies ID' },
+  { name: 'speciesName', shortName: 'RUSIS_PAV', type: 'String', alias: 'Rūšies pavadinimas' },
+  {
+    name: 'speciesNameLatin',
+    shortName: 'RUSIS_LOT',
+    type: 'String',
+    alias: 'Rūšies lotyniškas pavadinimas',
+  },
+  { name: 'speciesType', shortName: 'RUSIES_TIP', type: 'String', alias: 'Rūšies tipas' },
+  { name: 'quantity', shortName: 'INDIV_SK', type: 'Integer', alias: 'Individų skaičius' },
+  { name: 'quantityTranslate', shortName: 'KIEKIS', type: 'String', alias: 'Kiekis' },
+  { name: 'description', shortName: 'APRASYMAS', type: 'String', alias: 'Aprašymas' },
+  { name: 'observedAt', shortName: 'STEB_DATA', type: 'Date', alias: 'Stebėta' },
+  { name: 'createdAt', shortName: 'SUKURTA', type: 'Date', alias: 'Sukurta' },
+  { name: 'source', shortName: 'SALTINIS', type: 'String', alias: 'Šaltinis' },
+  { name: 'activity', shortName: 'VEIK_POZ', type: 'String', alias: 'Veiklos požymiai' },
+  { name: 'evolution', shortName: 'VYST_STAD', type: 'String', alias: 'Vystymosi stadija' },
+  {
+    name: 'placeId',
+    shortName: 'RADAV_ID',
+    type: 'Integer',
+    alias: 'Radavietės ID',
+  },
+  {
+    name: 'placeCode',
+    shortName: 'RADAV_KOD',
+    type: 'String',
+    alias: 'Radavietės kodas',
+  },
+];
+
 const LAYER_SUFFIX_BY_MULTI_TYPE: Record<MultiGeometryType, string> = {
   MultiPoint: 'taskai',
   MultiLineString: 'linijos',
   MultiPolygon: 'plotai',
 };
+
+export function layerSuffixFor(geometryType: string): string {
+  return LAYER_SUFFIX_BY_MULTI_TYPE[geometryType as MultiGeometryType] || geometryType;
+}
 
 // OpenFileGDB and Shapefile cannot hold Polygon and MultiPolygon in one layer,
 // so promote singles and keep one payload for every format.
@@ -189,7 +263,10 @@ function splitLayerByGeometryType(layer: VectorExportLayer): VectorExportLayer[]
   }));
 }
 
-function buildPlaceFeatures(places: RequestPlace[], speciesById: SpeciesById): ExportFeature[] {
+export function buildPlaceFeatures(
+  places: RequestPlace[],
+  speciesById: SpeciesById,
+): ExportFeature[] {
   const features: ExportFeature[] = [];
 
   places?.forEach((place) => {
@@ -250,7 +327,7 @@ function buildObservationFeaturesFromForm(
 
 // Two sources, as in the GeoJSON export: forms on a place, and informational
 // forms that have none.
-function buildObservationFeatures(
+export function buildObservationFeatures(
   places: RequestPlace[],
   informationalForms: InformationalFormsBySpecies,
   speciesById: SpeciesById,
@@ -293,84 +370,21 @@ export function buildVectorExportPayload(
   );
 
   const placeLayers: VectorExportLayer = {
-    name: 'Radavietes',
+    name: PLACE_LAYER_NAME,
     geojson: {
       type: 'FeatureCollection',
       features: placeFeatures,
     },
-    fields: [
-      { name: 'placeId', shortName: 'RADAV_ID', type: 'Integer', alias: 'Radavietės ID' },
-      { name: 'placeCode', shortName: 'RADAV_KOD', type: 'String', alias: 'Radavietės kodas' },
-      { name: 'speciesId', shortName: 'RUSIS_ID', type: 'Integer', alias: 'Rūšies ID' },
-      { name: 'speciesName', shortName: 'RUSIS_PAV', type: 'String', alias: 'Rūšies pavadinimas' },
-      {
-        name: 'speciesNameLatin',
-        shortName: 'RUSIS_LOT',
-        type: 'String',
-        alias: 'Rūšies lotyniškas pavadinimas',
-      },
-      { name: 'placeStatus', shortName: 'BUSENA', type: 'String', alias: 'Radavietės būsena' },
-      { name: 'placeArea', shortName: 'PLOTAS_M2', type: 'Real', alias: 'Radavietės plotas (m²)' },
-      { name: 'placeAreaText', shortName: 'PLOTAS', type: 'String', alias: 'Radavietės plotas' },
-      {
-        name: 'placeCreatedAt',
-        shortName: 'SUKURTA',
-        type: 'Date',
-        alias: 'Radavietės sukūrimo data',
-      },
-      {
-        name: 'placeLastObservedAt',
-        shortName: 'PASK_STEB',
-        type: 'Date',
-        alias: 'Paskutinio stebėjimo data',
-      },
-      {
-        name: 'placeFirstObservedAt',
-        shortName: 'PIRM_STEB',
-        type: 'Date',
-        alias: 'Pirmo stebėjimo data',
-      },
-    ],
+    fields: PLACE_EXPORT_FIELDS,
   };
 
   const observationLayers: VectorExportLayer = {
-    name: 'Stebejimai',
+    name: OBSERVATION_LAYER_NAME,
     geojson: {
       type: 'FeatureCollection',
       features: observationFeatures,
     },
-    fields: [
-      { name: 'formId', shortName: 'ANKET_ID', type: 'Integer', alias: 'Anketos ID' },
-      { name: 'speciesId', shortName: 'RUSIS_ID', type: 'Integer', alias: 'Rūšies ID' },
-      { name: 'speciesName', shortName: 'RUSIS_PAV', type: 'String', alias: 'Rūšies pavadinimas' },
-      {
-        name: 'speciesNameLatin',
-        shortName: 'RUSIS_LOT',
-        type: 'String',
-        alias: 'Rūšies lotyniškas pavadinimas',
-      },
-      { name: 'speciesType', shortName: 'RUSIES_TIP', type: 'String', alias: 'Rūšies tipas' },
-      { name: 'quantity', shortName: 'INDIV_SK', type: 'Integer', alias: 'Individų skaičius' },
-      { name: 'quantityTranslate', shortName: 'KIEKIS', type: 'String', alias: 'Kiekis' },
-      { name: 'description', shortName: 'APRASYMAS', type: 'String', alias: 'Aprašymas' },
-      { name: 'observedAt', shortName: 'STEB_DATA', type: 'Date', alias: 'Stebėta' },
-      { name: 'createdAt', shortName: 'SUKURTA', type: 'Date', alias: 'Sukurta' },
-      { name: 'source', shortName: 'SALTINIS', type: 'String', alias: 'Šaltinis' },
-      { name: 'activity', shortName: 'VEIK_POZ', type: 'String', alias: 'Veiklos požymiai' },
-      { name: 'evolution', shortName: 'VYST_STAD', type: 'String', alias: 'Vystymosi stadija' },
-      {
-        name: 'placeId',
-        shortName: 'RADAV_ID',
-        type: 'Integer',
-        alias: 'Radavietės ID',
-      },
-      {
-        name: 'placeCode',
-        shortName: 'RADAV_KOD',
-        type: 'String',
-        alias: 'Radavietės kodas',
-      },
-    ],
+    fields: OBSERVATION_EXPORT_FIELDS,
   };
 
   const layers: VectorExportLayer[] = [];
