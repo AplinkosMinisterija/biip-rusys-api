@@ -3,12 +3,17 @@ import { Request } from '../../services/requests.service';
 import { Taxonomy } from '../../services/taxonomies.service';
 import { TaxonomySpeciesType } from '../../types/constants';
 import {
-  buildVectorExportPayload,
+  buildObservationFeatures,
+  buildPlaceFeatures,
+  ExportFeature,
   ObservationExportFeature,
+  OBSERVATION_EXPORT_FIELDS,
+  OBSERVATION_LAYER_NAME,
   PlaceExportFeature,
+  PLACE_EXPORT_FIELDS,
+  PLACE_LAYER_NAME,
   RequestPlace,
-  validateVectorExportData,
-  VectorExportLayer,
+  VectorExportField,
 } from './requests';
 
 const species = (over: Partial<Taxonomy> = {}): Taxonomy =>
@@ -73,52 +78,29 @@ const form = (over = {}) => ({
   ...over,
 });
 
-const layerNames = (layers: VectorExportLayer[]) => layers.map((l) => l.name);
+const places = (...list: RequestPlace[]) => buildPlaceFeatures(list, speciesById);
 
-const layer = (layers: VectorExportLayer[], name: string) =>
-  layers.find((l) => l.name === name) as VectorExportLayer;
+const observations = (
+  list: RequestPlace[],
+  informationalForms: Parameters<typeof buildObservationFeatures>[1] = {},
+) => buildObservationFeatures(list, informationalForms, speciesById);
 
-describe('buildVectorExportPayload', () => {
-  it('builds a place layer and an observation layer in LKS-94', () => {
-    const { layers, name, srid } = buildVectorExportPayload(request, {
-      places: [place({ forms: [form()] })],
-      speciesById,
-    });
+const declaredLayers: Array<{ name: string; fields: VectorExportField[] }> = [
+  { name: PLACE_LAYER_NAME, fields: PLACE_EXPORT_FIELDS },
+  { name: OBSERVATION_LAYER_NAME, fields: OBSERVATION_EXPORT_FIELDS },
+];
 
-    expect(name).toBe('israsas-42');
-    expect(srid).toBe(3346);
-    expect(layerNames(layers)).toEqual(['Radavietes', 'Stebejimai']);
-  });
-
+describe('the exported features', () => {
   it('promotes a single geometry to its Multi* variant — one layer holds one geometry type', () => {
-    const { layers } = buildVectorExportPayload(request, {
-      places: [place({ forms: [form()] })],
-      speciesById,
-    });
-
-    expect(layer(layers, 'Radavietes').geojson.features[0].geometry.type).toBe('MultiPolygon');
-    expect(layer(layers, 'Stebejimai').geojson.features[0].geometry.type).toBe('MultiPoint');
-  });
-
-  it('splits a mixed-geometry layer into per-type sub-layers', () => {
-    const { layers } = buildVectorExportPayload(request, {
-      places: [place(), place({ id: 2, placeCode: 'SRIS-0002', geom: geom(point) })],
-      speciesById,
-    });
-
-    expect(layerNames(layers)).toEqual(['Radavietes_plotai', 'Radavietes_taskai']);
-    expect(layer(layers, 'Radavietes_plotai').fields).toEqual(
-      layer(layers, 'Radavietes_taskai').fields,
-    );
+    expect(places(place()).map((f) => f.geometry.type)).toEqual(['MultiPolygon']);
+    expect(observations([place({ forms: [form()] })]).map((f) => f.geometry.type)).toEqual([
+      'MultiPoint',
+    ]);
   });
 
   it('emits one feature per geometry of a multi-geometry place', () => {
-    const { layers } = buildVectorExportPayload(request, {
-      places: [place({ geom: geom(polygon, polygon) })],
-      speciesById,
-    });
+    const features = places(place({ geom: geom(polygon, polygon) }));
 
-    const features = layer(layers, 'Radavietes').geojson.features;
     expect(features).toHaveLength(2);
     expect(features.map((f) => (f.properties as PlaceExportFeature).placeCode)).toEqual([
       'SRIS-0001',
@@ -126,14 +108,14 @@ describe('buildVectorExportPayload', () => {
     ]);
   });
 
-  it('includes informational forms, which have no place', () => {
-    const { layers } = buildVectorExportPayload(request, {
-      informationalForms: { '7': { forms: [form({ species: 7 })] } },
-      speciesById,
-    });
+  it('drops a place whose geom carries nothing a driver accepts', () => {
+    expect(places(place({ geom: geom() }))).toEqual([]);
+  });
 
-    const [observation] = layer(layers, 'Stebejimai').geojson.features;
+  it('includes informational forms, which have no place', () => {
+    const [observation] = observations([], { '7': { forms: [form({ species: 7 })] } });
     const properties = observation.properties as ObservationExportFeature;
+
     expect(properties.formId).toBe(77);
     // Not undefined: JSON.stringify drops the key and the VRT then names a missing field.
     expect(properties.placeId).toBeNull();
@@ -141,28 +123,9 @@ describe('buildVectorExportPayload', () => {
   });
 
   it('writes the species type in Lithuanian, never the enum value', () => {
-    const { layers } = buildVectorExportPayload(request, {
-      places: [place({ forms: [form()] })],
-      speciesById,
-    });
+    const [observation] = observations([place({ forms: [form()] })]);
 
-    const [observation] = layer(layers, 'Stebejimai').geojson.features;
     expect((observation.properties as ObservationExportFeature).speciesType).toBe('Saugoma');
-  });
-
-  it('gives every field a unique Shapefile name of at most 10 characters', () => {
-    const { layers } = buildVectorExportPayload(request, {
-      places: [place({ forms: [form()] })],
-      speciesById,
-    });
-
-    layers.forEach(({ name, fields }) => {
-      const shortNames = fields.map((f) => f.shortName);
-      expect(shortNames.filter((shortName) => !shortName)).toEqual([]);
-      expect(shortNames.filter((shortName) => shortName.length > 10)).toEqual([]);
-      expect(new Set(shortNames).size).toBe(fields.length);
-      expect(name).toMatch(/^[A-Za-z0-9_]+$/);
-    });
   });
 
   it('writes every declared field on every feature, so the VRT never names a missing source', () => {
@@ -173,25 +136,24 @@ describe('buildVectorExportPayload', () => {
       placeLastObservedAt: undefined,
       placeFirstObservedAt: undefined,
     });
-    const { layers } = buildVectorExportPayload(request, {
-      places: [bare],
-      informationalForms: {
-        '7': {
-          forms: [
-            form({
-              species: 7,
-              description: undefined,
-              activityTranslate: undefined,
-              evolutionTranslate: undefined,
-            }),
-          ],
-        },
-      },
-      speciesById,
+    const bareForm = form({
+      species: 7,
+      description: undefined,
+      activityTranslate: undefined,
+      evolutionTranslate: undefined,
     });
 
-    layers.forEach(({ name, fields, geojson }) => {
-      geojson.features.forEach((feature) => {
+    const built: Array<[string, VectorExportField[], ExportFeature[]]> = [
+      [PLACE_LAYER_NAME, PLACE_EXPORT_FIELDS, places(bare)],
+      [
+        OBSERVATION_LAYER_NAME,
+        OBSERVATION_EXPORT_FIELDS,
+        observations([], { '7': { forms: [bareForm] } }),
+      ],
+    ];
+
+    built.forEach(([name, fields, features]) => {
+      features.forEach((feature) => {
         // The round-trip is what the pipeline does to the payload.
         const serialized = Object.keys(JSON.parse(JSON.stringify(feature.properties)));
         const missing = fields.map((f) => f.name).filter((n) => !serialized.includes(n));
@@ -199,65 +161,25 @@ describe('buildVectorExportPayload', () => {
       });
     });
   });
+});
+
+describe('the declared fields', () => {
+  it('gives every field a unique Shapefile name of at most 10 characters', () => {
+    declaredLayers.forEach(({ name, fields }) => {
+      const shortNames = fields.map((f) => f.shortName);
+
+      expect(shortNames.filter((shortName) => !shortName)).toEqual([]);
+      expect(shortNames.filter((shortName) => shortName.length > 10)).toEqual([]);
+      expect(new Set(shortNames).size).toBe(fields.length);
+      expect(name).toMatch(/^[A-Za-z0-9_]+$/);
+    });
+  });
 
   it('declares the date fields as Date — the export carries YYYY-MM-DD, not timestamps', () => {
-    const { layers } = buildVectorExportPayload(request, {
-      places: [place({ forms: [form()] })],
-      speciesById,
-    });
-
-    const dateFields = layers
+    const dateFields = declaredLayers
       .flatMap((l) => l.fields)
       .filter((f) => ['placeCreatedAt', 'observedAt', 'createdAt'].includes(f.name));
 
     expect(dateFields.map((f) => f.type)).toEqual(['Date', 'Date', 'Date']);
-  });
-});
-
-describe('splitLayerByGeometryType', () => {
-  it('groups a large mixed layer in linear time', () => {
-    const places = Array.from({ length: 20_000 }, (_, i) =>
-      place({ id: i, placeCode: `SRIS-${i}`, geom: geom(polygon, point) }),
-    );
-
-    const started = Date.now();
-    const { layers } = buildVectorExportPayload(request, { places, speciesById });
-    const elapsed = Date.now() - started;
-
-    expect(layers.map((l) => `${l.name}=${l.geojson.features.length}`)).toEqual([
-      'Radavietes_plotai=20000',
-      'Radavietes_taskai=20000',
-    ]);
-    // Copying the group array per feature makes this ~1s; grouping in place is ~20ms.
-    expect(elapsed).toBeLessThan(250);
-  });
-});
-
-describe('validateVectorExportData', () => {
-  it('rejects a request with no places and no forms', () => {
-    expect(validateVectorExportData({ places: [], informationalForms: {} })).toMatchObject({
-      valid: false,
-      placesCount: 0,
-      observationsCount: 0,
-    });
-  });
-
-  it('rejects a request whose places and forms all lack geometry', () => {
-    expect(
-      validateVectorExportData({
-        places: [place({ geom: undefined, forms: [form({ geom: undefined })] })],
-      }),
-    ).toMatchObject({ valid: false, placesCount: 1, observationsCount: 1 });
-  });
-
-  it('accepts a request with one place geometry', () => {
-    expect(validateVectorExportData({ places: [place()] })).toMatchObject({ valid: true });
-
-    const emptyGeom = { places: [place({ geom: geom() })], informationalForms: {} };
-
-    expect({
-      valid: validateVectorExportData(emptyGeom).valid,
-      layers: buildVectorExportPayload(request, emptyGeom).layers.length,
-    }).toEqual({ valid: false, layers: 0 });
   });
 });

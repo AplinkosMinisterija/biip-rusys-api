@@ -3,15 +3,11 @@ import { Request } from '../../services/requests.service';
 import { TaxonomySpeciesTypeTranslate } from '../../types/constants';
 import { SpeciesById } from '../requests';
 
-export interface VectorExportLayer {
+// How a layer reaches the tools service: the features are fetched from the url, never inlined.
+export interface VectorExportLayerSource {
   name: string;
-  geojson: ExportFeatureCollection;
   fields: VectorExportField[];
-}
-
-export interface ExportFeatureCollection {
-  type: 'FeatureCollection';
-  features: ExportFeature[];
+  url: string;
 }
 
 export interface ExportFeature {
@@ -27,19 +23,6 @@ export interface VectorExportField {
   shortName: string;
   type: 'String' | 'Integer' | 'Integer64' | 'Real' | 'Date' | 'DateTime';
   alias: string;
-}
-
-export interface VectorExportPayload {
-  layers: VectorExportLayer[];
-  name: string;
-  srid: number;
-}
-
-export interface VectorExportDataValidation {
-  valid: boolean;
-  message: string;
-  placesCount: number;
-  observationsCount: number;
 }
 
 export interface PlaceExportFeature {
@@ -241,28 +224,6 @@ function buildFeaturesFromGeom(
   }));
 }
 
-// The tools vector-export contract: one geometry type per layer. Mixed layers
-// are split into per-type sub-layers (e.g. Radavietes_taskai, Radavietes_plotai).
-// Names stay ASCII: a Shapefile layer name becomes a filename inside the ZIP.
-function splitLayerByGeometryType(layer: VectorExportLayer): VectorExportLayer[] {
-  const featuresByType = new Map<string, ExportFeature[]>();
-
-  layer.geojson.features.forEach((feature) => {
-    const type = feature.geometry.type;
-    const group = featuresByType.get(type);
-    if (group) group.push(feature);
-    else featuresByType.set(type, [feature]);
-  });
-
-  if (featuresByType.size <= 1) return [layer];
-
-  return [...featuresByType.entries()].map(([type, features]) => ({
-    ...layer,
-    name: `${layer.name}_${LAYER_SUFFIX_BY_MULTI_TYPE[type as MultiGeometryType] || type}`,
-    geojson: { type: 'FeatureCollection', features },
-  }));
-}
-
 export function buildPlaceFeatures(
   places: RequestPlace[],
   speciesById: SpeciesById,
@@ -352,91 +313,4 @@ export function buildObservationFeatures(
   });
 
   return features;
-}
-
-function getAllForms(informationalForms?: InformationalFormsBySpecies): RequestObservationForm[] {
-  return Object.values(informationalForms || {}).flatMap((group) => group.forms || []);
-}
-
-export function buildVectorExportPayload(
-  request: Request,
-  requestData: VectorExportRequestData,
-): VectorExportPayload {
-  const placeFeatures = buildPlaceFeatures(requestData.places || [], requestData.speciesById || {});
-  const observationFeatures = buildObservationFeatures(
-    requestData.places || [],
-    requestData.informationalForms || {},
-    requestData.speciesById || {},
-  );
-
-  const placeLayers: VectorExportLayer = {
-    name: PLACE_LAYER_NAME,
-    geojson: {
-      type: 'FeatureCollection',
-      features: placeFeatures,
-    },
-    fields: PLACE_EXPORT_FIELDS,
-  };
-
-  const observationLayers: VectorExportLayer = {
-    name: OBSERVATION_LAYER_NAME,
-    geojson: {
-      type: 'FeatureCollection',
-      features: observationFeatures,
-    },
-    fields: OBSERVATION_EXPORT_FIELDS,
-  };
-
-  const layers: VectorExportLayer[] = [];
-
-  if (placeFeatures.length > 0) {
-    layers.push(...splitLayerByGeometryType(placeLayers));
-  }
-
-  if (observationFeatures.length > 0) {
-    layers.push(...splitLayerByGeometryType(observationLayers));
-  }
-
-  return {
-    layers,
-    name: `israsas-${request.id}`,
-    srid: 3346,
-  };
-}
-
-export function validateVectorExportData(
-  requestData: VectorExportRequestData,
-): VectorExportDataValidation {
-  const places = requestData?.places || [];
-  // Observations include forms attached to places, mirroring buildObservationFeatures.
-  const forms = [
-    ...places.flatMap((p) => p.forms || []),
-    ...getAllForms(requestData?.informationalForms),
-  ];
-  const counts = { placesCount: places.length, observationsCount: forms.length };
-
-  if (!counts.placesCount && !counts.observationsCount) {
-    return {
-      ...counts,
-      valid: false,
-      message: 'No places or observation forms available',
-    };
-  }
-
-  const placesWithGeom = places.filter((p) => toExportGeometries(p.geom).length).length;
-  const observationsWithGeom = forms.filter((f) => toExportGeometries(f.geom).length).length;
-
-  if (!placesWithGeom && !observationsWithGeom) {
-    return {
-      ...counts,
-      valid: false,
-      message: 'No geometries found for places or observations',
-    };
-  }
-
-  return {
-    ...counts,
-    valid: true,
-    message: `Valid: ${placesWithGeom} places, ${observationsWithGeom} observations`,
-  };
 }

@@ -3,7 +3,14 @@
 import moleculer, { Context } from 'moleculer';
 import { Action, Method, Service } from 'moleculer-decorators';
 import { toReadableStream } from '../utils/functions';
-import type { VectorExportPayload } from '../utils/vector-export/requests';
+import type { VectorExportLayerSource } from '../utils/vector-export/requests';
+
+// The layer travels as a presigned url: a 300k-feature collection is ~130MB, well past the gateway's body limit.
+interface VectorExportPayload {
+  layers: VectorExportLayerSource[];
+  name: string;
+  srid: number;
+}
 
 // Every tools vector endpoint takes the same body; the format is the URL.
 const VECTOR_EXPORT_PARAMS = {
@@ -13,7 +20,7 @@ const VECTOR_EXPORT_PARAMS = {
       type: 'object',
       props: {
         name: 'string',
-        geojson: 'object',
+        url: 'string',
         fields: 'array',
       },
     },
