@@ -1451,12 +1451,15 @@ export default class RequestsService extends moleculer.Service {
       scope: USERS_DEFAULT_SCOPES,
     });
 
+    const email = request.notifyEmail || user?.email;
+    if (!email) return;
+
     const isExpert = await ctx.call('requests.isExpertUser', {
       userId: user.id,
     });
 
     notifyOnFileGenerated(
-      request.notifyEmail || user.email,
+      email,
       request.id,
       !!(!request.tenant && isExpert),
       user.type === UserType.ADMIN,

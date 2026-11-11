@@ -1,3 +1,10 @@
+jest.mock('../utils/mails', () => ({
+  emailCanBeSent: () => true,
+  notifyOnFileGenerated: jest.fn(),
+  notifyOnRequestUpdate: jest.fn(),
+}));
+
+import { notifyOnFileGenerated } from '../utils/mails';
 import RequestsService, {
   Request,
   RequestDocumentType,
@@ -26,10 +33,20 @@ const generateDocumentsIfNeeded = (
   }
 ).generateDocumentsIfNeeded;
 
-const { saveGeneratedFile, initiateDocumentGenerate } = RequestsService.prototype as unknown as {
-  saveGeneratedFile: SaveGeneratedFile;
-  initiateDocumentGenerate: InitiateDocumentGenerate;
-};
+type SendNotificationOnFileGenerated = (
+  this: unknown,
+  ctx: { call: (action: string, params?: unknown) => Promise<unknown> },
+  request: Partial<Request>,
+  documentType: string,
+  sendEmail: boolean,
+) => Promise<void>;
+
+const { saveGeneratedFile, initiateDocumentGenerate, sendNotificationOnFileGenerated } =
+  RequestsService.prototype as unknown as {
+    saveGeneratedFile: SaveGeneratedFile;
+    initiateDocumentGenerate: InitiateDocumentGenerate;
+    sendNotificationOnFileGenerated: SendNotificationOnFileGenerated;
+  };
 
 const approvedRequest = {
   id: 42,
@@ -124,5 +141,55 @@ describe('initiateDocumentGenerate', () => {
       result: { generating: false },
       calls: ['requests.resolve'],
     });
+  });
+});
+
+describe('sendNotificationOnFileGenerated', () => {
+  const notifyWith = async (request: Partial<Request>, user: unknown) => {
+    const histories: unknown[][] = [];
+    const self = {
+      createRequestHistory: (...args: unknown[]) => {
+        histories.push(args);
+        return Promise.resolve();
+      },
+    };
+    const call = jest.fn(async (action: string) => {
+      if (action === 'users.resolve') return user;
+      if (action === 'requests.isExpertUser') return false;
+      throw new Error(`unexpected call: ${action}`);
+    });
+
+    await sendNotificationOnFileGenerated.call(
+      self,
+      { call },
+      request,
+      RequestDocumentType.SHP,
+      true,
+    );
+
+    return { histories };
+  };
+
+  beforeEach(() => jest.mocked(notifyOnFileGenerated).mockClear());
+
+  it('attempts no mail when neither the request nor its author has an address', async () => {
+    const { histories } = await notifyWith(
+      { id: 42, notifyEmail: null, createdBy: 1, speciesTypes: ['ENDANGERED'] } as Request,
+      { id: 1, email: null },
+    );
+
+    expect({
+      mails: jest.mocked(notifyOnFileGenerated).mock.calls.length,
+      histories: histories.length,
+    }).toEqual({ mails: 0, histories: 1 });
+  });
+
+  it("sends to the author's address when the request carries none", async () => {
+    await notifyWith(
+      { id: 42, notifyEmail: null, createdBy: 1, speciesTypes: ['ENDANGERED'] } as Request,
+      { id: 1, email: 'author@example.com' },
+    );
+
+    expect(jest.mocked(notifyOnFileGenerated).mock.calls[0][0]).toBe('author@example.com');
   });
 });
