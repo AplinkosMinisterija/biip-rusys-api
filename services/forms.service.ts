@@ -36,6 +36,12 @@ import {
   parseToObject,
   shouldRecomputePlaceOnRelevancyChange,
 } from '../utils/functions';
+import {
+  FormImportErrors,
+  FormImportRow,
+  formImportRowToParams,
+  validateFormImportRow,
+} from '../utils/formsImport';
 import { emailCanBeSent, notifyFormAssignee, notifyOnFormUpdate } from '../utils/mails';
 import { FormHistoryTypes } from './forms.histories.service';
 import { FormSettingsGroupType, FormSettingsOptions } from './forms.settings.options.service';
@@ -811,6 +817,71 @@ export default class FormsService extends moleculer.Service {
       rows: users,
       total: users.length,
     } as DBPagination<User>;
+  }
+
+  @Action({
+    rest: 'POST /import',
+    params: {
+      rows: {
+        type: 'array',
+        min: 1,
+        max: 1000,
+        items: { type: 'object' },
+      },
+      source: { type: 'number', optional: true, convert: true },
+      dryRun: { type: 'boolean', optional: true, default: false },
+    },
+    types: [EndpointType.ADMIN],
+  })
+  async import(
+    ctx: Context<{ rows: FormImportRow[]; source?: number; dryRun?: boolean }, UserAuthMeta>,
+  ) {
+    const { rows, source, dryRun } = ctx.params;
+
+    const speciesIds = _.uniq(
+      rows.map((row) => Number(row.species)).filter((id) => Number.isInteger(id) && id > 0),
+    );
+
+    const taxonomies: Record<number, Taxonomy> = speciesIds.length
+      ? await ctx.call('taxonomies.findBySpeciesId', {
+          id: speciesIds,
+          showHidden: true,
+          mapping: true,
+        })
+      : {};
+
+    const results: { index: number; errors: string[]; id?: number }[] = [];
+
+    for (const [index, row] of rows.entries()) {
+      const taxonomy = taxonomies?.[Number(row.species)];
+      const errors = validateFormImportRow(row, taxonomy);
+
+      if (!errors.length && taxonomy?.formType) {
+        const methodIsValid = await ctx.call('forms.types.validateMethod', {
+          type: taxonomy.formType,
+          method: row.method || undefined,
+        });
+        if (!methodIsValid) errors.push(FormImportErrors.BAD_METHOD);
+      }
+
+      if (dryRun || errors.length) {
+        results.push({ index, errors });
+        continue;
+      }
+
+      try {
+        const form: Form = await ctx.call('forms.create', formImportRowToParams(row, source));
+        results.push({ index, errors, id: form.id });
+      } catch (err) {
+        results.push({ index, errors: [err?.message || 'Nepavyko sukurti anketos'] });
+      }
+    }
+
+    return {
+      rows: results,
+      created: results.filter((r) => !!r.id).length,
+      skipped: results.filter((r) => r.errors.length).length,
+    };
   }
 
   @Action({
