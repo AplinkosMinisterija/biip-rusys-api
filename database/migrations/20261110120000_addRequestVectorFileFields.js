@@ -16,6 +16,9 @@ exports.up = async function (knex) {
 
     await knex.schema.alterTable('requests', (table) => table.string(column));
   }
+
+  // knex runs the whole batch in one transaction, so SET LOCAL would bind later migrations.
+  await knex.raw(`SET LOCAL lock_timeout = DEFAULT`);
 };
 
 /**
@@ -30,4 +33,6 @@ exports.down = async function (knex) {
 
     await knex.schema.alterTable('requests', (table) => table.dropColumn(column));
   }
+
+  await knex.raw(`SET LOCAL lock_timeout = DEFAULT`);
 };

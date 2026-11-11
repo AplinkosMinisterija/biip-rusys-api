@@ -613,37 +613,43 @@ export default class RequestsService extends moleculer.Service {
 
   @Action(SAVE_GENERATED_FILE_ACTION)
   saveGeneratedPdf(ctx: Context<{ id: number; url: string }>) {
-    return this.saveGeneratedFile(ctx, 'generatedFile');
+    return this.saveGeneratedFile(ctx, RequestDocumentType.PDF);
   }
 
   @Action(SAVE_GENERATED_FILE_ACTION)
   saveGeneratedGeojson(ctx: Context<{ id: number; url: string }>) {
-    return this.saveGeneratedFile(ctx, 'generatedFileGeojson');
+    return this.saveGeneratedFile(ctx, RequestDocumentType.GEOJSON);
   }
 
   @Action(SAVE_GENERATED_FILE_ACTION)
   saveGeneratedShp(ctx: Context<{ id: number; url: string }>) {
-    return this.saveGeneratedFile(ctx, 'generatedFileShp');
+    return this.saveGeneratedFile(ctx, RequestDocumentType.SHP);
   }
 
   @Action(SAVE_GENERATED_FILE_ACTION)
   saveGeneratedGdb(ctx: Context<{ id: number; url: string }>) {
-    return this.saveGeneratedFile(ctx, 'generatedFileGdb');
+    return this.saveGeneratedFile(ctx, RequestDocumentType.GDB);
   }
 
   @Action(SAVE_GENERATED_FILE_ACTION)
   saveGeneratedGpkg(ctx: Context<{ id: number; url: string }>) {
-    return this.saveGeneratedFile(ctx, 'generatedFileGpkg');
+    return this.saveGeneratedFile(ctx, RequestDocumentType.GPKG);
   }
 
   @Method
-  saveGeneratedFile(ctx: Context<{ id: number; url: string }>, field: keyof Request) {
+  async saveGeneratedFile(ctx: Context<{ id: number; url: string }>, documentType: string) {
     const { id, url } = ctx.params;
+    const { field } = GENERATED_DOCUMENTS[documentType];
 
-    return this.updateEntity(ctx, {
-      id,
-      [field]: url,
-    });
+    const request: Request = await this.updateEntity(ctx, { id, [field]: url });
+
+    // Diffing the five columns in `requests.updated` duplicated a row whenever two saves shared an `oldData`.
+    const isOnlyFile = !Object.entries(GENERATED_DOCUMENTS).some(
+      ([type, { field: other }]) => type !== documentType && !!request[other],
+    );
+    await this.sendNotificationOnFileGenerated(ctx, request, documentType, isOnlyFile);
+
+    return request;
   }
 
   @Action()
@@ -1189,6 +1195,11 @@ export default class RequestsService extends moleculer.Service {
       throwUnauthorizedError(`Cannot generate ${documentType}`);
     }
 
+    // A caller must not queue a four-minute `concurrency: 1` job for a file that already exists.
+    if (request[GENERATED_DOCUMENTS[documentType].field]) {
+      return { generating: false };
+    }
+
     // initiateGeojsonGenerate answers with a bare BullMQ job, the others with a flow.
     const result = await ctx.call<{ job?: { id?: string }; id?: string }, { id: number }>(
       initiateAction,
@@ -1415,7 +1426,12 @@ export default class RequestsService extends moleculer.Service {
   }
 
   @Method
-  async sendNotificationOnFileGenerated(ctx: Context, request: Request, documentType: string) {
+  async sendNotificationOnFileGenerated(
+    ctx: Context,
+    request: Request,
+    documentType: string,
+    sendEmail: boolean,
+  ) {
     const documentTypeTranslates = {
       [RequestDocumentType.PDF]: 'PDF',
       [RequestDocumentType.GEOJSON]: 'GeoJSON',
@@ -1427,7 +1443,8 @@ export default class RequestsService extends moleculer.Service {
     const text = translate ? `Paruoštas išrašas ${translate} formatu` : '';
     await this.createRequestHistory(request.id, null, RequestHistoryTypes.FILE_GENERATED, text);
 
-    if (!emailCanBeSent()) return;
+    // One mail per request: the template names no format, so five formats meant five identical mails.
+    if (!sendEmail || !emailCanBeSent()) return;
 
     const user: User = await ctx.call('users.resolve', {
       id: request.createdBy,
@@ -1464,12 +1481,6 @@ export default class RequestsService extends moleculer.Service {
 
       this.generateDocumentsIfNeeded(request);
       void this.sendNotificationOnStatusChange(request, comment);
-    }
-
-    for (const [documentType, { field }] of Object.entries(GENERATED_DOCUMENTS)) {
-      if (prevRequest?.[field] !== request[field] && !!request[field]) {
-        await this.sendNotificationOnFileGenerated(ctx, request, documentType);
-      }
     }
   }
 

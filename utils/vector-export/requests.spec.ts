@@ -214,6 +214,25 @@ describe('buildVectorExportPayload', () => {
   });
 });
 
+describe('splitLayerByGeometryType', () => {
+  it('groups a large mixed layer in linear time', () => {
+    const places = Array.from({ length: 20_000 }, (_, i) =>
+      place({ id: i, placeCode: `SRIS-${i}`, geom: geom(polygon, point) }),
+    );
+
+    const started = Date.now();
+    const { layers } = buildVectorExportPayload(request, { places, speciesById });
+    const elapsed = Date.now() - started;
+
+    expect(layers.map((l) => `${l.name}=${l.geojson.features.length}`)).toEqual([
+      'Radavietes_plotai=20000',
+      'Radavietes_taskai=20000',
+    ]);
+    // Copying the group array per feature makes this ~1s; grouping in place is ~20ms.
+    expect(elapsed).toBeLessThan(250);
+  });
+});
+
 describe('validateVectorExportData', () => {
   it('rejects a request with no places and no forms', () => {
     expect(validateVectorExportData({ places: [], informationalForms: {} })).toMatchObject({

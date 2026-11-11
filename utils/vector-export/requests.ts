@@ -27,7 +27,6 @@ export interface VectorExportField {
   shortName: string;
   type: 'String' | 'Integer' | 'Integer64' | 'Real' | 'Date' | 'DateTime';
   alias: string;
-  nullable?: boolean;
 }
 
 export interface VectorExportPayload {
@@ -176,7 +175,9 @@ function splitLayerByGeometryType(layer: VectorExportLayer): VectorExportLayer[]
 
   layer.geojson.features.forEach((feature) => {
     const type = feature.geometry.type;
-    featuresByType.set(type, [...(featuresByType.get(type) || []), feature]);
+    const group = featuresByType.get(type);
+    if (group) group.push(feature);
+    else featuresByType.set(type, [feature]);
   });
 
   if (featuresByType.size <= 1) return [layer];
@@ -362,14 +363,12 @@ export function buildVectorExportPayload(
         shortName: 'RADAV_ID',
         type: 'Integer',
         alias: 'Radavietės ID',
-        nullable: true,
       },
       {
         name: 'placeCode',
         shortName: 'RADAV_KOD',
         type: 'String',
         alias: 'Radavietės kodas',
-        nullable: true,
       },
     ],
   };
