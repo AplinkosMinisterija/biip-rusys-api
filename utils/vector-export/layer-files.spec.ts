@@ -176,6 +176,19 @@ describe('writeVectorExportLayerFiles', () => {
     expect(feature.properties.placeAreaText).toBeNull();
   });
 
+  it('lets a loader failure through after the files it opened are let go', async () => {
+    const places = Array.from({ length: 150 }, (_, i) => place(i + 1, polygon(500000 + i)));
+    const loader = pagedLoader(places);
+    const failOnSecondPage = async (offset: number, limit: number) => {
+      if (offset) throw new Error('the database went away');
+      return loader.load(offset, limit);
+    };
+
+    await expect(
+      writeVectorExportLayerFiles(dir, speciesById, failOnSecondPage, 100),
+    ).rejects.toThrow('the database went away');
+  });
+
   it('writes no file for a request with nothing to export', async () => {
     const files = await writeVectorExportLayerFiles(dir, speciesById, pagedLoader([]).load, 100);
 

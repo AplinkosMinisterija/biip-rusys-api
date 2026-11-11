@@ -1,6 +1,5 @@
-import { createWriteStream } from 'fs';
-import { promises as fsp } from 'fs';
-import { join } from 'path';
+import { createWriteStream, promises as fsp } from 'fs';
+import { dirname, join } from 'path';
 import { Writable } from 'stream';
 import { finished } from 'stream/promises';
 import { once } from 'events';
@@ -48,20 +47,26 @@ export async function writeVectorExportLayerFiles(
 ): Promise<VectorExportLayerFile[]> {
   const open = new Map<string, OpenLayerFile>();
 
-  for (let offset = 0; ; offset += batchSize) {
-    const batch = await loadBatch(offset, batchSize);
-    const places = batch.places || [];
-    const informationalForms = batch.informationalForms || {};
+  try {
+    for (let offset = 0; ; offset += batchSize) {
+      const batch = await loadBatch(offset, batchSize);
+      const places = batch.places || [];
+      const informationalForms = batch.informationalForms || {};
 
-    if (!places.length && !Object.values(informationalForms).some((g) => g.forms?.length)) break;
+      if (!places.length && !Object.values(informationalForms).some((g) => g.forms?.length)) break;
 
-    for (const feature of buildPlaceFeatures(places, speciesById)) {
-      await append(open, dir, PLACE_LAYER_NAME, PLACE_EXPORT_FIELDS, feature);
+      for (const feature of buildPlaceFeatures(places, speciesById)) {
+        await append(open, dir, PLACE_LAYER_NAME, PLACE_EXPORT_FIELDS, feature);
+      }
+
+      for (const feature of buildObservationFeatures(places, informationalForms, speciesById)) {
+        await append(open, dir, OBSERVATION_LAYER_NAME, OBSERVATION_EXPORT_FIELDS, feature);
+      }
     }
-
-    for (const feature of buildObservationFeatures(places, informationalForms, speciesById)) {
-      await append(open, dir, OBSERVATION_LAYER_NAME, OBSERVATION_EXPORT_FIELDS, feature);
-    }
+  } catch (error) {
+    // A half-written file is discarded with its directory, but its fd is this process's to release.
+    open.forEach((file) => file.stream.destroy());
+    throw error;
   }
 
   for (const file of open.values()) {
@@ -95,25 +100,19 @@ async function append(
 
 // A layer that turned out to hold one geometry type keeps the plain name, as the inline payload does.
 async function dropUnusedSuffixes(files: OpenLayerFile[]): Promise<VectorExportLayerFile[]> {
-  const typesPerLayer = files.reduce<Record<string, number>>(
-    (counts, file) => ({ ...counts, [file.layer]: (counts[file.layer] || 0) + 1 }),
-    {},
-  );
+  const typesPerLayer = new Map<string, number>();
+  files.forEach((file) => typesPerLayer.set(file.layer, (typesPerLayer.get(file.layer) || 0) + 1));
 
   return Promise.all(
     files.map(async ({ layer, stream, ...file }) => {
-      if (typesPerLayer[layer] > 1) return file;
+      if (typesPerLayer.get(layer) > 1) return file;
 
-      const path = join(dirOf(file.path), `${layer}.geojson`);
+      const path = join(dirname(file.path), `${layer}.geojson`);
       await fsp.rename(file.path, path);
 
       return { ...file, name: layer, path };
     }),
   );
-}
-
-function dirOf(path: string): string {
-  return path.slice(0, path.lastIndexOf('/'));
 }
 
 // A 300k-feature export outruns the write buffer, and an unawaited write queues the whole thing in memory.
