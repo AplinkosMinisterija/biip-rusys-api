@@ -71,7 +71,7 @@ type ToolsParams = {
 };
 
 // Every temp upload answers with its own object path and presigned url.
-const minioHandlers = () => {
+const minioHandlers = (failOnUpload = 0) => {
   const uploaded: UploadParams[] = [];
   const removed: Array<{ path: string }> = [];
   let n = 0;
@@ -84,6 +84,7 @@ const minioHandlers = () => {
         const upload = params as UploadParams;
         uploaded.push(upload);
         n += 1;
+        if (n === failOnUpload) throw new Error('minio is down');
 
         return {
           success: true,
@@ -163,9 +164,26 @@ describe('generateAndSaveVectorExport', () => {
     // Two layer files uploaded and removed; the third upload is the export itself.
     expect(minio.uploaded).toHaveLength(3);
     expect(minio.removed.map((r) => r.path)).toEqual([
-      'rusys/uploads/requests/private/user/tmp/object-1.geojson',
-      'rusys/uploads/requests/private/user/tmp/object-2.geojson',
+      'rusys/temp/object-1.geojson',
+      'rusys/temp/object-2.geojson',
     ]);
+  });
+
+  it('removes the objects it already uploaded when a later upload fails', async () => {
+    onePageOf([place(), place({ id: 2, geom: pointGeom() })]);
+    const minio = minioHandlers(2);
+
+    const ctx = contextOf({
+      ...minio.handlers,
+      'requests.resolve': () => ({ id: 42 } as Request),
+    });
+
+    await expect(
+      generateAndSaveVectorExport(ctx, logger(), 42, SHP_EXPORT_FORMAT),
+    ).rejects.toMatchObject({ data: { requestId: 42, format: 'SHP' } });
+
+    expect(minio.uploaded).toHaveLength(2);
+    expect(minio.removed.map((r) => r.path)).toEqual(['rusys/temp/object-1.geojson']);
   });
 
   it('removes every temp object when the conversion fails', async () => {
@@ -184,7 +202,7 @@ describe('generateAndSaveVectorExport', () => {
       generateAndSaveVectorExport(ctx, logger(), 42, SHP_EXPORT_FORMAT),
     ).rejects.toMatchObject({ data: { requestId: 42, format: 'SHP' } });
 
-    expect(minio.removed.map((r) => r.path)).toEqual(['rusys/uploads/requests/private/user/tmp/object-1.geojson']);
+    expect(minio.removed.map((r) => r.path)).toEqual(['rusys/temp/object-1.geojson']);
   });
 
   it('skips without calling the tools when no geometry can be exported', async () => {

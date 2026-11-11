@@ -56,6 +56,8 @@ export const SHP_EXPORT_FORMAT: VectorExportFormat = {
 };
 
 const GEOJSON_MIMETYPE = 'application/geo+json';
+// The bucket expires this prefix after 7 days, which is also the presigned url's life: a backstop for an object the cleanup below never reaches.
+const HANDOVER_FOLDER = 'temp';
 const EXPORT_SRID = 3346;
 
 function getVectorExportRequestData(ctx: Context, id: number) {
@@ -89,13 +91,13 @@ function batchLoader(ctx: Context, id: number, date: string, translates: Request
   return load;
 }
 
+// `paths` is the caller's, so an upload that fails halfway still leaves it holding what went up.
 async function uploadLayerFiles(
   ctx: Context,
-  folder: string,
   files: VectorExportLayerFile[],
-): Promise<{ layers: VectorExportLayerSource[]; paths: string[] }> {
+  paths: string[],
+): Promise<VectorExportLayerSource[]> {
   const layers: VectorExportLayerSource[] = [];
-  const paths: string[] = [];
 
   for (const file of files) {
     // No `name`: minio draws a random one, so two formats of one request cannot collide and the object stays unguessable.
@@ -103,7 +105,7 @@ async function uploadLayerFiles(
       'minio.uploadFile',
       {
         payload: createReadStream(file.path),
-        folder: `${folder}/tmp`,
+        folder: HANDOVER_FOLDER,
         isPrivate: true,
         types: FILE_TYPES,
         presign: true,
@@ -118,7 +120,7 @@ async function uploadLayerFiles(
     layers.push({ name: file.name, fields: file.fields, url: object.presignedUrl });
   }
 
-  return { layers, paths };
+  return layers;
 }
 
 export interface VectorExportGenerationResult {
@@ -126,6 +128,14 @@ export interface VectorExportGenerationResult {
   url?: string;
   skipped?: string;
   reason?: string;
+}
+
+function errorCode(error: unknown): string | undefined {
+  if (!(error instanceof Error)) return undefined;
+
+  const { code, cause } = error as Error & { code?: string; cause?: { code?: string } };
+
+  return code || cause?.code;
 }
 
 export async function generateAndSaveVectorExport(
@@ -156,7 +166,7 @@ export async function generateAndSaveVectorExport(
     );
 
     const dir = await fsp.mkdtemp(join(tmpdir(), `vector-export-${label.toLowerCase()}-${id}-`));
-    let tempObjectPaths: string[] = [];
+    const tempObjectPaths: string[] = [];
     let uploadedFile: FileUploadResponse;
 
     try {
@@ -177,8 +187,7 @@ export async function generateAndSaveVectorExport(
           .join(', ')}`,
       );
 
-      const { layers, paths } = await uploadLayerFiles(ctx, folder, files);
-      tempObjectPaths = paths;
+      const layers = await uploadLayerFiles(ctx, files, tempObjectPaths);
 
       // The tools action streams the file back as a Node Readable (no buffering).
       const stream: NodeJS.ReadableStream = await ctx.call(format.toolsAction, {
@@ -226,6 +235,8 @@ export async function generateAndSaveVectorExport(
     const elapsed = Date.now() - startTime;
     logger.error(`[${label}] Generation failed after ${elapsed}ms for request ${id}`, {
       message: error instanceof Error ? error.message : String(error),
+      // A socket or a nested moleculer error says what went wrong only in its code.
+      code: errorCode(error),
       stack: error instanceof Error ? error.stack : undefined,
     });
 
