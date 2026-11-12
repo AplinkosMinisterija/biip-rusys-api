@@ -1,6 +1,6 @@
 'use strict';
 
-import moleculer, { Context, RestSchema } from 'moleculer';
+import moleculer, { ActionSchema, Context, RestSchema } from 'moleculer';
 import { Action, Event, Method, Service } from 'moleculer-decorators';
 
 import DbConnection from '../mixins/database.mixin';
@@ -41,9 +41,15 @@ import { parseToObject, toReadableStream } from '../utils/functions';
 import { getTemplateHtml } from '../utils/html';
 import { emailCanBeSent, notifyOnFileGenerated, notifyOnRequestUpdate } from '../utils/mails';
 import { getRequestData } from '../utils/pdf/requests';
+import {
+  getObservationFormProperties,
+  getRequestFolderName,
+  getSpeciesData,
+  LKS_94_CRS,
+} from '../utils/requests';
 import { getRequestSecret } from './jobs.requests.service';
 import { Taxonomy } from './taxonomies.service';
-import { TaxonomySpeciesType, TaxonomySpeciesTypeTranslate } from './taxonomies.species.service';
+import { TaxonomySpeciesType } from './taxonomies.species.service';
 
 export const RequestType = {
   GET: 'GET',
@@ -62,6 +68,35 @@ export const RequestStatus = {
 export const RequestDocumentType = {
   PDF: 'PDF',
   GEOJSON: 'GEOJSON',
+  SHP: 'SHP',
+  GDB: 'GDB',
+  GPKG: 'GPKG',
+};
+
+// Auto-generation on approval and the file-ready notification both iterate this map.
+const GENERATED_DOCUMENTS: Record<string, { field: keyof Request; generateAction: string }> = {
+  [RequestDocumentType.PDF]: { field: 'generatedFile', generateAction: 'requests.generatePdf' },
+  [RequestDocumentType.GEOJSON]: {
+    field: 'generatedFileGeojson',
+    generateAction: 'requests.generateGeojson',
+  },
+  [RequestDocumentType.SHP]: { field: 'generatedFileShp', generateAction: 'requests.generateShp' },
+  [RequestDocumentType.GDB]: { field: 'generatedFileGdb', generateAction: 'requests.generateGdb' },
+  [RequestDocumentType.GPKG]: {
+    field: 'generatedFileGpkg',
+    generateAction: 'requests.generateGpkg',
+  },
+};
+
+// Only the generation workers write these; the gateway whitelists every action
+// by path, so without `protected` any caller could point a request's download
+// at a URL of their choosing.
+const SAVE_GENERATED_FILE_ACTION: ActionSchema = {
+  params: {
+    id: 'number',
+    url: 'string',
+  },
+  visibility: 'protected',
 };
 
 const TaxonomyTypes = {
@@ -87,6 +122,9 @@ export interface Request extends BaseModelInterface {
   inheritedSpecies?: number[];
   generatedFile?: string;
   generatedFileGeojson?: string;
+  generatedFileShp?: string;
+  generatedFileGdb?: string;
+  generatedFileGpkg?: string;
   speciesTypes: string[];
   status: string;
   tenant: number | Tenant;
@@ -285,6 +323,12 @@ const populatePermissions = (field: string) => {
 
       generatedFileGeojson: 'string',
 
+      generatedFileShp: 'string',
+
+      generatedFileGdb: 'string',
+
+      generatedFileGpkg: 'string',
+
       notifyEmail: {
         type: 'string',
         onCreate: ({ ctx, value }: FieldHookCallback) => {
@@ -445,7 +489,7 @@ export default class RequestsService extends moleculer.Service {
     },
   })
   async upload(ctx: Context<{}, UserAuthMeta>) {
-    const folder = this.getFolderName(ctx.meta?.user, ctx.meta?.profile);
+    const folder = getRequestFolderName(ctx.meta?.user, ctx.meta?.profile);
     return ctx.call('minio.uploadFile', {
       payload: ctx.params,
       isPrivate: true,
@@ -560,56 +604,60 @@ export default class RequestsService extends moleculer.Service {
     timeout: 0,
   })
   async generatePdf(ctx: Context<{ id: number }>) {
-    const request: Request = await ctx.call('requests.resolve', {
-      id: ctx.params.id,
-      throwIfNotExist: true,
-    });
+    return this.initiateDocumentGenerate(
+      ctx,
+      RequestDocumentType.PDF,
+      'jobs.requests.initiatePdfGenerate',
+    );
+  }
 
-    if (
-      request.status !== RequestStatus.APPROVED ||
-      request.type !== RequestType.GET_ONCE ||
-      !request.documentTypes?.includes(RequestDocumentType.PDF)
-    ) {
-      throwUnauthorizedError('Cannot generate PDF');
+  @Action(SAVE_GENERATED_FILE_ACTION)
+  saveGeneratedPdf(ctx: Context<{ id: number; url: string }>) {
+    return this.saveGeneratedFile(ctx, RequestDocumentType.PDF);
+  }
+
+  @Action(SAVE_GENERATED_FILE_ACTION)
+  saveGeneratedGeojson(ctx: Context<{ id: number; url: string }>) {
+    return this.saveGeneratedFile(ctx, RequestDocumentType.GEOJSON);
+  }
+
+  @Action(SAVE_GENERATED_FILE_ACTION)
+  saveGeneratedShp(ctx: Context<{ id: number; url: string }>) {
+    return this.saveGeneratedFile(ctx, RequestDocumentType.SHP);
+  }
+
+  @Action(SAVE_GENERATED_FILE_ACTION)
+  saveGeneratedGdb(ctx: Context<{ id: number; url: string }>) {
+    return this.saveGeneratedFile(ctx, RequestDocumentType.GDB);
+  }
+
+  @Action(SAVE_GENERATED_FILE_ACTION)
+  saveGeneratedGpkg(ctx: Context<{ id: number; url: string }>) {
+    return this.saveGeneratedFile(ctx, RequestDocumentType.GPKG);
+  }
+
+  @Method
+  async saveGeneratedFile(ctx: Context<{ id: number; url: string }>, documentType: string) {
+    const { id, url } = ctx.params;
+    const { field } = GENERATED_DOCUMENTS[documentType];
+
+    const request: Request = await this.updateEntity(ctx, { id, [field]: url });
+
+    // Diffing the five columns in `requests.updated` duplicated a row whenever two saves shared an `oldData`.
+    const isOnlyFile = !Object.entries(GENERATED_DOCUMENTS).some(
+      ([type, { field: other }]) => type !== documentType && !!request[other],
+    );
+    // The file is already saved, so nothing below may fail the job and make BullMQ redo the conversion.
+    try {
+      await this.sendNotificationOnFileGenerated(ctx, request, documentType, isOnlyFile);
+    } catch (err: unknown) {
+      this.logger.error(
+        `Could not notify about the generated ${documentType} of request ${id}`,
+        err instanceof Error ? err.message : String(err),
+      );
     }
 
-    const flow: any = await ctx.call('jobs.requests.initiatePdfGenerate', {
-      id: ctx.params.id,
-    });
-
-    return {
-      generating: !!flow?.job?.id,
-    };
-  }
-
-  @Action({
-    params: {
-      id: 'number',
-      url: 'string',
-    },
-  })
-  saveGeneratedPdf(ctx: Context<{ id: number; url: string }>) {
-    const { id, url: generatedFile } = ctx.params;
-
-    return this.updateEntity(ctx, {
-      id,
-      generatedFile,
-    });
-  }
-
-  @Action({
-    params: {
-      id: 'number',
-      url: 'string',
-    },
-  })
-  saveGeneratedGeojson(ctx: Context<{ id: number; url: string }>) {
-    const { id, url: generatedFileGeojson } = ctx.params;
-
-    return this.updateEntity(ctx, {
-      id,
-      generatedFileGeojson,
-    });
+    return request;
   }
 
   @Action()
@@ -849,26 +897,65 @@ export default class RequestsService extends moleculer.Service {
     timeout: 0,
   })
   async generateGeojson(ctx: Context<{ id: number }>) {
-    const request: Request = await ctx.call('requests.resolve', {
-      id: ctx.params.id,
-      throwIfNotExist: true,
-    });
+    return this.initiateDocumentGenerate(
+      ctx,
+      RequestDocumentType.GEOJSON,
+      'jobs.requests.initiateGeojsonGenerate',
+    );
+  }
 
-    if (
-      request.status !== RequestStatus.APPROVED ||
-      request.type !== RequestType.GET_ONCE ||
-      !request.documentTypes?.includes(RequestDocumentType.GEOJSON)
-    ) {
-      throwUnauthorizedError('Cannot generate geojson');
-    }
+  @Action({
+    params: {
+      id: {
+        type: 'number',
+        convert: true,
+      },
+    },
+    rest: 'POST /:id/generate/shp',
+    timeout: 0,
+  })
+  async generateShp(ctx: Context<{ id: number }>) {
+    return this.initiateDocumentGenerate(
+      ctx,
+      RequestDocumentType.SHP,
+      'jobs.requests.initiateShpGenerate',
+    );
+  }
 
-    const job: any = await ctx.call('jobs.requests.initiateGeojsonGenerate', {
-      id: ctx.params.id,
-    });
+  @Action({
+    params: {
+      id: {
+        type: 'number',
+        convert: true,
+      },
+    },
+    rest: 'POST /:id/generate/gdb',
+    timeout: 0,
+  })
+  async generateGdb(ctx: Context<{ id: number }>) {
+    return this.initiateDocumentGenerate(
+      ctx,
+      RequestDocumentType.GDB,
+      'jobs.requests.initiateGdbGenerate',
+    );
+  }
 
-    return {
-      generating: !!job?.id,
-    };
+  @Action({
+    params: {
+      id: {
+        type: 'number',
+        convert: true,
+      },
+    },
+    rest: 'POST /:id/generate/gpkg',
+    timeout: 0,
+  })
+  async generateGpkg(ctx: Context<{ id: number }>) {
+    return this.initiateDocumentGenerate(
+      ctx,
+      RequestDocumentType.GPKG,
+      'jobs.requests.initiateGpkgGenerate',
+    );
   }
 
   @Action({
@@ -900,40 +987,12 @@ export default class RequestsService extends moleculer.Service {
       features: [],
     };
 
-    function getSpeciesData(id: number) {
-      const species = requestData.speciesById[`${id}`];
-
-      if (!species?.speciesId) return {};
-
-      return {
-        'Rūšies tipas': TaxonomySpeciesTypeTranslate[species.speciesType],
-        'Rūšies pavadinimas': species.speciesName,
-        'Rūšies lotyniškas pavadinimas': species.speciesNameLatin,
-        'Rūšies sinonimai': species.speciesSynonyms?.join(', ') || '',
-        'Klasės pavadinimas': species.className,
-        'Klasės lotyniškas pavadinimas': species.classNameLatin,
-        'Tipo pavadinimas': species.phylumName,
-        'Tipo lotyniškas pavadinimas': species.phylumNameLatin,
-        'Karalystės pavadinimas': species.kingdomName,
-        'Karalystės lotyniškas pavadinimas': species.kingdomNameLatin,
-      };
-    }
-
-    function getTitle(speciesId: number) {
-      const species = requestData.speciesById[`${speciesId}`];
-      const isInvasive = [TaxonomySpeciesType.INTRODUCED, TaxonomySpeciesType.INVASIVE].includes(
-        species?.speciesType,
-      );
-
-      return isInvasive ? 'Įvedimo į INVA data' : 'Įvedimo į SRIS data';
-    }
-
     requestData.places?.forEach((place) => {
-      const speciesInfo = getSpeciesData(place.species);
+      const speciesInfo = getSpeciesData(requestData.speciesById, place.species);
 
       const placeFeatures = place.geom?.features || [];
       placeFeatures.forEach((pf: any) => {
-        pf.geometry.crs = { type: 'name', properties: { name: 'EPSG:3346' } };
+        pf.geometry.crs = LKS_94_CRS;
         pf.properties = {
           'Objekto tipas': 'Radavietė',
           'Radavietės ID': place.id,
@@ -951,20 +1010,14 @@ export default class RequestsService extends moleculer.Service {
       place.forms?.forEach((form) => {
         const { features } = form.geom || [];
         const featuresToInsert = features.map((f: any) => {
-          f.geometry.crs = { type: 'name', properties: { name: 'EPSG:3346' } };
+          f.geometry.crs = LKS_94_CRS;
           f.properties = {
             'Objekto tipas': 'Stebėjimas',
-            'Anketos ID': form.id,
-            'Radavietės ID': place.id,
-            'Radavietės kodas': place.placeCode,
-            ...speciesInfo,
-            'Individų skaičius (gausumas)': form.quantityTranslate || '0',
-            'Buveinė, elgsena, ūkinė veikla ir kita informacija': form.description,
-            [getTitle(place.species)]: form.createdAt,
-            'Stebėjimo data': form.observedAt,
-            Šaltinis: form.source,
-            'Veiklos požymiai': form.activityTranslate,
-            'Vystymosi stadija': form.evolutionTranslate,
+            ...getObservationFormProperties(
+              form,
+              { speciesById: requestData.speciesById, speciesId: place.species },
+              { id: place.id, placeCode: place.placeCode },
+            ),
           };
           return f;
         });
@@ -977,20 +1030,11 @@ export default class RequestsService extends moleculer.Service {
       item?.forms?.forEach((form: any) => {
         const { features } = form.geom || [];
         const featuresToInsert = features.map((f: any) => {
-          f.geometry.crs = { type: 'name', properties: { name: 'EPSG:3346' } };
-          f.properties = {
-            'Anketos ID': form.id,
-            'Radavietės ID': '-',
-            'Radavietės kodas': '-',
-            ...getSpeciesData(form.species),
-            'Individų skaičius (gausumas)': form.quantityTranslate || '0',
-            'Buveinė, elgsena, ūkinė veikla ir kita informacija': form.description,
-            [getTitle(form.species)]: form.createdAt,
-            'Stebėjimo data': form.observedAt,
-            Šaltinis: form.source,
-            'Veiklos požymiai': form.activityTranslate,
-            'Vystymosi stadija': form.evolutionTranslate,
-          };
+          f.geometry.crs = LKS_94_CRS;
+          f.properties = getObservationFormProperties(form, {
+            speciesById: requestData.speciesById,
+            speciesId: form.species,
+          });
           return f;
         });
 
@@ -1141,35 +1185,61 @@ export default class RequestsService extends moleculer.Service {
   }
 
   @Method
-  async generatePdfIfNeeded(request: Request) {
+  async initiateDocumentGenerate(
+    ctx: Context<{ id: number }>,
+    documentType: string,
+    initiateAction: string,
+  ) {
+    const request: Request = await ctx.call('requests.resolve', {
+      id: ctx.params.id,
+      throwIfNotExist: true,
+    });
+
     if (
-      !request?.id ||
-      request?.generatedFile ||
-      request?.status !== RequestStatus.APPROVED ||
-      request?.type !== RequestType.GET_ONCE ||
-      !request?.documentTypes?.includes(RequestDocumentType.PDF)
+      request.status !== RequestStatus.APPROVED ||
+      request.type !== RequestType.GET_ONCE ||
+      !request.documentTypes?.includes(documentType)
     ) {
-      return;
+      throwUnauthorizedError(`Cannot generate ${documentType}`);
     }
 
-    this.broker.call('requests.generatePdf', { id: request.id });
-    return request;
+    // A caller must not queue a four-minute `concurrency: 1` job for a file that already exists.
+    if (request[GENERATED_DOCUMENTS[documentType].field]) {
+      return { generating: false };
+    }
+
+    // initiateGeojsonGenerate answers with a bare BullMQ job, the others with a flow.
+    const result = await ctx.call<{ job?: { id?: string }; id?: string }, { id: number }>(
+      initiateAction,
+      { id: ctx.params.id },
+    );
+
+    return {
+      generating: !!(result?.job?.id || result?.id),
+    };
   }
 
   @Method
-  async generateGeojsonIfNeeded(request: Request) {
+  generateDocumentsIfNeeded(request: Request) {
     if (
       !request?.id ||
-      request?.generatedFileGeojson ||
       request?.status !== RequestStatus.APPROVED ||
-      request?.type !== RequestType.GET_ONCE ||
-      !request?.documentTypes?.includes(RequestDocumentType.GEOJSON)
+      request?.type !== RequestType.GET_ONCE
     ) {
       return;
     }
 
-    this.broker.call('requests.generateGeojson', { id: request.id });
-    return request;
+    for (const [documentType, { field, generateAction }] of Object.entries(GENERATED_DOCUMENTS)) {
+      if (request[field] || !request.documentTypes?.includes(documentType)) continue;
+
+      // Fire-and-forget by design, but an unhandled rejection is fatal on node 18.
+      void this.broker.call(generateAction, { id: request.id }).catch((err: unknown) => {
+        this.logger.error(
+          `Could not start ${documentType} generation for request ${request.id}`,
+          err instanceof Error ? err.message : String(err),
+        );
+      });
+    }
   }
 
   @Method
@@ -1272,14 +1342,6 @@ export default class RequestsService extends moleculer.Service {
   }
 
   @Method
-  getFolderName(user?: User, tenant?: Tenant) {
-    const tenantPath = tenant?.id || 'private';
-    const userPath = user?.id || 'user';
-
-    return `uploads/requests/${tenantPath}/${userPath}`;
-  }
-
-  @Method
   validateStatus({ ctx, value, entity }: FieldHookCallback) {
     const { user, profile } = ctx.meta;
     if (!value || !user?.id) return true;
@@ -1372,28 +1434,40 @@ export default class RequestsService extends moleculer.Service {
   }
 
   @Method
-  async sendNotificationOnFileGenerated(ctx: Context, request: Request, documentType: string) {
+  async sendNotificationOnFileGenerated(
+    ctx: Context,
+    request: Request,
+    documentType: string,
+    sendEmail: boolean,
+  ) {
     const documentTypeTranslates = {
       [RequestDocumentType.PDF]: 'PDF',
       [RequestDocumentType.GEOJSON]: 'GeoJSON',
+      [RequestDocumentType.SHP]: 'Shapefile',
+      [RequestDocumentType.GDB]: 'Geodatabase',
+      [RequestDocumentType.GPKG]: 'GeoPackage',
     };
     const translate = documentTypeTranslates[documentType];
     const text = translate ? `Paruoštas išrašas ${translate} formatu` : '';
     await this.createRequestHistory(request.id, null, RequestHistoryTypes.FILE_GENERATED, text);
 
-    if (!emailCanBeSent()) return;
+    // One mail per request: the template names no format, so five formats meant five identical mails.
+    if (!sendEmail || !emailCanBeSent()) return;
 
     const user: User = await ctx.call('users.resolve', {
       id: request.createdBy,
       scope: USERS_DEFAULT_SCOPES,
     });
 
+    const email = request.notifyEmail || user?.email;
+    if (!email) return;
+
     const isExpert = await ctx.call('requests.isExpertUser', {
       userId: user.id,
     });
 
     notifyOnFileGenerated(
-      request.notifyEmail || user.email,
+      email,
       request.id,
       !!(!request.tenant && isExpert),
       user.type === UserType.ADMIN,
@@ -1416,22 +1490,8 @@ export default class RequestsService extends moleculer.Service {
 
       await this.createRequestHistory(request.id, ctx.meta, typesByStatus[request.status], comment);
 
-      await this.generatePdfIfNeeded(request);
-      await this.generateGeojsonIfNeeded(request);
-      this.sendNotificationOnStatusChange(request, comment);
-    }
-
-    // Send notification that PDF is prepared
-    if (prevRequest?.generatedFile !== request.generatedFile && !!request.generatedFile) {
-      await this.sendNotificationOnFileGenerated(ctx, request, RequestDocumentType.PDF);
-    }
-
-    // Send notification that GeoJSON is prepared
-    if (
-      prevRequest?.generatedFileGeojson !== request.generatedFileGeojson &&
-      !!request.generatedFileGeojson
-    ) {
-      await this.sendNotificationOnFileGenerated(ctx, request, RequestDocumentType.GEOJSON);
+      this.generateDocumentsIfNeeded(request);
+      void this.sendNotificationOnStatusChange(request, comment);
     }
   }
 
@@ -1447,10 +1507,9 @@ export default class RequestsService extends moleculer.Service {
         RequestHistoryTypes.APPROVED,
         'Automatiškai patvirtintas prašymas.',
       );
-      await this.generatePdfIfNeeded(request);
-      await this.generateGeojsonIfNeeded(request);
+      this.generateDocumentsIfNeeded(request);
     } else {
-      this.sendNotificationOnStatusChange(request);
+      void this.sendNotificationOnStatusChange(request);
     }
   }
 

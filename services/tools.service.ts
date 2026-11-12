@@ -1,8 +1,33 @@
 'use strict';
 
-import { createHash } from 'crypto';
 import moleculer, { Context } from 'moleculer';
 import { Action, Method, Service } from 'moleculer-decorators';
+import { postJson, readText } from '../utils/http';
+import type { VectorExportLayerSource } from '../utils/vector-export/requests';
+
+// The layer travels as a presigned url: a 300k-feature collection is ~130MB, well past the gateway's body limit.
+interface VectorExportPayload {
+  layers: VectorExportLayerSource[];
+  name: string;
+  srid: number;
+}
+
+// Every tools vector endpoint takes the same body; the format is the URL.
+const VECTOR_EXPORT_PARAMS = {
+  layers: {
+    type: 'array',
+    items: {
+      type: 'object',
+      props: {
+        name: 'string',
+        url: 'string',
+        fields: 'array',
+      },
+    },
+  },
+  name: 'string',
+  srid: 'number',
+};
 
 @Service({
   name: 'tools',
@@ -25,6 +50,7 @@ export default class ToolsService extends moleculer.Service {
         optional: true,
       },
     },
+    visibility: 'protected',
     timeout: 0,
   })
   async makeScreenshot(
@@ -82,6 +108,8 @@ export default class ToolsService extends moleculer.Service {
         optional: true,
       },
     },
+    // Every action here takes a url and fetches it; the gateway whitelists `**`, so without this they are callable by any authenticated request.
+    visibility: 'protected',
     timeout: 0,
   })
   async makePdf(ctx: Context<{ url: string; header?: string; footer?: string }>) {
@@ -121,6 +149,51 @@ export default class ToolsService extends moleculer.Service {
           reject(err?.message || 'Error while getting pdf');
         });
     });
+  }
+
+  @Action({
+    params: VECTOR_EXPORT_PARAMS,
+    visibility: 'protected',
+    timeout: 0,
+  })
+  async makeShp(ctx: Context<VectorExportPayload>): Promise<NodeJS.ReadableStream> {
+    return this.fetchVectorExport('/shp', ctx.params);
+  }
+
+  @Action({
+    params: VECTOR_EXPORT_PARAMS,
+    visibility: 'protected',
+    timeout: 0,
+  })
+  async makeGdb(ctx: Context<VectorExportPayload>): Promise<NodeJS.ReadableStream> {
+    return this.fetchVectorExport('/gdb', ctx.params);
+  }
+
+  @Action({
+    params: VECTOR_EXPORT_PARAMS,
+    visibility: 'protected',
+    timeout: 0,
+  })
+  async makeGpkg(ctx: Context<VectorExportPayload>): Promise<NodeJS.ReadableStream> {
+    return this.fetchVectorExport('/gpkg', ctx.params);
+  }
+
+  @Method
+  async fetchVectorExport(
+    path: '/gdb' | '/gpkg' | '/shp',
+    params: VectorExportPayload,
+  ): Promise<NodeJS.ReadableStream> {
+    const { layers, name, srid } = params;
+    // Not `fetch`: undici abandons a response after 300s of waiting for headers, and tools answers only once ogr2ogr is done.
+    const response = await postJson(`${this.toolsHost()}${path}`, { layers, name, srid });
+    const status = response.statusCode || 0;
+
+    if (status < 200 || status > 299) {
+      const detail = await readText(response).catch(() => '');
+      throw new Error(`tools ${path} returned ${status}: ${detail || '<empty body>'}`);
+    }
+
+    return response;
   }
 
   @Method
