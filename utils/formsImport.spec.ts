@@ -1,4 +1,11 @@
-import { formImportRowToParams, FormImportErrors, validateFormImportRow } from './formsImport';
+import {
+  formImportRowToParams,
+  FormImportErrors,
+  parseWktGeometry,
+  validateFormImportRow,
+} from './formsImport';
+
+const SQUARE = 'POLYGON((306900 6134300, 307000 6134300, 307000 6134400, 306900 6134300))';
 
 describe('validateFormImportRow', () => {
   const now = new Date('2026-11-11T12:00:00Z');
@@ -67,6 +74,39 @@ describe('validateFormImportRow', () => {
     ]);
   });
 
+  it('accepts a polygon instead of x and y', () => {
+    expect(
+      validateFormImportRow(
+        { ...row, x: undefined, y: undefined, geometry: SQUARE },
+        taxonomy,
+        now,
+      ),
+    ).toEqual([]);
+  });
+
+  it('reports a missing location', () => {
+    expect(validateFormImportRow({ ...row, x: undefined, y: undefined }, taxonomy, now)).toEqual([
+      FormImportErrors.NO_COORDINATES,
+    ]);
+  });
+
+  it('rejects unreadable geometry and polygons outside Lithuania', () => {
+    const open = 'POLYGON((306900 6134300, 307000 6134300, 307000 6134400, 306950 6134350))';
+    expect(validateFormImportRow({ ...row, geometry: open }, taxonomy, now)).toEqual([
+      FormImportErrors.BAD_GEOMETRY,
+    ]);
+    expect(
+      validateFormImportRow({ ...row, geometry: 'LINESTRING(1 2, 3 4)' }, taxonomy, now),
+    ).toEqual([FormImportErrors.BAD_GEOMETRY]);
+    expect(
+      validateFormImportRow(
+        { ...row, geometry: 'POLYGON((21.1 55.7, 21.2 55.7, 21.2 55.8, 21.1 55.7))' },
+        taxonomy,
+        now,
+      ),
+    ).toEqual([FormImportErrors.BAD_COORDINATES]);
+  });
+
   it('requires a photo for invasive species only', () => {
     const invasive = { speciesId: 1, speciesType: 'INVASIVE' };
     expect(validateFormImportRow(row, invasive, now)).toEqual([FormImportErrors.NO_PHOTOS]);
@@ -106,6 +146,47 @@ describe('formImportRowToParams', () => {
           },
         ],
       },
+    });
+  });
+});
+
+describe('parseWktGeometry', () => {
+  it('reads a point, a polygon with a hole and a multipolygon', () => {
+    expect(parseWktGeometry('POINT (306945.2 6134367.25)')).toEqual([
+      { type: 'Point', coordinates: [306945.2, 6134367.25] },
+    ]);
+
+    const withHole = 'SRID=3346;POLYGON((0 0, 10 0, 10 10, 0 10, 0 0), (2 2, 3 2, 3 3, 2 2))';
+    expect(parseWktGeometry(withHole)?.[0].coordinates).toHaveLength(2);
+
+    const multi =
+      'MULTIPOLYGON (((0 0, 1 0, 1 1, 0 0)), ((5 5, 6 5, 6 6, 5 5), (5.2 5.1, 5.5 5.1, 5.5 5.4, 5.2 5.1)))';
+    expect(parseWktGeometry(multi)?.map((g) => g.type)).toEqual(['Polygon', 'Polygon']);
+  });
+
+  it('turns a multipolygon into one polygon feature per part', () => {
+    const params = formImportRowToParams({
+      species: 767,
+      observedAt: '2026-10-24T15:15:00.000Z',
+      observedBy: 'Vardenis',
+      geometry: `MULTIPOLYGON(((306900 6134300, 307000 6134300, 307000 6134400, 306900 6134300)), ((308000 6135000, 308100 6135000, 308100 6135100, 308000 6135000)))`,
+    });
+
+    expect(params.geom.features).toHaveLength(2);
+    expect(params.geom.features[0]).toEqual({
+      type: 'Feature',
+      geometry: {
+        type: 'Polygon',
+        coordinates: [
+          [
+            [306900, 6134300],
+            [307000, 6134300],
+            [307000, 6134400],
+            [306900, 6134300],
+          ],
+        ],
+      },
+      properties: {},
     });
   });
 });

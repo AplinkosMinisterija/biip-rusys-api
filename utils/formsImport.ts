@@ -1,4 +1,3 @@
-// Same value as TaxonomySpeciesType.INVASIVE; kept here so this file stays free of services.
 const INVASIVE_SPECIES_TYPE = 'INVASIVE';
 
 export interface FormImportRow {
@@ -8,6 +7,7 @@ export interface FormImportRow {
   observedBy?: string;
   x?: number;
   y?: number;
+  geometry?: string;
   description?: string;
   method?: string;
   photos?: { url: string; name?: string; size?: number }[];
@@ -19,8 +19,6 @@ export interface FormImportTaxonomy {
   formType?: string;
 }
 
-// LKS-94 (EPSG:3346) box around Lithuania with its territorial waters and economic zone.
-// It catches swapped axes and WGS-84 degrees, not borders.
 export const LKS_BOUNDS = {
   minX: 200000,
   maxX: 700000,
@@ -36,14 +34,82 @@ export const FormImportErrors = {
   BAD_DATE: 'Neteisinga stebėjimo data',
   FUTURE_DATE: 'Stebėjimo data negali būti ateityje',
   NO_OBSERVER: 'Nenurodytas stebėtojas',
-  NO_COORDINATES: 'Nenurodytos koordinatės',
+  NO_COORDINATES: 'Nenurodytos koordinatės (x, y) arba geometrija',
   BAD_COORDINATES: 'Koordinatės ne LKS-94 sistemoje arba už Lietuvos ribų',
+  BAD_GEOMETRY:
+    'Neteisinga geometrija: tinka WKT POINT, POLYGON arba MULTIPOLYGON su uždarais kontūrais',
   NO_PHOTOS: 'Invazinės rūšies stebėjimui privaloma nuotrauka',
   BAD_METHOD: 'Šios rūšies anketai reikia nurodyti tinkamą stebėjimo metodą',
 };
 
 const isBlank = (value: unknown) =>
   value === undefined || value === null || String(value).trim() === '';
+
+type Position = [number, number];
+
+type ImportGeometry =
+  | { type: 'Point'; coordinates: Position }
+  | { type: 'Polygon'; coordinates: Position[][] };
+
+const RING = /\(([^()]*)\)/g;
+const POLYGON_IN_MULTI = /\(((?:\s*\([^()]*\)\s*,?)+)\)/g;
+
+const parsePositions = (text: string): Position[] | null => {
+  const positions = text.split(',').map((pair) => pair.trim().split(/\s+/).map(Number));
+  if (!positions.every((p) => p.length >= 2 && p.length <= 4 && p.every(Number.isFinite))) {
+    return null;
+  }
+  return positions.map(([x, y]) => [x, y]);
+};
+
+const isClosedRing = (ring: Position[]) =>
+  ring.length >= 4 &&
+  ring[0][0] === ring[ring.length - 1][0] &&
+  ring[0][1] === ring[ring.length - 1][1];
+
+const parsePolygon = (body: string): Position[][] | null => {
+  if (body.replace(RING, '').replace(/[\s,]/g, '') !== '') return null;
+  const rings = [...body.matchAll(RING)].map((match) => parsePositions(match[1]));
+  if (!rings.length || rings.some((ring) => !ring || !isClosedRing(ring))) return null;
+  return rings as Position[][];
+};
+
+export function parseWktGeometry(wkt: string): ImportGeometry[] | null {
+  const text = wkt.trim().replace(/^SRID=\d+;/i, '');
+  const match = text.match(/^(POINT|POLYGON|MULTIPOLYGON)\s*(?:Z|M|ZM)?\s*\((.*)\)$/is);
+  if (!match) return null;
+
+  const type = match[1].toUpperCase();
+  const body = match[2];
+
+  if (type === 'POINT') {
+    const positions = parsePositions(body);
+    return positions?.length === 1 ? [{ type: 'Point', coordinates: positions[0] }] : null;
+  }
+
+  if (type === 'POLYGON') {
+    const polygon = parsePolygon(body);
+    return polygon ? [{ type: 'Polygon', coordinates: polygon }] : null;
+  }
+
+  if (body.replace(POLYGON_IN_MULTI, '').replace(/[\s,]/g, '') !== '') return null;
+  const polygons = [...body.matchAll(POLYGON_IN_MULTI)].map((part) => parsePolygon(part[1]));
+  if (!polygons.length || polygons.some((polygon) => !polygon)) return null;
+  return polygons.map((polygon) => ({ type: 'Polygon', coordinates: polygon }));
+}
+
+function getRowGeometries(row: FormImportRow): ImportGeometry[] | null | undefined {
+  if (!isBlank(row.geometry)) return parseWktGeometry(String(row.geometry));
+  if (isBlank(row.x) || isBlank(row.y)) return undefined;
+
+  return [{ type: 'Point', coordinates: [Number(row.x), Number(row.y)] }];
+}
+
+const geometryPoints = (geometry: ImportGeometry): Position[] =>
+  geometry.type === 'Point' ? [geometry.coordinates] : geometry.coordinates.flat();
+
+const isInsideLithuania = ([x, y]: Position) =>
+  x >= LKS_BOUNDS.minX && x <= LKS_BOUNDS.maxX && y >= LKS_BOUNDS.minY && y <= LKS_BOUNDS.maxY;
 
 export function validateFormImportRow(
   row: FormImportRow,
@@ -80,21 +146,13 @@ export function validateFormImportRow(
     errors.push(FormImportErrors.NO_OBSERVER);
   }
 
-  if (isBlank(row.x) || isBlank(row.y)) {
+  const geometries = getRowGeometries(row);
+  if (geometries === undefined) {
     errors.push(FormImportErrors.NO_COORDINATES);
-  } else {
-    const x = Number(row.x);
-    const y = Number(row.y);
-    const inside =
-      Number.isFinite(x) &&
-      Number.isFinite(y) &&
-      x >= LKS_BOUNDS.minX &&
-      x <= LKS_BOUNDS.maxX &&
-      y >= LKS_BOUNDS.minY &&
-      y <= LKS_BOUNDS.maxY;
-    if (!inside) {
-      errors.push(FormImportErrors.BAD_COORDINATES);
-    }
+  } else if (geometries === null) {
+    errors.push(FormImportErrors.BAD_GEOMETRY);
+  } else if (!geometries.every((geometry) => geometryPoints(geometry).every(isInsideLithuania))) {
+    errors.push(FormImportErrors.BAD_COORDINATES);
   }
 
   if (taxonomy?.speciesType === INVASIVE_SPECIES_TYPE && !row.photos?.length) {
@@ -116,13 +174,11 @@ export function formImportRowToParams(row: FormImportRow, source?: number) {
     photos: row.photos || [],
     geom: {
       type: 'FeatureCollection',
-      features: [
-        {
-          type: 'Feature',
-          geometry: { type: 'Point', coordinates: [Number(row.x), Number(row.y)] },
-          properties: { bufferSize: 1 },
-        },
-      ],
+      features: (getRowGeometries(row) || []).map((geometry) => ({
+        type: 'Feature',
+        geometry,
+        properties: geometry.type === 'Point' ? { bufferSize: 1 } : {},
+      })),
     },
   };
 }
