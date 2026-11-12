@@ -41,12 +41,17 @@ type SendNotificationOnFileGenerated = (
   sendEmail: boolean,
 ) => Promise<void>;
 
-const { saveGeneratedFile, initiateDocumentGenerate, sendNotificationOnFileGenerated } =
-  RequestsService.prototype as unknown as {
-    saveGeneratedFile: SaveGeneratedFile;
-    initiateDocumentGenerate: InitiateDocumentGenerate;
-    sendNotificationOnFileGenerated: SendNotificationOnFileGenerated;
-  };
+const {
+  saveGeneratedFile,
+  initiateDocumentGenerate,
+  sendNotificationOnFileGenerated,
+  getApprovalComment,
+} = RequestsService.prototype as unknown as {
+  saveGeneratedFile: SaveGeneratedFile;
+  initiateDocumentGenerate: InitiateDocumentGenerate;
+  sendNotificationOnFileGenerated: SendNotificationOnFileGenerated;
+  getApprovalComment: unknown;
+};
 
 const approvedRequest = {
   id: 42,
@@ -163,17 +168,25 @@ describe('initiateDocumentGenerate', () => {
 });
 
 describe('sendNotificationOnFileGenerated', () => {
-  const notifyWith = async (request: Partial<Request>, user: unknown) => {
+  type ApprovalHistory = { comment?: string; createdBy?: number };
+
+  const notifyWith = async (
+    request: Partial<Request>,
+    user: unknown,
+    approvals: ApprovalHistory[] = [],
+  ) => {
     const histories: unknown[][] = [];
     const self = {
       createRequestHistory: (...args: unknown[]) => {
         histories.push(args);
         return Promise.resolve();
       },
+      getApprovalComment,
     };
     const call = jest.fn(async (action: string) => {
       if (action === 'users.resolve') return user;
       if (action === 'requests.isExpertUser') return false;
+      if (action === 'requests.histories.find') return approvals;
       throw new Error(`unexpected call: ${action}`);
     });
 
@@ -209,5 +222,23 @@ describe('sendNotificationOnFileGenerated', () => {
     );
 
     expect(jest.mocked(notifyOnFileGenerated).mock.calls[0][0]).toBe('author@example.com');
+  });
+
+  const authoredRequest = { id: 42, createdBy: 1, speciesTypes: ['ENDANGERED'] } as Request;
+  const author = { id: 1, email: 'author@example.com' };
+
+  it('carries the note the administrator wrote when approving the request', async () => {
+    await notifyWith(authoredRequest, author, [
+      { comment: 'Automatiškai patvirtintas prašymas.' },
+      { comment: 'Patvirtinta su išlyga.', createdBy: 7 },
+    ]);
+
+    expect(jest.mocked(notifyOnFileGenerated).mock.calls[0][5]).toBe('Patvirtinta su išlyga.');
+  });
+
+  it('carries no note when the approval came with none', async () => {
+    await notifyWith(authoredRequest, author, [{ comment: '', createdBy: 7 }]);
+
+    expect(jest.mocked(notifyOnFileGenerated).mock.calls[0][5]).toBeUndefined();
   });
 });

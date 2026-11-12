@@ -1472,7 +1472,25 @@ export default class RequestsService extends moleculer.Service {
       !!(!request.tenant && isExpert),
       user.type === UserType.ADMIN,
       request.speciesTypes,
+      await this.getApprovalComment(ctx, request.id),
     );
+  }
+
+  @Method
+  async getApprovalComment(ctx: Context, requestId: number | string) {
+    const histories: { comment?: string; createdBy?: number }[] = await ctx.call(
+      'requests.histories.find',
+      {
+        sort: '-createdAt',
+        query: {
+          request: requestId,
+          type: RequestHistoryTypes.APPROVED,
+        },
+      },
+    );
+
+    // An approval granted by the system writes a text of its own with nobody behind it.
+    return histories?.find(({ createdBy }) => !!createdBy)?.comment || undefined;
   }
 
   @Event()
