@@ -113,28 +113,34 @@ describe('validateFormImportRow', () => {
     ).toEqual([FormImportErrors.BAD_COORDINATES]);
   });
 
-  it('requires a photo for invasive species only', () => {
-    const invasive = { speciesId: 1, speciesType: 'INVASIVE' };
-    expect(validateFormImportRow(row, invasive, now)).toEqual([FormImportErrors.NO_PHOTOS]);
+  it('checks the source id format and that the source exists', () => {
+    const sources = new Set([7]);
+    expect(validateFormImportRow({ ...row, source: 7 }, taxonomy, now, sources)).toEqual([]);
+    expect(validateFormImportRow({ ...row, source: 8 }, taxonomy, now, sources)).toEqual([
+      FormImportErrors.UNKNOWN_SOURCE,
+    ]);
     expect(
-      validateFormImportRow({ ...row, photos: [{ url: 'https://x/y.jpg' }] }, invasive, now),
-    ).toEqual([]);
+      validateFormImportRow({ ...row, source: 'Inventorizacija' as any }, taxonomy, now, sources),
+    ).toEqual([FormImportErrors.BAD_SOURCE]);
+  });
+
+  it('accepts invasive species without photos', () => {
+    const invasive = { speciesId: 1, speciesType: 'INVASIVE' };
+    expect(validateFormImportRow(row, invasive, now)).toEqual([]);
   });
 });
 
 describe('formImportRowToParams', () => {
   it('builds a point in LKS-94 and keeps optional fields out when empty', () => {
-    const params = formImportRowToParams(
-      {
-        species: 767,
-        observedAt: '2026-10-24T15:15:00.000Z',
-        observedBy: ' Vardenis ',
-        x: 306945.2,
-        y: 6134367.25,
-        description: '',
-      },
-      7,
-    );
+    const params = formImportRowToParams({
+      species: 767,
+      observedAt: '2026-10-24T15:15:00.000Z',
+      observedBy: ' Vardenis ',
+      x: 306945.2,
+      y: 6134367.25,
+      description: '',
+      source: 7,
+    });
 
     expect(params).toEqual({
       species: 767,
@@ -158,30 +164,33 @@ describe('formImportRowToParams', () => {
 
 describe('parseGeometry', () => {
   it('reads WKT points, lines and polygons, including multi parts and holes', () => {
-    expect(parseGeometry('POINT (306945.2 6134367.25)')).toEqual([
-      { type: 'Point', coordinates: [306945.2, 6134367.25] },
-    ]);
-    expect(parseGeometry('LINESTRING Z (0 0 1, 10 10 1)')).toEqual([
-      {
-        type: 'LineString',
-        coordinates: [
-          [0, 0],
-          [10, 10],
-        ],
-      },
-    ]);
-    expect(parseGeometry('MULTIPOINT ((1 2), (3 4))')?.map((g) => g.coordinates)).toEqual([
-      [1, 2],
-      [3, 4],
-    ]);
-    expect(parseGeometry('MULTILINESTRING ((0 0, 1 1), (2 2, 3 3))')).toHaveLength(2);
+    expect(parseGeometry('POINT (306945.2 6134367.25)')).toEqual({
+      type: 'Point',
+      coordinates: [306945.2, 6134367.25],
+    });
+    expect(parseGeometry('LINESTRING Z (0 0 1, 10 10 1)')).toEqual({
+      type: 'LineString',
+      coordinates: [
+        [0, 0],
+        [10, 10],
+      ],
+    });
+    expect(parseGeometry('MULTIPOINT ((1 2), (3 4))')).toEqual({
+      type: 'MultiPoint',
+      coordinates: [
+        [1, 2],
+        [3, 4],
+      ],
+    });
+    expect(parseGeometry('MULTILINESTRING ((0 0, 1 1), (2 2, 3 3))')?.type).toBe('MultiLineString');
 
     const withHole = 'SRID=3346;POLYGON((0 0, 10 0, 10 10, 0 10, 0 0), (2 2, 3 2, 3 3, 2 2))';
-    expect(parseGeometry(withHole)?.[0].coordinates).toHaveLength(2);
+    expect(parseGeometry(withHole)?.coordinates).toHaveLength(2);
 
     const multi =
       'MULTIPOLYGON (((0 0, 1 0, 1 1, 0 0)), ((5 5, 6 5, 6 6, 5 5), (5.2 5.1, 5.5 5.1, 5.5 5.4, 5.2 5.1)))';
-    expect(parseGeometry(multi)?.map((g) => g.type)).toEqual(['Polygon', 'Polygon']);
+    expect(parseGeometry(multi)?.type).toBe('MultiPolygon');
+    expect(parseGeometry(multi)?.coordinates).toHaveLength(2);
   });
 
   it('reads GeoJSON geometries, features and feature collections', () => {
@@ -192,27 +201,55 @@ describe('parseGeometry', () => {
         [5, 5],
       ],
     };
-    expect(parseGeometry(JSON.stringify(line))).toEqual([line]);
+    expect(parseGeometry(JSON.stringify(line))).toEqual(line);
     expect(
       parseGeometry(
         JSON.stringify({
           type: 'FeatureCollection',
           features: [
             { type: 'Feature', geometry: line, properties: {} },
-            { type: 'Feature', geometry: { type: 'Point', coordinates: [1, 2] }, properties: {} },
+            {
+              type: 'Feature',
+              geometry: {
+                ...line,
+                coordinates: [
+                  [1, 1],
+                  [2, 2],
+                ],
+              },
+              properties: {},
+            },
           ],
         }),
-      )?.map((g) => g.type),
-    ).toEqual(['LineString', 'Point']);
+      )?.type,
+    ).toBe('MultiLineString');
   });
 
-  it('rejects open rings and one-point lines', () => {
+  it('rejects open rings, one-point lines and mixed geometry types', () => {
     expect(parseGeometry('POLYGON((0 0, 1 0, 1 1, 0 1))')).toBeNull();
     expect(parseGeometry('LINESTRING(0 0)')).toBeNull();
     expect(parseGeometry('{"type":"Polygon","coordinates":[[[0,0],[1,0],[0,0]]]}')).toBeNull();
+    expect(parseGeometry('GEOMETRYCOLLECTION(POINT(1 2), LINESTRING(0 0, 1 1))')).toBeNull();
+    expect(
+      parseGeometry(
+        JSON.stringify({
+          type: 'GeometryCollection',
+          geometries: [
+            { type: 'Point', coordinates: [1, 2] },
+            {
+              type: 'LineString',
+              coordinates: [
+                [0, 0],
+                [1, 1],
+              ],
+            },
+          ],
+        }),
+      ),
+    ).toBeNull();
   });
 
-  it('gives lines a buffer and splits a multipolygon into one feature per part', () => {
+  it('gives lines a buffer and keeps a multipolygon as one feature', () => {
     const lineParams = formImportRowToParams({
       species: 767,
       observedAt: '2026-10-24T15:15:00.000Z',
@@ -228,21 +265,32 @@ describe('parseGeometry', () => {
       geometry: `MULTIPOLYGON(((306900 6134300, 307000 6134300, 307000 6134400, 306900 6134300)), ((308000 6135000, 308100 6135000, 308100 6135100, 308000 6135000)))`,
     });
 
-    expect(params.geom.features).toHaveLength(2);
-    expect(params.geom.features[0]).toEqual({
-      type: 'Feature',
-      geometry: {
-        type: 'Polygon',
-        coordinates: [
-          [
-            [306900, 6134300],
-            [307000, 6134300],
-            [307000, 6134400],
-            [306900, 6134300],
+    expect(params.geom.features).toEqual([
+      {
+        type: 'Feature',
+        geometry: {
+          type: 'MultiPolygon',
+          coordinates: [
+            [
+              [
+                [306900, 6134300],
+                [307000, 6134300],
+                [307000, 6134400],
+                [306900, 6134300],
+              ],
+            ],
+            [
+              [
+                [308000, 6135000],
+                [308100, 6135000],
+                [308100, 6135100],
+                [308000, 6135000],
+              ],
+            ],
           ],
-        ],
+        },
+        properties: {},
       },
-      properties: {},
-    });
+    ]);
   });
 });

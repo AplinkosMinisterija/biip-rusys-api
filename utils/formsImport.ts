@@ -1,5 +1,3 @@
-const INVASIVE_SPECIES_TYPE = 'INVASIVE';
-
 export interface FormImportRow {
   species?: number;
   quantity?: number;
@@ -10,6 +8,7 @@ export interface FormImportRow {
   geometry?: string;
   description?: string;
   method?: string;
+  source?: number;
   photos?: { url: string; name?: string; size?: number }[];
 }
 
@@ -37,8 +36,9 @@ export const FormImportErrors = {
   NO_COORDINATES: 'IMPORT_NO_COORDINATES',
   BAD_COORDINATES: 'IMPORT_BAD_COORDINATES',
   BAD_GEOMETRY: 'IMPORT_BAD_GEOMETRY',
-  NO_PHOTOS: 'IMPORT_NO_PHOTOS',
   BAD_METHOD: 'IMPORT_BAD_METHOD',
+  BAD_SOURCE: 'IMPORT_BAD_SOURCE',
+  UNKNOWN_SOURCE: 'IMPORT_UNKNOWN_SOURCE',
   CREATE_FAILED: 'IMPORT_CREATE_FAILED',
 };
 
@@ -47,10 +47,22 @@ const isBlank = (value: unknown) =>
 
 type Position = [number, number];
 
-type ImportGeometry =
+type GeometryPart =
   | { type: 'Point'; coordinates: Position }
   | { type: 'LineString'; coordinates: Position[] }
   | { type: 'Polygon'; coordinates: Position[][] };
+
+type ImportGeometry =
+  | GeometryPart
+  | { type: 'MultiPoint'; coordinates: Position[] }
+  | { type: 'MultiLineString'; coordinates: Position[][] }
+  | { type: 'MultiPolygon'; coordinates: Position[][][] };
+
+const MULTI_TYPES = {
+  Point: 'MultiPoint',
+  LineString: 'MultiLineString',
+  Polygon: 'MultiPolygon',
+};
 
 const isPosition = (value: any) =>
   Array.isArray(value) &&
@@ -83,7 +95,7 @@ const allOrNull = <T>(items: (T | null)[]): T[] | null =>
 
 const partsOf = (value: any): any[] | null => (Array.isArray(value) && value.length ? value : null);
 
-function normalizeGeometry(geometry: any): ImportGeometry[] | null {
+function normalizeGeometry(geometry: any): GeometryPart[] | null {
   const coordinates = geometry?.coordinates;
 
   switch (geometry?.type) {
@@ -168,8 +180,20 @@ function wktToGeoJson(wkt: string) {
   }
 }
 
-export function parseGeometry(text: string): ImportGeometry[] | null {
-  const value = text.trim();
+function combineParts(parts: GeometryPart[] | null): ImportGeometry | null {
+  if (!parts?.length) return null;
+  if (parts.length === 1) return parts[0];
+
+  const type = parts[0].type;
+  if (!parts.every((part) => part.type === type)) return null;
+
+  return {
+    type: MULTI_TYPES[type],
+    coordinates: parts.map((part) => part.coordinates),
+  } as ImportGeometry;
+}
+
+function parseParts(value: string): GeometryPart[] | null {
   if (!value.startsWith('{')) return normalizeGeometry(wktToGeoJson(value));
 
   try {
@@ -179,18 +203,19 @@ export function parseGeometry(text: string): ImportGeometry[] | null {
   }
 }
 
-function getRowGeometries(row: FormImportRow): ImportGeometry[] | null | undefined {
+export function parseGeometry(text: string): ImportGeometry | null {
+  return combineParts(parseParts(text.trim()));
+}
+
+function getRowGeometry(row: FormImportRow): ImportGeometry | null | undefined {
   if (!isBlank(row.geometry)) return parseGeometry(String(row.geometry));
   if (isBlank(row.x) || isBlank(row.y)) return undefined;
 
-  return [{ type: 'Point', coordinates: [Number(row.x), Number(row.y)] }];
+  return { type: 'Point', coordinates: [Number(row.x), Number(row.y)] };
 }
 
-const geometryPoints = (geometry: ImportGeometry): Position[] => {
-  if (geometry.type === 'Point') return [geometry.coordinates];
-  if (geometry.type === 'LineString') return geometry.coordinates;
-  return geometry.coordinates.flat();
-};
+const geometryPoints = (coordinates: any): Position[] =>
+  isPosition(coordinates) ? [coordinates] : coordinates.flatMap(geometryPoints);
 
 const isInsideLithuania = ([x, y]: Position) =>
   x >= LKS_BOUNDS.minX && x <= LKS_BOUNDS.maxX && y >= LKS_BOUNDS.minY && y <= LKS_BOUNDS.maxY;
@@ -199,6 +224,7 @@ export function validateFormImportRow(
   row: FormImportRow,
   taxonomy: FormImportTaxonomy | undefined,
   now: Date = new Date(),
+  sources?: Set<number>,
 ): string[] {
   const errors: string[] = [];
 
@@ -230,23 +256,31 @@ export function validateFormImportRow(
     errors.push(FormImportErrors.NO_OBSERVER);
   }
 
-  const geometries = getRowGeometries(row);
-  if (geometries === undefined) {
+  const geometry = getRowGeometry(row);
+  if (geometry === undefined) {
     errors.push(FormImportErrors.NO_COORDINATES);
-  } else if (geometries === null) {
+  } else if (geometry === null) {
     errors.push(FormImportErrors.BAD_GEOMETRY);
-  } else if (!geometries.every((geometry) => geometryPoints(geometry).every(isInsideLithuania))) {
+  } else if (!geometryPoints(geometry.coordinates).every(isInsideLithuania)) {
     errors.push(FormImportErrors.BAD_COORDINATES);
   }
 
-  if (taxonomy?.speciesType === INVASIVE_SPECIES_TYPE && !row.photos?.length) {
-    errors.push(FormImportErrors.NO_PHOTOS);
+  if (!isBlank(row.source)) {
+    const source = Number(row.source);
+    if (!Number.isInteger(source) || source <= 0) {
+      errors.push(FormImportErrors.BAD_SOURCE);
+    } else if (sources && !sources.has(source)) {
+      errors.push(FormImportErrors.UNKNOWN_SOURCE);
+    }
   }
 
   return errors;
 }
 
-export function formImportRowToParams(row: FormImportRow, source?: number) {
+export function formImportRowToParams(row: FormImportRow) {
+  const geometry = getRowGeometry(row);
+  const isArea = geometry?.type === 'Polygon' || geometry?.type === 'MultiPolygon';
+
   return {
     species: Number(row.species),
     ...(!isBlank(row.quantity) && { quantity: Number(row.quantity) }),
@@ -254,15 +288,13 @@ export function formImportRowToParams(row: FormImportRow, source?: number) {
     observedBy: String(row.observedBy).trim(),
     ...(!isBlank(row.description) && { description: String(row.description) }),
     ...(!isBlank(row.method) && { method: String(row.method).trim() }),
-    ...(source && { source }),
+    ...(!isBlank(row.source) && { source: Number(row.source) }),
     photos: row.photos || [],
     geom: {
       type: 'FeatureCollection',
-      features: (getRowGeometries(row) || []).map((geometry) => ({
-        type: 'Feature',
-        geometry,
-        properties: geometry.type === 'Polygon' ? {} : { bufferSize: 1 },
-      })),
+      features: geometry
+        ? [{ type: 'Feature', geometry, properties: isArea ? {} : { bufferSize: 1 } }]
+        : [],
     },
   };
 }
