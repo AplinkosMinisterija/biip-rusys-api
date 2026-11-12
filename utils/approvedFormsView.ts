@@ -1,4 +1,4 @@
-const APPROVED = 'APPROVED';
+import { FormStatus } from '../types/constants';
 
 interface ViewForm {
   id?: number;
@@ -9,7 +9,7 @@ interface ViewForm {
 }
 
 export function approvedFormsViewNeedsRefresh(form: ViewForm, prevForm?: ViewForm) {
-  if (!form?.id || form.status !== APPROVED) return false;
+  if (!form?.id || form.status !== FormStatus.APPROVED) return false;
 
   return (
     form.status !== prevForm?.status ||

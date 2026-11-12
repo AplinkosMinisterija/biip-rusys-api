@@ -1,13 +1,14 @@
+import { FormStatus } from '../types/constants';
 import { approvedFormsViewNeedsRefresh } from './approvedFormsView';
 
 describe('approvedFormsViewNeedsRefresh', () => {
-  const approved = { id: 1, status: 'APPROVED', isRelevant: true, place: 5 };
+  const approved = { id: 1, status: FormStatus.APPROVED, isRelevant: true, place: 5 };
 
   it('refreshes when an informational form gets approved', () => {
     expect(
       approvedFormsViewNeedsRefresh(
         { ...approved, isInformational: true, place: undefined },
-        { ...approved, status: 'SUBMITTED', isInformational: true, place: undefined },
+        { ...approved, status: FormStatus.SUBMITTED, isInformational: true, place: undefined },
       ),
     ).toBe(true);
   });
@@ -31,7 +32,9 @@ describe('approvedFormsViewNeedsRefresh', () => {
   });
 
   it('skips forms that are not approved or did not change', () => {
-    expect(approvedFormsViewNeedsRefresh({ ...approved, status: 'SUBMITTED' })).toBe(false);
+    expect(approvedFormsViewNeedsRefresh({ ...approved, status: FormStatus.SUBMITTED })).toBe(
+      false,
+    );
     expect(approvedFormsViewNeedsRefresh(approved, approved)).toBe(false);
   });
 });
