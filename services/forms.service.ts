@@ -872,8 +872,8 @@ export default class FormsService extends moleculer.Service {
       try {
         const form: Form = await ctx.call('forms.create', formImportRowToParams(row, source));
         results.push({ index, errors, id: form.id });
-      } catch (err) {
-        results.push({ index, errors: [err?.message || 'Nepavyko sukurti anketos'] });
+      } catch {
+        results.push({ index, errors: [FormImportErrors.CREATE_FAILED] });
       }
     }
 

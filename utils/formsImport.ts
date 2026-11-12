@@ -27,19 +27,19 @@ export const LKS_BOUNDS = {
 };
 
 export const FormImportErrors = {
-  NO_SPECIES: 'Nenurodyta rūšis',
-  UNKNOWN_SPECIES: 'Rūšis su tokiu ID nerasta',
-  BAD_QUANTITY: 'Kiekis turi būti sveikas neneigiamas skaičius',
-  NO_DATE: 'Nenurodyta stebėjimo data',
-  BAD_DATE: 'Neteisinga stebėjimo data',
-  FUTURE_DATE: 'Stebėjimo data negali būti ateityje',
-  NO_OBSERVER: 'Nenurodytas stebėtojas',
-  NO_COORDINATES: 'Nenurodytos koordinatės (x, y) arba geometrija',
-  BAD_COORDINATES: 'Koordinatės ne LKS-94 sistemoje arba už Lietuvos ribų',
-  BAD_GEOMETRY:
-    'Neteisinga geometrija: tinka WKT POINT, POLYGON arba MULTIPOLYGON su uždarais kontūrais',
-  NO_PHOTOS: 'Invazinės rūšies stebėjimui privaloma nuotrauka',
-  BAD_METHOD: 'Šios rūšies anketai reikia nurodyti tinkamą stebėjimo metodą',
+  NO_SPECIES: 'IMPORT_NO_SPECIES',
+  UNKNOWN_SPECIES: 'IMPORT_UNKNOWN_SPECIES',
+  BAD_QUANTITY: 'IMPORT_BAD_QUANTITY',
+  NO_DATE: 'IMPORT_NO_DATE',
+  BAD_DATE: 'IMPORT_BAD_DATE',
+  FUTURE_DATE: 'IMPORT_FUTURE_DATE',
+  NO_OBSERVER: 'IMPORT_NO_OBSERVER',
+  NO_COORDINATES: 'IMPORT_NO_COORDINATES',
+  BAD_COORDINATES: 'IMPORT_BAD_COORDINATES',
+  BAD_GEOMETRY: 'IMPORT_BAD_GEOMETRY',
+  NO_PHOTOS: 'IMPORT_NO_PHOTOS',
+  BAD_METHOD: 'IMPORT_BAD_METHOD',
+  CREATE_FAILED: 'IMPORT_CREATE_FAILED',
 };
 
 const isBlank = (value: unknown) =>
@@ -49,64 +49,148 @@ type Position = [number, number];
 
 type ImportGeometry =
   | { type: 'Point'; coordinates: Position }
+  | { type: 'LineString'; coordinates: Position[] }
   | { type: 'Polygon'; coordinates: Position[][] };
 
-const RING = /\(([^()]*)\)/g;
-const POLYGON_IN_MULTI = /\(((?:\s*\([^()]*\)\s*,?)+)\)/g;
+const isPosition = (value: any) =>
+  Array.isArray(value) &&
+  value.length >= 2 &&
+  value.length <= 4 &&
+  value.every((n) => typeof n === 'number' && Number.isFinite(n));
 
-const parsePositions = (text: string): Position[] | null => {
-  const positions = text.split(',').map((pair) => pair.trim().split(/\s+/).map(Number));
-  if (!positions.every((p) => p.length >= 2 && p.length <= 4 && p.every(Number.isFinite))) {
+const toPosition = (value: any): Position => [value[0], value[1]];
+
+const toLine = (value: any): Position[] | null =>
+  Array.isArray(value) && value.length >= 2 && value.every(isPosition)
+    ? value.map(toPosition)
+    : null;
+
+const toRing = (value: any): Position[] | null => {
+  const ring = toLine(value);
+  if (!ring || ring.length < 4) return null;
+  const [first, last] = [ring[0], ring[ring.length - 1]];
+  return first[0] === last[0] && first[1] === last[1] ? ring : null;
+};
+
+const toPolygon = (value: any): Position[][] | null => {
+  if (!Array.isArray(value) || !value.length) return null;
+  const rings = value.map(toRing);
+  return rings.every(Boolean) ? (rings as Position[][]) : null;
+};
+
+const allOrNull = <T>(items: (T | null)[]): T[] | null =>
+  items.length && items.every((item) => item !== null) ? (items as T[]) : null;
+
+const partsOf = (value: any): any[] | null => (Array.isArray(value) && value.length ? value : null);
+
+function normalizeGeometry(geometry: any): ImportGeometry[] | null {
+  const coordinates = geometry?.coordinates;
+
+  switch (geometry?.type) {
+    case 'Point':
+      return isPosition(coordinates)
+        ? [{ type: 'Point', coordinates: toPosition(coordinates) }]
+        : null;
+    case 'MultiPoint':
+      return allOrNull(
+        (partsOf(coordinates) || []).map((part) =>
+          normalizeGeometry({ type: 'Point', coordinates: part }),
+        ),
+      )?.flat();
+    case 'LineString': {
+      const line = toLine(coordinates);
+      return line ? [{ type: 'LineString', coordinates: line }] : null;
+    }
+    case 'MultiLineString':
+      return allOrNull(
+        (partsOf(coordinates) || []).map((part) =>
+          normalizeGeometry({ type: 'LineString', coordinates: part }),
+        ),
+      )?.flat();
+    case 'Polygon': {
+      const polygon = toPolygon(coordinates);
+      return polygon ? [{ type: 'Polygon', coordinates: polygon }] : null;
+    }
+    case 'MultiPolygon':
+      return allOrNull(
+        (partsOf(coordinates) || []).map((part) =>
+          normalizeGeometry({ type: 'Polygon', coordinates: part }),
+        ),
+      )?.flat();
+    case 'GeometryCollection':
+      return allOrNull((partsOf(geometry.geometries) || []).map(normalizeGeometry))?.flat();
+    case 'Feature':
+      return normalizeGeometry(geometry.geometry);
+    case 'FeatureCollection':
+      return allOrNull((partsOf(geometry.features) || []).map(normalizeGeometry))?.flat();
+    default:
+      return null;
+  }
+}
+
+const WKT_TYPES: Record<string, string> = {
+  POINT: 'Point',
+  MULTIPOINT: 'MultiPoint',
+  LINESTRING: 'LineString',
+  MULTILINESTRING: 'MultiLineString',
+  POLYGON: 'Polygon',
+  MULTIPOLYGON: 'MultiPolygon',
+};
+
+const NUMBER = '[-+]?(?:\\d+\\.?\\d*|\\.\\d+)(?:[eE][-+]?\\d+)?';
+const WKT_POSITION = new RegExp(`(${NUMBER})\\s+(${NUMBER})(?:\\s+${NUMBER}){0,2}`, 'g');
+
+function wktToGeoJson(wkt: string) {
+  const match = wkt
+    .trim()
+    .replace(/^SRID=\d+;/i, '')
+    .match(/^([A-Z]+)\s*(?:ZM|Z|M)?\s*(\(.*\))$/is);
+  const type = match && WKT_TYPES[match[1].toUpperCase()];
+  if (!type) return null;
+
+  const json = match[2]
+    .replace(WKT_POSITION, (_, x, y) => `[${Number(x)},${Number(y)}]`)
+    .replace(/\(/g, '[')
+    .replace(/\)/g, ']');
+
+  try {
+    const parsed = JSON.parse(json);
+    if (type === 'Point') return { type, coordinates: parsed[0] };
+    if (type === 'MultiPoint') {
+      return {
+        type,
+        coordinates: parsed.map((part: any) => (isPosition(part) ? part : part?.[0])),
+      };
+    }
+    return { type, coordinates: parsed };
+  } catch {
     return null;
   }
-  return positions.map(([x, y]) => [x, y]);
-};
+}
 
-const isClosedRing = (ring: Position[]) =>
-  ring.length >= 4 &&
-  ring[0][0] === ring[ring.length - 1][0] &&
-  ring[0][1] === ring[ring.length - 1][1];
+export function parseGeometry(text: string): ImportGeometry[] | null {
+  const value = text.trim();
+  if (!value.startsWith('{')) return normalizeGeometry(wktToGeoJson(value));
 
-const parsePolygon = (body: string): Position[][] | null => {
-  if (body.replace(RING, '').replace(/[\s,]/g, '') !== '') return null;
-  const rings = [...body.matchAll(RING)].map((match) => parsePositions(match[1]));
-  if (!rings.length || rings.some((ring) => !ring || !isClosedRing(ring))) return null;
-  return rings as Position[][];
-};
-
-export function parseWktGeometry(wkt: string): ImportGeometry[] | null {
-  const text = wkt.trim().replace(/^SRID=\d+;/i, '');
-  const match = text.match(/^(POINT|POLYGON|MULTIPOLYGON)\s*(?:Z|M|ZM)?\s*\((.*)\)$/is);
-  if (!match) return null;
-
-  const type = match[1].toUpperCase();
-  const body = match[2];
-
-  if (type === 'POINT') {
-    const positions = parsePositions(body);
-    return positions?.length === 1 ? [{ type: 'Point', coordinates: positions[0] }] : null;
+  try {
+    return normalizeGeometry(JSON.parse(value));
+  } catch {
+    return null;
   }
-
-  if (type === 'POLYGON') {
-    const polygon = parsePolygon(body);
-    return polygon ? [{ type: 'Polygon', coordinates: polygon }] : null;
-  }
-
-  if (body.replace(POLYGON_IN_MULTI, '').replace(/[\s,]/g, '') !== '') return null;
-  const polygons = [...body.matchAll(POLYGON_IN_MULTI)].map((part) => parsePolygon(part[1]));
-  if (!polygons.length || polygons.some((polygon) => !polygon)) return null;
-  return polygons.map((polygon) => ({ type: 'Polygon', coordinates: polygon }));
 }
 
 function getRowGeometries(row: FormImportRow): ImportGeometry[] | null | undefined {
-  if (!isBlank(row.geometry)) return parseWktGeometry(String(row.geometry));
+  if (!isBlank(row.geometry)) return parseGeometry(String(row.geometry));
   if (isBlank(row.x) || isBlank(row.y)) return undefined;
 
   return [{ type: 'Point', coordinates: [Number(row.x), Number(row.y)] }];
 }
 
-const geometryPoints = (geometry: ImportGeometry): Position[] =>
-  geometry.type === 'Point' ? [geometry.coordinates] : geometry.coordinates.flat();
+const geometryPoints = (geometry: ImportGeometry): Position[] => {
+  if (geometry.type === 'Point') return [geometry.coordinates];
+  if (geometry.type === 'LineString') return geometry.coordinates;
+  return geometry.coordinates.flat();
+};
 
 const isInsideLithuania = ([x, y]: Position) =>
   x >= LKS_BOUNDS.minX && x <= LKS_BOUNDS.maxX && y >= LKS_BOUNDS.minY && y <= LKS_BOUNDS.maxY;
@@ -177,7 +261,7 @@ export function formImportRowToParams(row: FormImportRow, source?: number) {
       features: (getRowGeometries(row) || []).map((geometry) => ({
         type: 'Feature',
         geometry,
-        properties: geometry.type === 'Point' ? { bufferSize: 1 } : {},
+        properties: geometry.type === 'Polygon' ? {} : { bufferSize: 1 },
       })),
     },
   };

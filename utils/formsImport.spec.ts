@@ -1,7 +1,7 @@
 import {
   formImportRowToParams,
   FormImportErrors,
-  parseWktGeometry,
+  parseGeometry,
   validateFormImportRow,
 } from './formsImport';
 
@@ -95,9 +95,15 @@ describe('validateFormImportRow', () => {
     expect(validateFormImportRow({ ...row, geometry: open }, taxonomy, now)).toEqual([
       FormImportErrors.BAD_GEOMETRY,
     ]);
+    expect(validateFormImportRow({ ...row, geometry: 'CIRCLE(1 2, 3)' }, taxonomy, now)).toEqual([
+      FormImportErrors.BAD_GEOMETRY,
+    ]);
+    expect(validateFormImportRow({ ...row, geometry: '{"type":"Point"' }, taxonomy, now)).toEqual([
+      FormImportErrors.BAD_GEOMETRY,
+    ]);
     expect(
       validateFormImportRow({ ...row, geometry: 'LINESTRING(1 2, 3 4)' }, taxonomy, now),
-    ).toEqual([FormImportErrors.BAD_GEOMETRY]);
+    ).toEqual([FormImportErrors.BAD_COORDINATES]);
     expect(
       validateFormImportRow(
         { ...row, geometry: 'POLYGON((21.1 55.7, 21.2 55.7, 21.2 55.8, 21.1 55.7))' },
@@ -150,21 +156,71 @@ describe('formImportRowToParams', () => {
   });
 });
 
-describe('parseWktGeometry', () => {
-  it('reads a point, a polygon with a hole and a multipolygon', () => {
-    expect(parseWktGeometry('POINT (306945.2 6134367.25)')).toEqual([
+describe('parseGeometry', () => {
+  it('reads WKT points, lines and polygons, including multi parts and holes', () => {
+    expect(parseGeometry('POINT (306945.2 6134367.25)')).toEqual([
       { type: 'Point', coordinates: [306945.2, 6134367.25] },
     ]);
+    expect(parseGeometry('LINESTRING Z (0 0 1, 10 10 1)')).toEqual([
+      {
+        type: 'LineString',
+        coordinates: [
+          [0, 0],
+          [10, 10],
+        ],
+      },
+    ]);
+    expect(parseGeometry('MULTIPOINT ((1 2), (3 4))')?.map((g) => g.coordinates)).toEqual([
+      [1, 2],
+      [3, 4],
+    ]);
+    expect(parseGeometry('MULTILINESTRING ((0 0, 1 1), (2 2, 3 3))')).toHaveLength(2);
 
     const withHole = 'SRID=3346;POLYGON((0 0, 10 0, 10 10, 0 10, 0 0), (2 2, 3 2, 3 3, 2 2))';
-    expect(parseWktGeometry(withHole)?.[0].coordinates).toHaveLength(2);
+    expect(parseGeometry(withHole)?.[0].coordinates).toHaveLength(2);
 
     const multi =
       'MULTIPOLYGON (((0 0, 1 0, 1 1, 0 0)), ((5 5, 6 5, 6 6, 5 5), (5.2 5.1, 5.5 5.1, 5.5 5.4, 5.2 5.1)))';
-    expect(parseWktGeometry(multi)?.map((g) => g.type)).toEqual(['Polygon', 'Polygon']);
+    expect(parseGeometry(multi)?.map((g) => g.type)).toEqual(['Polygon', 'Polygon']);
   });
 
-  it('turns a multipolygon into one polygon feature per part', () => {
+  it('reads GeoJSON geometries, features and feature collections', () => {
+    const line = {
+      type: 'LineString',
+      coordinates: [
+        [0, 0],
+        [5, 5],
+      ],
+    };
+    expect(parseGeometry(JSON.stringify(line))).toEqual([line]);
+    expect(
+      parseGeometry(
+        JSON.stringify({
+          type: 'FeatureCollection',
+          features: [
+            { type: 'Feature', geometry: line, properties: {} },
+            { type: 'Feature', geometry: { type: 'Point', coordinates: [1, 2] }, properties: {} },
+          ],
+        }),
+      )?.map((g) => g.type),
+    ).toEqual(['LineString', 'Point']);
+  });
+
+  it('rejects open rings and one-point lines', () => {
+    expect(parseGeometry('POLYGON((0 0, 1 0, 1 1, 0 1))')).toBeNull();
+    expect(parseGeometry('LINESTRING(0 0)')).toBeNull();
+    expect(parseGeometry('{"type":"Polygon","coordinates":[[[0,0],[1,0],[0,0]]]}')).toBeNull();
+  });
+
+  it('gives lines a buffer and splits a multipolygon into one feature per part', () => {
+    const lineParams = formImportRowToParams({
+      species: 767,
+      observedAt: '2026-10-24T15:15:00.000Z',
+      observedBy: 'Vardenis',
+      geometry: 'LINESTRING(306900 6134300, 307000 6134400)',
+    });
+    expect(lineParams.geom.features[0].properties).toEqual({ bufferSize: 1 });
+
     const params = formImportRowToParams({
       species: 767,
       observedAt: '2026-10-24T15:15:00.000Z',
