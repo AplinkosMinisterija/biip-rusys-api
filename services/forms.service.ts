@@ -42,6 +42,7 @@ import {
   formImportRowToParams,
   validateFormImportRow,
 } from '../utils/formsImport';
+import { approvedFormsViewNeedsRefresh } from '../utils/approvedFormsView';
 import { emailCanBeSent, notifyFormAssignee, notifyOnFormUpdate } from '../utils/mails';
 import { FormHistoryTypes } from './forms.histories.service';
 import { FormSettingsGroupType, FormSettingsOptions } from './forms.settings.options.service';
@@ -1797,21 +1798,7 @@ export default class FormsService extends moleculer.Service {
   @Method
   async refreshApprovedFormsViewIfNeeded(ctx: Context, form: Form, prevForm?: Form) {
     if ((ctx.meta as FormSkipApprovedFormsRefresh)?.skipApprovedFormsRefresh) return;
-    if (!form.id || form.status !== FormStatus.APPROVED) return;
-
-    const notInformationalStatusChanged = !form.isInformational && form.status !== prevForm?.status;
-
-    const relevancyChanged = prevForm?.isRelevant !== form?.isRelevant;
-
-    const placeChanged = form.place !== prevForm?.place;
-
-    /* 
-    refresh materialized view if:
-      1. not informational form status changed to approved
-      2. form relevancy changed
-      3. form place changed
-    */
-    if (notInformationalStatusChanged || relevancyChanged || placeChanged) {
+    if (approvedFormsViewNeedsRefresh(form, prevForm)) {
       await this.refreshMaterializedView(ctx, MaterializedView.APPROVED_FORMS);
     }
   }
