@@ -1,5 +1,3 @@
-const INVASIVE_SPECIES_TYPE = 'INVASIVE';
-
 export interface FormImportRow {
   species?: number;
   quantity?: number;
@@ -10,6 +8,7 @@ export interface FormImportRow {
   geometry?: string;
   description?: string;
   method?: string;
+  source?: number;
   photos?: { url: string; name?: string; size?: number }[];
 }
 
@@ -37,8 +36,9 @@ export const FormImportErrors = {
   NO_COORDINATES: 'IMPORT_NO_COORDINATES',
   BAD_COORDINATES: 'IMPORT_BAD_COORDINATES',
   BAD_GEOMETRY: 'IMPORT_BAD_GEOMETRY',
-  NO_PHOTOS: 'IMPORT_NO_PHOTOS',
   BAD_METHOD: 'IMPORT_BAD_METHOD',
+  BAD_SOURCE: 'IMPORT_BAD_SOURCE',
+  UNKNOWN_SOURCE: 'IMPORT_UNKNOWN_SOURCE',
   CREATE_FAILED: 'IMPORT_CREATE_FAILED',
 };
 
@@ -224,6 +224,7 @@ export function validateFormImportRow(
   row: FormImportRow,
   taxonomy: FormImportTaxonomy | undefined,
   now: Date = new Date(),
+  sources?: Set<number>,
 ): string[] {
   const errors: string[] = [];
 
@@ -264,14 +265,19 @@ export function validateFormImportRow(
     errors.push(FormImportErrors.BAD_COORDINATES);
   }
 
-  if (taxonomy?.speciesType === INVASIVE_SPECIES_TYPE && !row.photos?.length) {
-    errors.push(FormImportErrors.NO_PHOTOS);
+  if (!isBlank(row.source)) {
+    const source = Number(row.source);
+    if (!Number.isInteger(source) || source <= 0) {
+      errors.push(FormImportErrors.BAD_SOURCE);
+    } else if (sources && !sources.has(source)) {
+      errors.push(FormImportErrors.UNKNOWN_SOURCE);
+    }
   }
 
   return errors;
 }
 
-export function formImportRowToParams(row: FormImportRow, source?: number) {
+export function formImportRowToParams(row: FormImportRow) {
   const geometry = getRowGeometry(row);
   const isArea = geometry?.type === 'Polygon' || geometry?.type === 'MultiPolygon';
 
@@ -282,7 +288,7 @@ export function formImportRowToParams(row: FormImportRow, source?: number) {
     observedBy: String(row.observedBy).trim(),
     ...(!isBlank(row.description) && { description: String(row.description) }),
     ...(!isBlank(row.method) && { method: String(row.method).trim() }),
-    ...(source && { source }),
+    ...(!isBlank(row.source) && { source: Number(row.source) }),
     photos: row.photos || [],
     geom: {
       type: 'FeatureCollection',

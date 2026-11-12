@@ -113,28 +113,34 @@ describe('validateFormImportRow', () => {
     ).toEqual([FormImportErrors.BAD_COORDINATES]);
   });
 
-  it('requires a photo for invasive species only', () => {
-    const invasive = { speciesId: 1, speciesType: 'INVASIVE' };
-    expect(validateFormImportRow(row, invasive, now)).toEqual([FormImportErrors.NO_PHOTOS]);
+  it('checks the source id format and that the source exists', () => {
+    const sources = new Set([7]);
+    expect(validateFormImportRow({ ...row, source: 7 }, taxonomy, now, sources)).toEqual([]);
+    expect(validateFormImportRow({ ...row, source: 8 }, taxonomy, now, sources)).toEqual([
+      FormImportErrors.UNKNOWN_SOURCE,
+    ]);
     expect(
-      validateFormImportRow({ ...row, photos: [{ url: 'https://x/y.jpg' }] }, invasive, now),
-    ).toEqual([]);
+      validateFormImportRow({ ...row, source: 'Inventorizacija' as any }, taxonomy, now, sources),
+    ).toEqual([FormImportErrors.BAD_SOURCE]);
+  });
+
+  it('accepts invasive species without photos', () => {
+    const invasive = { speciesId: 1, speciesType: 'INVASIVE' };
+    expect(validateFormImportRow(row, invasive, now)).toEqual([]);
   });
 });
 
 describe('formImportRowToParams', () => {
   it('builds a point in LKS-94 and keeps optional fields out when empty', () => {
-    const params = formImportRowToParams(
-      {
-        species: 767,
-        observedAt: '2026-10-24T15:15:00.000Z',
-        observedBy: ' Vardenis ',
-        x: 306945.2,
-        y: 6134367.25,
-        description: '',
-      },
-      7,
-    );
+    const params = formImportRowToParams({
+      species: 767,
+      observedAt: '2026-10-24T15:15:00.000Z',
+      observedBy: ' Vardenis ',
+      x: 306945.2,
+      y: 6134367.25,
+      description: '',
+      source: 7,
+    });
 
     expect(params).toEqual({
       species: 767,
