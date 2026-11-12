@@ -647,7 +647,15 @@ export default class RequestsService extends moleculer.Service {
     const isOnlyFile = !Object.entries(GENERATED_DOCUMENTS).some(
       ([type, { field: other }]) => type !== documentType && !!request[other],
     );
-    await this.sendNotificationOnFileGenerated(ctx, request, documentType, isOnlyFile);
+    // The file is already saved, so nothing below may fail the job and make BullMQ redo the conversion.
+    try {
+      await this.sendNotificationOnFileGenerated(ctx, request, documentType, isOnlyFile);
+    } catch (err: unknown) {
+      this.logger.error(
+        `Could not notify about the generated ${documentType} of request ${id}`,
+        err instanceof Error ? err.message : String(err),
+      );
+    }
 
     return request;
   }

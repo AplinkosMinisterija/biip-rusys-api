@@ -116,6 +116,24 @@ describe('saveGeneratedFile', () => {
 
     expect(notified[0].slice(2)).toEqual([RequestDocumentType.SHP, false]);
   });
+  it('keeps a saved file when the notification fails, instead of failing the job', async () => {
+    const self = {
+      updateEntity: jest.fn().mockResolvedValue({ id: 42, generatedFileShp: 'http://x/f.zip' }),
+      sendNotificationOnFileGenerated: jest.fn().mockRejectedValue(new Error('postmark down')),
+      logger: { error: jest.fn() },
+    };
+
+    const request = await saveGeneratedFile.call(
+      self,
+      { params: { id: 42, url: 'http://x/f.zip' } },
+      RequestDocumentType.SHP,
+    );
+
+    expect({ url: request.generatedFileShp, logged: self.logger.error.mock.calls.length }).toEqual({
+      url: 'http://x/f.zip',
+      logged: 1,
+    });
+  });
 });
 
 describe('initiateDocumentGenerate', () => {
