@@ -41,6 +41,12 @@ type SendNotificationOnFileGenerated = (
   sendEmail: boolean,
 ) => Promise<void>;
 
+type GetApprovalComment = (
+  this: unknown,
+  ctx: { call: (action: string, params?: unknown) => Promise<unknown> },
+  requestId: number | string,
+) => Promise<string | undefined>;
+
 const {
   saveGeneratedFile,
   initiateDocumentGenerate,
@@ -50,7 +56,7 @@ const {
   saveGeneratedFile: SaveGeneratedFile;
   initiateDocumentGenerate: InitiateDocumentGenerate;
   sendNotificationOnFileGenerated: SendNotificationOnFileGenerated;
-  getApprovalComment: unknown;
+  getApprovalComment: GetApprovalComment;
 };
 
 const approvedRequest = {
