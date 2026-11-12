@@ -6,6 +6,7 @@ import {
   stageIsOffered,
   optionCodeFromLabel,
   shouldRecomputePlaceOnRelevancyChange,
+  shouldRefreshApprovedFormsView,
   toHmacHash,
   toPositiveIntegerIds,
 } from './functions';
@@ -85,6 +86,51 @@ describe('shouldRecomputePlaceOnRelevancyChange', () => {
         'forms.update',
       ),
     ).toBe(false);
+  });
+});
+
+describe('shouldRefreshApprovedFormsView', () => {
+  const submittedForm = {
+    id: 1,
+    status: 'SUBMITTED',
+    isRelevant: true,
+    place: undefined as number | undefined,
+  };
+  const approvedForm = { ...submittedForm, status: 'APPROVED' };
+
+  it('refreshes when an expert approves an informational form, which never gets a place', () => {
+    expect(shouldRefreshApprovedFormsView(approvedForm, submittedForm)).toBe(true);
+  });
+
+  it('refreshes when an expert approves a form that gets a place', () => {
+    expect(shouldRefreshApprovedFormsView({ ...approvedForm, place: 7 }, submittedForm)).toBe(true);
+  });
+
+  it('refreshes when a form is created already approved', () => {
+    expect(shouldRefreshApprovedFormsView(approvedForm)).toBe(true);
+  });
+
+  it('refreshes when relevancy or place changes on an approved form', () => {
+    const withPlace = { ...approvedForm, place: 7 };
+
+    expect(shouldRefreshApprovedFormsView({ ...withPlace, isRelevant: false }, withPlace)).toBe(
+      true,
+    );
+    expect(shouldRefreshApprovedFormsView({ ...withPlace, place: 8 }, withPlace)).toBe(true);
+  });
+
+  it('skips a form that is not approved', () => {
+    expect(
+      shouldRefreshApprovedFormsView({ ...submittedForm, status: 'RETURNED' }, submittedForm),
+    ).toBe(false);
+  });
+
+  it('skips an approved form whose change the view does not show', () => {
+    expect(shouldRefreshApprovedFormsView(approvedForm, approvedForm)).toBe(false);
+  });
+
+  it('skips a form that was not persisted', () => {
+    expect(shouldRefreshApprovedFormsView({ ...approvedForm, id: undefined })).toBe(false);
   });
 });
 

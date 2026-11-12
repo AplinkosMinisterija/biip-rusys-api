@@ -66,6 +66,28 @@ export function shouldRecomputePlaceOnRelevancyChange(
   );
 }
 
+interface ApprovedFormsViewForm {
+  id?: number;
+  status?: string;
+  isRelevant?: boolean;
+  place?: number | object;
+}
+
+// The maps read the `approved_forms` view, and an informational form is the only kind that never
+// gets a place, so nothing else would ever refresh the view on its behalf.
+export function shouldRefreshApprovedFormsView(
+  form: ApprovedFormsViewForm,
+  prevForm?: ApprovedFormsViewForm,
+): boolean {
+  if (!form.id || form.status !== FormStatus.APPROVED) return false;
+
+  return (
+    form.status !== prevForm?.status ||
+    form.isRelevant !== prevForm?.isRelevant ||
+    form.place !== prevForm?.place
+  );
+}
+
 export function parseToObject(data: object | string) {
   if (typeof data === 'string') {
     try {

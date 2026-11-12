@@ -35,6 +35,7 @@ import {
   classifierChanged,
   parseToObject,
   shouldRecomputePlaceOnRelevancyChange,
+  shouldRefreshApprovedFormsView,
 } from '../utils/functions';
 import {
   FormImportErrors,
@@ -1781,23 +1782,9 @@ export default class FormsService extends moleculer.Service {
 
   @Method
   async refreshApprovedFormsViewIfNeeded(ctx: Context, form: Form, prevForm?: Form) {
-    if (!form.id || form.status !== FormStatus.APPROVED) return;
+    if (!shouldRefreshApprovedFormsView(form, prevForm)) return;
 
-    const notInformationalStatusChanged = !form.isInformational && form.status !== prevForm?.status;
-
-    const relevancyChanged = prevForm?.isRelevant !== form?.isRelevant;
-
-    const placeChanged = form.place !== prevForm?.place;
-
-    /* 
-    refresh materialized view if:
-      1. not informational form status changed to approved
-      2. form relevancy changed
-      3. form place changed
-    */
-    if (notInformationalStatusChanged || relevancyChanged || placeChanged) {
-      await this.refreshMaterializedView(ctx, MaterializedView.APPROVED_FORMS);
-    }
+    await this.refreshMaterializedView(ctx, MaterializedView.APPROVED_FORMS);
   }
 
   @Event()
