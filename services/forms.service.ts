@@ -31,6 +31,7 @@ import {
 import { UserAuthMeta } from './api.service';
 
 import _ from 'lodash';
+import { isInsideLithuania } from '../utils/lithuania';
 import {
   classifierChanged,
   parseToObject,
@@ -352,6 +353,7 @@ export interface Form extends BaseModelInterface {
           properties: {
             bufferSize: 'geomBufferSize',
           },
+          validate: 'validateGeomIsInsideLithuania',
         },
       },
 
@@ -757,6 +759,8 @@ export default class FormsService extends moleculer.Service {
     });
   }
 
+  // `updateEntities` runs none of the action hooks, so `changes` reaches the row without the
+  // status gate or the geometry check; `places.service` is the only caller.
   @Action({
     params: {
       ids: {
@@ -768,6 +772,7 @@ export default class FormsService extends moleculer.Service {
       },
       changes: 'object',
     },
+    visibility: 'protected',
   })
   async updateBatch(
     ctx: Context<{
@@ -1727,6 +1732,25 @@ export default class FormsService extends moleculer.Service {
     });
 
     return !!relevantFormsCount || 'Cannot make all forms irrelevant';
+  }
+
+  @Method
+  async validateGeomIsInsideLithuania({ ctx, value }: FieldHookCallback) {
+    const adapter = await this.getAdapter(ctx);
+
+    try {
+      if (await isInsideLithuania(adapter.client, value)) return true;
+    } catch (err) {
+      // Coordinates postgis cannot even project are not inside Lithuania, and the insert would
+      // fail on the same expression, so the caller gets the validation error instead of a 500.
+      this.logger.warn('Could not place the observation geometry', err);
+    }
+
+    return throwValidationError(
+      'The observation is outside Lithuania',
+      undefined,
+      'GEOM_OUTSIDE_LITHUANIA',
+    );
   }
 
   @Method
