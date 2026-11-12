@@ -120,6 +120,7 @@ export function notifyOnFileGenerated(
   isExpert: boolean = false,
   isAdmin: boolean = false,
   speciesTypes: string[],
+  adminComment?: string,
 ) {
   const path = isExpert || isAdmin ? 'rusys/prasymai' : 'prasymai';
 
@@ -130,6 +131,7 @@ export function notifyOnFileGenerated(
     TemplateModel: {
       actionUrl: `${hostUrl(isAdmin)}/${path}/${requestId}`,
       systemName: getSystemName(speciesTypes[0]),
+      adminComment,
     },
   });
 }
