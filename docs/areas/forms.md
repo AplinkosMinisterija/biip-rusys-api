@@ -36,7 +36,11 @@ CSV import) is not written down here yet; the file layout itself is in the codem
 - **`forms.service.ts › expertCanReassign` is the status gate for reassignment**: the acting
   expert must be the current assignee AND the form must be in `reviewableStatuses`. That is what
   makes a RETURNED / REJECTED / APPROVED form unreassignable, and the same predicate decides
-  whether `listAssignees` returns the whole species panel or just the caller.
+  whether `listAssignees` returns the whole species panel or just the caller. It is fed
+  `params?.status || entity.status`, never `entity.status` alone — see the TOCTOU trap below.
+- **The species a reassignment is checked against is the FORM's, not the acting expert's.**
+  `validateAssignee` passes `Number(entity.speciesId)` to `isSpeciesExpert`, so a holder can only
+  hand the form to someone qualified for that form's species.
 - **The assignee mail is not sent by the assigning action.** `forms.updated` fires
   `sendNotificationsOnAssigneeChange` whenever the assignee changed and the new assignee is not
   the acting user — so an expert-to-expert handover mails the receiver with no extra code, and
@@ -75,12 +79,23 @@ CSV import) is not written down here yet; the file layout itself is in the codem
 - **`users.resolve` hides ADMIN rows** from a caller with no admin meta (the `notAdmins` scope), so
   a script building a fake `ctx.meta.user` for an admin must pass `scope: false`.
 
+- **Each field validator sees only the stored row, so a single update can beat a two-field rule.**
+  `validateAssignee` and `validateStatus` both read the pre-update `entity` and neither sees the
+  other's incoming value, and `forms.update` carries no `types` guard — so one
+  `PATCH /rusys/forms/:id` with `{ status: 'APPROVED', assignee: <otherExpert> }` used to land a
+  reassigned APPROVED form (measured: the row ended `APPROVED/3`). Any rule that spans two fields
+  must read `params` for the other one, not `entity`.
+
 ## Verifying it live
 
 `forms.service.spec.ts` drives the `@Method`s off the prototype with a hand-built `this`; that
 covers the branch table but not the DB. For real evidence, boot a broker against the compose
 postgres and call the actions — the recipe (and its twelve traps) is in the
-`rusys-local-boot-gotchas` / `verifying-request-exports-locally` memories. The fixture an
+`rusys-local-boot-gotchas` / `verifying-request-exports-locally` memories. **Give every
+`broker.call` its own `meta` object** (`{ meta: { ...base } }`): the before-update hooks write
+flags such as `statusChanged` onto the meta they are handed, and a reused object carries them into
+the next call — which cost an hour of chasing a self-unassign "regression" that only the harness
+had. The fixture an
 assignment test needs is three rows: an APPROVED `CHECK` request per expert
 (`taxonomies = [{"id": <speciesId>, "taxonomy": "SPECIES"}]`, `species_types = ["ENDANGERED"]`,
 `tenant_id` NULL), then a form of that species in SUBMITTED with `assignee_id` set. A dev database

@@ -1812,7 +1812,7 @@ export default class FormsService extends moleculer.Service {
   }
 
   @Method
-  async validateAssignee({ ctx, value, entity }: FieldHookCallback) {
+  async validateAssignee({ ctx, value, params, entity }: FieldHookCallback) {
     const { user } = ctx?.meta;
     if (!entity?.id || !user?.id) return true;
 
@@ -1827,7 +1827,11 @@ export default class FormsService extends moleculer.Service {
       const assignedToHimself = Number(user.id) === Number(prevAssignee);
 
       if (!!newAssignee && !assigningToHimself) {
-        if (!this.expertCanReassign(entity, user)) {
+        // One update can carry status and assignee together, and each validator sees only the
+        // stored row — so the gate has to read the status this very call is setting.
+        const status = params?.status || entity.status;
+
+        if (!this.expertCanReassign({ ...entity, status }, user)) {
           return 'Cannot assign to somebody else.';
         } else if (!(await this.isSpeciesExpert(newAssignee, species))) {
           return error;

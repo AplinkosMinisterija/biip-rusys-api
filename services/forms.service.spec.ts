@@ -53,12 +53,14 @@ const AUTHOR = 1;
 const HOLDER = 2;
 const OTHER_EXPERT = 3;
 const NOT_AN_EXPERT = 4;
+const OTHER_SPECIES_EXPERT = 5;
 
 const speciesByExpert: Record<number, number[]> = {
   [AUTHOR]: [SPECIES],
   [HOLDER]: [SPECIES],
   [OTHER_EXPERT]: [SPECIES],
   [NOT_AN_EXPERT]: [],
+  [OTHER_SPECIES_EXPERT]: [SPECIES + 1],
 };
 
 const serviceSelf = () => ({
@@ -90,13 +92,35 @@ const form = (overrides: Partial<FormRow> = {}): FormRow => ({
   ...overrides,
 });
 
-const assign = (user: Partial<User>, value: number | null, entity: FormRow) =>
-  validateAssignee.call(serviceSelf(), { ctx: { meta: { user } }, value, entity });
+const assign = (
+  user: Partial<User>,
+  value: number | null,
+  entity: FormRow,
+  params: { status?: string } = {},
+) => validateAssignee.call(serviceSelf(), { ctx: { meta: { user } }, value, params, entity });
 
 describe('validateAssignee — an expert handing the form to another expert', () => {
-  it('lets the holder pick another expert of the species', async () => {
-    await expect(assign(expert(HOLDER), OTHER_EXPERT, form())).resolves.toBe(true);
+  it.each([FormStatus.CREATED, FormStatus.SUBMITTED])(
+    'lets the holder of a %s form pick another expert of the species',
+    async (status) => {
+      await expect(assign(expert(HOLDER), OTHER_EXPERT, form({ status }))).resolves.toBe(true);
+    },
+  );
+
+  it('refuses a target who is an expert, but of another species', async () => {
+    await expect(assign(expert(HOLDER), OTHER_SPECIES_EXPERT, form())).resolves.toBe(
+      'Assignee cannot be set.',
+    );
   });
+
+  it.each([FormStatus.RETURNED, FormStatus.REJECTED, FormStatus.APPROVED])(
+    'refuses a handover that closes the form to %s in the same update',
+    async (status) => {
+      await expect(assign(expert(HOLDER), OTHER_EXPERT, form(), { status })).resolves.toBe(
+        'Cannot assign to somebody else.',
+      );
+    },
+  );
 
   it.each([FormStatus.RETURNED, FormStatus.REJECTED, FormStatus.APPROVED])(
     'refuses a %s form',
