@@ -66,6 +66,14 @@ type FormAutoApprove = { autoApprove: boolean };
 type FormSkipApprovedFormsRefresh = { skipApprovedFormsRefresh?: boolean };
 
 const nonEditableStatuses = [FormStatus.APPROVED, FormStatus.REJECTED];
+const reviewableStatuses = [FormStatus.CREATED, FormStatus.SUBMITTED];
+
+// A mapped entity carries `assignee`, a raw row carries `assigneeId`; both reach the check.
+type FormAssignment = {
+  status: string;
+  assignee?: number | User;
+  assigneeId?: number | null;
+};
 
 const FormStates = {
   RELEVANT: 'RELEVANT',
@@ -803,7 +811,7 @@ export default class FormsService extends moleculer.Service {
     const { user } = ctx.meta;
     const form: Form = await ctx.call('forms.resolve', { id });
     let userIds: number[] = [];
-    if (user?.isExpert) {
+    if (user?.isExpert && !this.expertCanReassign(form, user)) {
       if (user.expertSpecies.includes(Number(form.species))) {
         userIds = [user.id];
       }
@@ -1362,8 +1370,7 @@ export default class FormsService extends moleculer.Service {
       };
     } else if (user.isExpert) {
       const isValid =
-        Number(assignee) === Number(user.id) &&
-        [FormStatus.CREATED, FormStatus.SUBMITTED].includes(form.status);
+        Number(assignee) === Number(user.id) && reviewableStatuses.includes(form.status);
 
       return {
         validate: isValid,
@@ -1768,11 +1775,9 @@ export default class FormsService extends moleculer.Service {
   getTasksQuery(user: User) {
     if (!user?.id) return {};
 
-    const statusFilters = [FormStatus.CREATED, FormStatus.SUBMITTED];
-
     const query: any = {
       status: {
-        $in: statusFilters,
+        $in: reviewableStatuses,
       },
     };
 
@@ -1786,6 +1791,24 @@ export default class FormsService extends moleculer.Service {
     return _.merge(query, {
       assignee: user.id,
     });
+  }
+
+  @Method
+  expertCanReassign(form: FormAssignment, user?: User) {
+    if (!user?.isExpert) return false;
+
+    const assignee = form.assignee || form.assigneeId;
+
+    return Number(assignee) === Number(user.id) && reviewableStatuses.includes(form.status);
+  }
+
+  @Method
+  async isSpeciesExpert(userId: number, speciesId: number) {
+    const expertSpecies: number[] = await this.broker.call('requests.getExpertSpecies', {
+      userId,
+    });
+
+    return expertSpecies.includes(speciesId);
   }
 
   @Method
@@ -1804,7 +1827,11 @@ export default class FormsService extends moleculer.Service {
       const assignedToHimself = Number(user.id) === Number(prevAssignee);
 
       if (!!newAssignee && !assigningToHimself) {
-        return 'Cannot assign to somebody else.';
+        if (!this.expertCanReassign(entity, user)) {
+          return 'Cannot assign to somebody else.';
+        } else if (!(await this.isSpeciesExpert(newAssignee, species))) {
+          return error;
+        }
       } else if (!!newAssignee && !!prevAssignee) {
         return 'Assignee already exists.';
       } else if (!newAssignee && !assignedToHimself) {
@@ -1815,10 +1842,7 @@ export default class FormsService extends moleculer.Service {
     } else if (user.type === UserType.USER) {
       return error;
     } else if (newAssignee && user.type === UserType.ADMIN) {
-      const expertSpecies: number[] = await this.broker.call('requests.getExpertSpecies', {
-        userId: newAssignee,
-      });
-      if (!expertSpecies.includes(Number(species))) {
+      if (!(await this.isSpeciesExpert(newAssignee, species))) {
         return error;
       }
     }
