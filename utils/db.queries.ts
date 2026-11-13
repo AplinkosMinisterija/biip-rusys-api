@@ -275,3 +275,19 @@ export function getMapsGridStatsQuery(itemsTable: string) {
 
   return query;
 }
+
+export async function geometriesIntersectLithuania(geometries: unknown[]): Promise<boolean> {
+  if (!geometries?.length) return true;
+
+  const knex = getAdapter();
+  const { rows } = await knex.raw(
+    `SELECT bool_and(EXISTS (
+       SELECT 1 FROM lithuania_boundary b
+       WHERE ST_Intersects(b.geom, ST_SetSRID(ST_GeomFromGeoJSON(g), 3346))
+     )) AS inside
+     FROM unnest(?::text[]) AS g`,
+    [geometries.map((geometry) => JSON.stringify(geometry))],
+  );
+
+  return rows?.[0]?.inside === true;
+}
