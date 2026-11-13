@@ -177,7 +177,6 @@ export default class JobsRequestsService extends moleculer.Service {
         place.forms?.forEach((form: any) => {
           const { features } = form.geom || [];
           const featuresToInsert = features.map((f: any) => {
-            f.geometry.crs = LKS_94_CRS;
             f.properties = getObservationFormProperties(
               form,
               { speciesById: requestData.speciesById, speciesId: place.species },
@@ -200,7 +199,6 @@ export default class JobsRequestsService extends moleculer.Service {
         item?.forms?.forEach((form: any) => {
           const { features } = form.geom || [];
           const featuresToInsert = features.map((f: any) => {
-            f.geometry.crs = LKS_94_CRS;
             f.properties = getObservationFormProperties(form, {
               speciesById: requestData.speciesById,
               speciesId: form.species,
@@ -222,7 +220,7 @@ export default class JobsRequestsService extends moleculer.Service {
         noInformationForms: false,
       };
 
-      yield `{"type":"FeatureCollection","features":[`; // Open GeoJSON structure
+      yield `{"type":"FeatureCollection","crs":${JSON.stringify(LKS_94_CRS)},"features":[`;
 
       while (true) {
         const places = stats.noPlaces
