@@ -96,8 +96,83 @@ export default class MapsHexagonService extends moleculer.Service {
     return getFeatureCollection(items.map((i) => i.geom));
   }
 
+  @Action({
+    rest: ['GET /:id/species', 'POST /:id/species'],
+    auth: AuthType.MAPS_PUBLIC,
+    params: {
+      id: {
+        type: 'number',
+        convert: true,
+      },
+    },
+  })
+  async getSpecies(ctx: Context<{ id: number; layers: any }, UserAuthMeta>) {
+    // `id` here is the hexagon, so it must not reach the places filter.
+    const filters = await this.getLayersAndOptions(ctx, undefined, null);
+    if (!filters) return [];
+
+    const adapter = await this.getAdapter(ctx);
+    const { user } = ctx.meta;
+    const showHidden = !!user?.isExpert || user?.type === UserType.ADMIN;
+
+    const queries = this.getLayersQueries(
+      adapter,
+      filters.layers,
+      filters.options,
+      (table, options) => {
+        const query = adapter.client
+          .table(table)
+          .distinct(`${table}.speciesId`, `${table}.speciesName`, `${table}.speciesNameLatin`)
+          .where(`${table}.hexagonGridId`, ctx.params.id);
+
+        if (!showHidden) {
+          query.where(
+            adapter.client.raw(
+              `${snakeCase(table)}.${queryBooleanPlain('speciesIsHidden', false)}`,
+            ),
+          );
+        }
+
+        return this.getStatsQuery(adapter, table, options, query);
+      },
+    );
+
+    const rows: any[] = (await Promise.all(queries.map(({ query }) => query))).flat();
+
+    return _.sortBy(
+      _.uniqBy(rows, 'speciesId').map((row) => ({
+        id: row.speciesId,
+        name: row.speciesName,
+        nameLatin: row.speciesNameLatin,
+      })),
+      (species) => species.name?.toLowerCase(),
+    );
+  }
+
   @Method
-  async getStatsBySpeciesType(
+  async getStatsBySpeciesType(ctx: Context<any, UserAuthMeta>, speciesType?: string) {
+    const filters = await this.getLayersAndOptions(ctx, speciesType);
+    if (!filters) return [];
+
+    const adapter = await this.getAdapter(ctx);
+    const data = await this.getDataByLayers(adapter, filters.layers, filters.options);
+
+    const result: any[] = await this.findEntities(ctx, {
+      fields: ['id'],
+    });
+
+    return result
+      .map((item) => {
+        return {
+          id: item.id,
+          ...(data[`${item.id}`] || { count: 0 }),
+        };
+      })
+      .filter((item) => item.count);
+  }
+
+  @Method
+  async getLayersAndOptions(
     ctx: Context<
       {
         kingdomId?: number | object;
@@ -111,9 +186,8 @@ export default class MapsHexagonService extends moleculer.Service {
       UserAuthMeta
     >,
     speciesType?: string,
+    placeId: number | object = ctx?.params?.id,
   ) {
-    const adapter = await this.getAdapter(ctx);
-
     const { user } = ctx?.meta;
     const userIsExpert = !!user?.isExpert;
     const userIsAdmin = user?.type === UserType.ADMIN;
@@ -121,15 +195,7 @@ export default class MapsHexagonService extends moleculer.Service {
     let placesIds: number[];
     let formsIds: number[];
 
-    const {
-      kingdomId,
-      classId,
-      speciesId,
-      phylumId,
-      layers: requestLayers,
-      id,
-      forms,
-    } = ctx?.params;
+    const { kingdomId, classId, speciesId, phylumId, layers: requestLayers, forms } = ctx?.params;
 
     let layers: { [key: string]: string[] } = {
       sris: [mapsSrisPlacesLayerId],
@@ -155,7 +221,7 @@ export default class MapsHexagonService extends moleculer.Service {
       const mapData: any = await ctx.call('maps.getMapsData');
 
       if (!mapData.places?.length) {
-        return [];
+        return;
       }
 
       placesIds = mapData.places;
@@ -172,27 +238,14 @@ export default class MapsHexagonService extends moleculer.Service {
       speciesId,
       phylumId,
       places: {
-        id: !id && !!placesIds ? { $in: placesIds } : id,
+        id: !placeId && !!placesIds ? { $in: placesIds } : placeId,
       },
       forms: {
         id: !forms && !!formsIds ? { $in: formsIds } : forms,
       },
     };
 
-    const data = await this.getDataByLayers(adapter, layers, options);
-
-    const result: any[] = await this.findEntities(ctx, {
-      fields: ['id'],
-    });
-
-    return result
-      .map((item) => {
-        return {
-          id: item.id,
-          ...(data[`${item.id}`] || { count: 0 }),
-        };
-      })
-      .filter((item) => item.count);
+    return { layers, options };
   }
 
   @Method
@@ -214,6 +267,26 @@ export default class MapsHexagonService extends moleculer.Service {
       });
     };
 
+    const queries = this.getLayersQueries(adapter, layers, options, (table, options) =>
+      this.getStatsQuery(adapter, table, options),
+    );
+
+    for (const { key, query } of queries) {
+      makeCount(await query, key);
+    }
+
+    return response;
+  }
+
+  @Method
+  getLayersQueries(
+    adapter: any,
+    layers: { [key: string]: string[] },
+    options: any,
+    buildQuery: (table: string, options: any) => any,
+  ) {
+    const queries: { key: string; query: any }[] = [];
+
     const addIdQuery = (query: any, table: string, id: any) => {
       try {
         // possible - not parsed object
@@ -233,13 +306,9 @@ export default class MapsHexagonService extends moleculer.Service {
       return query;
     };
 
-    if (layers?.sris?.includes(mapsSrisPlacesLayerId)) {
+    const placesQuery = (speciesType: string) => {
       const table = 'placesWithTaxonomies';
-      const placesQuery = this.getStatsQuery(
-        adapter,
-        table,
-        _.merge(options, { speciesType: TaxonomySpeciesType.ENDANGERED }),
-      )
+      const query = buildQuery(table, { ...options, speciesType })
         .whereNull(`${table}.deletedAt`)
         // A place whose observations were all moved away or marked irrelevant
         // keeps the geometry it had back then, so counting it here (and drawing
@@ -248,109 +317,73 @@ export default class MapsHexagonService extends moleculer.Service {
         .where(`${table}.relevantFormsCount`, '>', 0);
 
       if (options.places?.id) {
-        addIdQuery(placesQuery, table, options.places.id);
+        addIdQuery(query, table, options.places.id);
       }
 
-      const places: any[] = await placesQuery;
-      makeCount(places, 'srisPlaces');
+      return query;
+    };
+
+    const formsQuery = (
+      speciesType: string,
+      applyCondition: (query: any, table: string) => any,
+    ) => {
+      const table = 'approvedForms';
+      const query = buildQuery(table, { ...options, speciesType }).where(
+        adapter.client.raw(`${snakeCase(table)}.${queryBooleanPlain('isRelevant', true)}`),
+      );
+      applyCondition(query, table);
+
+      if (options.forms?.id) {
+        addIdQuery(query, table, options.forms.id);
+      }
+
+      return query;
+    };
+
+    const noQuantityCondition = (query: any, table: string) =>
+      query.where(`${table}.noQuantityReason`, FormNoQuantityReason.RESEARCH);
+
+    if (layers?.sris?.includes(mapsSrisPlacesLayerId)) {
+      queries.push({ key: 'srisPlaces', query: placesQuery(TaxonomySpeciesType.ENDANGERED) });
     }
 
     if (layers?.inva?.includes(mapsInvaPlacesInvasiveLayerId)) {
-      const table = 'placesWithTaxonomies';
-      const placesQuery = this.getStatsQuery(
-        adapter,
-        table,
-        _.merge(options, { speciesType: TaxonomySpeciesType.INVASIVE }),
-      )
-        .whereNull(`${table}.deletedAt`)
-        .where(`${table}.relevantFormsCount`, '>', 0);
-
-      if (options.places?.id) {
-        addIdQuery(placesQuery, table, options.places.id);
-      }
-
-      const places: any[] = await placesQuery;
-      makeCount(places, 'invaPlaces');
+      queries.push({ key: 'invaPlaces', query: placesQuery(TaxonomySpeciesType.INVASIVE) });
     }
 
     if (layers?.inva?.includes(mapsInvaPlacesIntroducedLayerId)) {
-      const table = 'placesWithTaxonomies';
-      const placesQuery = this.getStatsQuery(
-        adapter,
-        table,
-        _.merge(options, { speciesType: TaxonomySpeciesType.INTRODUCED }),
-      )
-        .whereNull(`${table}.deletedAt`)
-        .where(`${table}.relevantFormsCount`, '>', 0);
-
-      if (options.places?.id) {
-        addIdQuery(placesQuery, table, options.places.id);
-      }
-
-      const places: any[] = await placesQuery;
-      makeCount(places, 'invaIntroducedPlaces');
+      queries.push({
+        key: 'invaIntroducedPlaces',
+        query: placesQuery(TaxonomySpeciesType.INTRODUCED),
+      });
     }
 
     if (layers?.inva?.includes(mapsInvaNoQuantityInvasiveFormsLayerId)) {
-      const table = 'approvedForms';
-
-      const formsQuery = this.getStatsQuery(
-        adapter,
-        table,
-        _.merge(options, { speciesType: TaxonomySpeciesType.INVASIVE }),
-      )
-        .where(adapter.client.raw(`${snakeCase(table)}.${queryBooleanPlain('isRelevant', true)}`))
-        .where(`${table}.noQuantityReason`, FormNoQuantityReason.RESEARCH);
-
-      if (options.forms?.id) {
-        addIdQuery(formsQuery, table, options.forms.id);
-      }
-
-      const formsCount = await formsQuery;
-      makeCount(formsCount, 'invaNoQuantityForms');
+      queries.push({
+        key: 'invaNoQuantityForms',
+        query: formsQuery(TaxonomySpeciesType.INVASIVE, noQuantityCondition),
+      });
     }
 
     if (layers?.inva?.includes(mapsInvaNoQuantityIntroducedFormsLayerId)) {
-      const table = 'approvedForms';
-
-      const formsQuery = this.getStatsQuery(
-        adapter,
-        table,
-        _.merge(options, { speciesType: TaxonomySpeciesType.INTRODUCED }),
-      )
-        .where(adapter.client.raw(`${snakeCase(table)}.${queryBooleanPlain('isRelevant', true)}`))
-        .where(`${table}.noQuantityReason`, FormNoQuantityReason.RESEARCH);
-
-      if (options.forms?.id) {
-        addIdQuery(formsQuery, table, options.forms.id);
-      }
-
-      const formsCount = await formsQuery;
-      makeCount(formsCount, 'invaIntroducedNoQuantityForms');
+      queries.push({
+        key: 'invaIntroducedNoQuantityForms',
+        query: formsQuery(TaxonomySpeciesType.INTRODUCED, noQuantityCondition),
+      });
     }
 
     if (layers?.sris?.includes(mapsSrisInformationalFormsLayerId)) {
-      const table = 'approvedForms';
-
-      const formsQuery = this.getStatsQuery(
-        adapter,
-        table,
-        _.merge(options, { speciesType: TaxonomySpeciesType.ENDANGERED }),
-      )
-        .where(adapter.client.raw(`${snakeCase(table)}.${queryBooleanPlain('isRelevant', true)}`))
-        .where(
-          adapter.client.raw(`${snakeCase(table)}.${queryBooleanPlain('isInformational', true)}`),
-        );
-
-      if (options.forms?.id) {
-        addIdQuery(formsQuery, table, options.forms.id);
-      }
-
-      const informationalForms = await formsQuery;
-      makeCount(informationalForms, 'srisInformationalForms');
+      queries.push({
+        key: 'srisInformationalForms',
+        query: formsQuery(TaxonomySpeciesType.ENDANGERED, (query: any, table: string) =>
+          query.where(
+            adapter.client.raw(`${snakeCase(table)}.${queryBooleanPlain('isInformational', true)}`),
+          ),
+        ),
+      });
     }
 
-    return response;
+    return queries;
   }
 
   @Method
@@ -365,8 +398,8 @@ export default class MapsHexagonService extends moleculer.Service {
       speciesId?: number | object;
       speciesType?: string;
     },
+    query = getMapsGridStatsQuery(itemsTable),
   ) {
-    const query = getMapsGridStatsQuery(itemsTable);
     const taxonomiesQuery: any = {};
     const addToQuery = (table: string, field: string, value: any) => {
       try {
