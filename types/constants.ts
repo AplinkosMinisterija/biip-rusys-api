@@ -22,6 +22,10 @@ export const FormStatus = {
   APPROVED: 'APPROVED',
 };
 
+export const FormErrors = {
+  GEOM_OUTSIDE_LITHUANIA: 'FORM_GEOM_OUTSIDE_LITHUANIA',
+};
+
 export const TaxonomySpeciesType = {
   INVASIVE: 'INVASIVE',
   ENDANGERED: 'ENDANGERED',

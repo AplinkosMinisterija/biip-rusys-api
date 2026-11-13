@@ -21,6 +21,7 @@ import {
   EndpointType,
   EntityChangedParams,
   FieldHookCallback,
+  FormErrors,
   FormStatus,
   queryBoolean,
   TENANT_FIELD,
@@ -43,6 +44,7 @@ import {
   validateFormImportRow,
 } from '../utils/formsImport';
 import { approvedFormsViewNeedsRefresh } from '../utils/approvedFormsView';
+import { geometriesIntersectLithuania } from '../utils/db.queries';
 import { emailCanBeSent, notifyFormAssignee, notifyOnFormUpdate } from '../utils/mails';
 import { FormHistoryTypes } from './forms.histories.service';
 import { FormSettingsGroupType, FormSettingsOptions } from './forms.settings.options.service';
@@ -349,6 +351,7 @@ export interface Form extends BaseModelInterface {
         required: true,
         geom: {
           type: 'geom',
+          validate: 'validateGeomInLithuania',
           properties: {
             bufferSize: 'geomBufferSize',
           },
@@ -864,6 +867,10 @@ export default class FormsService extends moleculer.Service {
       const taxonomy = taxonomies?.[Number(row.species)];
       const errors = validateFormImportRow(row, taxonomy, new Date(), knownSources);
 
+      if (!errors.length && !(await this.geomIsInLithuania(formImportRowToParams(row).geom))) {
+        errors.push(FormImportErrors.BAD_COORDINATES);
+      }
+
       if (!errors.length && taxonomy?.formType) {
         const methodIsValid = await ctx.call('forms.types.validateMethod', {
           type: taxonomy.formType,
@@ -1043,6 +1050,16 @@ export default class FormsService extends moleculer.Service {
       sort: sortingFields,
       scope: 'tasks',
     });
+  }
+
+  @Action({
+    rest: 'POST /check/geom',
+    params: {
+      geom: 'any',
+    },
+  })
+  async checkGeom(ctx: Context<{ geom: unknown }>) {
+    return { insideLithuania: await this.geomIsInLithuania(ctx.params.geom) };
   }
 
   @Action({
@@ -1683,6 +1700,24 @@ export default class FormsService extends moleculer.Service {
     }
 
     return error;
+  }
+
+  @Method
+  async geomIsInLithuania(value: unknown) {
+    const geom: any = parseToObject(value as any);
+    if (!geom) return true;
+
+    const features = geom.features || (geom.type === 'Feature' ? [geom] : []);
+    const geometries = geom.coordinates ? [geom] : features.map((f: any) => f?.geometry);
+
+    return geometriesIntersectLithuania(geometries.filter(Boolean));
+  }
+
+  @Method
+  async validateGeomInLithuania({ value }: FieldHookCallback) {
+    if (!value) return true;
+
+    return (await this.geomIsInLithuania(value)) || FormErrors.GEOM_OUTSIDE_LITHUANIA;
   }
 
   @Method
