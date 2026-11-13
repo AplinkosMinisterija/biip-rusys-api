@@ -64,6 +64,14 @@ render from: adding a member makes a new checkbox appear in `biip-rusys-web` and
   url and fetches it, so a published one is a fetcher pointed wherever an authenticated
   caller likes. moleculer-web refuses to publish any action whose visibility is set and
   not `published` (`moleculer-web/src/index.js:552`).
+- **A GeoJSON's CRS belongs on the FeatureCollection, never on the geometries.** GDAL —
+  and so QGIS — reads the legacy `crs` member off the top-level object only; one on each
+  geometry is ignored and the layer opens as WGS84, dropping the LKS-94 metres somewhere
+  off Africa. `utils/requests.ts › LKS_94_CRS` is the single definition, emitted once by
+  the on-the-fly `requests.service.ts › getGeojson` and once in the opening chunk of the
+  streamed `jobs.requests.service.ts › generateAndSaveGeojson`. `ogrinfo -al -so <file>`
+  must print `PROJCRS["LKS94 / Lithuania TM"]`; a WKT naming EPSG:4326 means the member
+  is in the wrong place.
 - **Vector export workers run `concurrency: 1`** (`utils/vector-export/service.ts`), not
   the repo's usual 5: each format has its own worker and ogr2ogr runs in a 512M tools
   container that also serves UETK.

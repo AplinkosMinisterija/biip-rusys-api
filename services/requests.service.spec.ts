@@ -4,7 +4,13 @@ jest.mock('../utils/mails', () => ({
   notifyOnRequestUpdate: jest.fn(),
 }));
 
+jest.mock('../utils/pdf/requests', () => ({
+  getRequestData: jest.fn(),
+}));
+
 import { notifyOnFileGenerated } from '../utils/mails';
+import { getRequestData } from '../utils/pdf/requests';
+import { LKS_94_CRS } from '../utils/requests';
 import RequestsService, {
   Request,
   RequestDocumentType,
@@ -41,6 +47,17 @@ type SendNotificationOnFileGenerated = (
   sendEmail: boolean,
 ) => Promise<void>;
 
+type Geojson = { crs: unknown; features: Array<{ geometry: Record<string, unknown> }> };
+
+type GetGeojson = (
+  this: unknown,
+  ctx: {
+    params: { id: number };
+    meta: Record<string, unknown>;
+    call: (action: string, params?: unknown) => Promise<unknown>;
+  },
+) => Promise<Geojson>;
+
 type GetApprovalComment = (
   this: unknown,
   ctx: { call: (action: string, params?: unknown) => Promise<unknown> },
@@ -52,11 +69,13 @@ const {
   initiateDocumentGenerate,
   sendNotificationOnFileGenerated,
   getApprovalComment,
+  getGeojson,
 } = RequestsService.prototype as unknown as {
   saveGeneratedFile: SaveGeneratedFile;
   initiateDocumentGenerate: InitiateDocumentGenerate;
   sendNotificationOnFileGenerated: SendNotificationOnFileGenerated;
   getApprovalComment: GetApprovalComment;
+  getGeojson: GetGeojson;
 };
 
 const approvedRequest = {
@@ -246,5 +265,55 @@ describe('sendNotificationOnFileGenerated', () => {
     await notifyWith(authoredRequest, author, [{ comment: '', createdBy: 7 }]);
 
     expect(jest.mocked(notifyOnFileGenerated).mock.calls[0][5]).toBeUndefined();
+  });
+});
+
+describe('getGeojson', () => {
+  const feature = () => ({
+    type: 'Feature',
+    geometry: { type: 'Point', coordinates: [582000, 6061000] } as Record<string, unknown>,
+    properties: {},
+  });
+
+  type RequestData = Awaited<ReturnType<typeof getRequestData>>;
+
+  const buildGeojson = async (): Promise<Geojson> => {
+    const requestData = {
+      speciesById: {},
+      places: [
+        {
+          id: 7,
+          species: 1,
+          placeCode: 'RAD-1',
+          geom: { features: [feature()] },
+          forms: [{ id: 11, geom: { features: [feature()] } }],
+        },
+      ],
+      informationalForms: {
+        1: { forms: [{ id: 12, species: 1, geom: { features: [feature()] } }] },
+      },
+    };
+    jest.mocked(getRequestData).mockResolvedValue(requestData as unknown as RequestData);
+
+    return getGeojson.call(
+      {},
+      {
+        params: { id: 42 },
+        meta: {},
+        call: jest.fn().mockResolvedValue(approvedRequest),
+      },
+    );
+  };
+
+  it('declares the Lithuanian CRS for the file, so GIS software reads it as LKS-94', async () => {
+    const geojson = await buildGeojson();
+
+    expect(geojson.crs).toEqual(LKS_94_CRS);
+  });
+
+  it('leaves no CRS on the geometries, where the GeoJSON readers ignore it', async () => {
+    const geojson = await buildGeojson();
+
+    expect(geojson.features.map((item) => 'crs' in item.geometry)).toEqual([false, false, false]);
   });
 });

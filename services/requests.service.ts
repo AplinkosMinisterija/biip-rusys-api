@@ -984,6 +984,7 @@ export default class RequestsService extends moleculer.Service {
 
     const geojson: any = {
       type: 'FeatureCollection',
+      crs: LKS_94_CRS,
       features: [],
     };
 
@@ -992,7 +993,6 @@ export default class RequestsService extends moleculer.Service {
 
       const placeFeatures = place.geom?.features || [];
       placeFeatures.forEach((pf: any) => {
-        pf.geometry.crs = LKS_94_CRS;
         pf.properties = {
           'Objekto tipas': 'Radavietė',
           'Radavietės ID': place.id,
@@ -1010,7 +1010,6 @@ export default class RequestsService extends moleculer.Service {
       place.forms?.forEach((form) => {
         const { features } = form.geom || [];
         const featuresToInsert = features.map((f: any) => {
-          f.geometry.crs = LKS_94_CRS;
           f.properties = {
             'Objekto tipas': 'Stebėjimas',
             ...getObservationFormProperties(
@@ -1030,7 +1029,6 @@ export default class RequestsService extends moleculer.Service {
       item?.forms?.forEach((form: any) => {
         const { features } = form.geom || [];
         const featuresToInsert = features.map((f: any) => {
-          f.geometry.crs = LKS_94_CRS;
           f.properties = getObservationFormProperties(form, {
             speciesById: requestData.speciesById,
             speciesId: form.species,
