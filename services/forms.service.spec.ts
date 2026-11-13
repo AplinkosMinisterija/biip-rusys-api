@@ -29,6 +29,8 @@ type ValidateAssignee = (
   },
 ) => Promise<true | string>;
 
+type AssigneeList = { rows: Array<{ id: number }>; total: number };
+
 type ListAssignees = (
   this: unknown,
   ctx: {
@@ -36,7 +38,7 @@ type ListAssignees = (
     meta: { user?: Partial<User>; profile?: unknown };
     call: (action: string, params?: unknown) => Promise<unknown>;
   },
-) => Promise<{ rows: Array<{ id: number }>; total: number }>;
+) => Promise<AssigneeList>;
 
 const { validateAssignee, listAssignees, expertCanReassign, isSpeciesExpert } =
   FormsService.prototype as unknown as {
@@ -151,49 +153,50 @@ describe('validateAssignee — the rules that were already there', () => {
 });
 
 describe('listAssignees', () => {
-  const listFor = (user: Partial<User>, status: string, assignee: number | null) => {
-    const call = async (action: string) => {
+  const listFor = async (user: Partial<User>, status: string, assignee: number | null) => {
+    const call = async (action: string, params?: unknown) => {
       if (action === 'forms.resolve') {
         return { id: 10, status, assignee, createdBy: AUTHOR, species: SPECIES };
       }
       if (action === 'requests.getExpertsIdsBySpecies') return [AUTHOR, HOLDER, OTHER_EXPERT];
-      if (action === 'users.resolve') return [];
+      if (action === 'users.resolve') return (params as { id: number[] }).id.map((id) => ({ id }));
       throw new Error(`unexpected call: ${action}`);
     };
 
-    const seen: number[][] = [];
+    const list: AssigneeList = await listAssignees.call(serviceSelf(), {
+      params: { id: 10 },
+      meta: { user },
+      call,
+    });
 
-    return listAssignees
-      .call(serviceSelf(), {
-        params: { id: 10 },
-        meta: { user },
-        call: async (action: string, params?: unknown) => {
-          if (action === 'users.resolve') seen.push((params as { id: number[] }).id);
-          return call(action);
-        },
-      })
-      .then(() => seen[0]);
+    return { ids: list.rows.map((u) => u.id).sort((a, b) => a - b), total: list.total };
   };
 
   it('offers the holder every expert of the species except the author', async () => {
-    await expect(listFor(expert(HOLDER), FormStatus.SUBMITTED, HOLDER)).resolves.toEqual([
-      HOLDER,
-      OTHER_EXPERT,
-    ]);
+    await expect(listFor(expert(HOLDER), FormStatus.SUBMITTED, HOLDER)).resolves.toEqual({
+      ids: [HOLDER, OTHER_EXPERT],
+      total: 2,
+    });
   });
 
   it('offers an expert who does not hold the form only himself', async () => {
-    await expect(listFor(expert(HOLDER), FormStatus.SUBMITTED, null)).resolves.toEqual([HOLDER]);
+    await expect(listFor(expert(HOLDER), FormStatus.SUBMITTED, null)).resolves.toEqual({
+      ids: [HOLDER],
+      total: 1,
+    });
   });
 
   it('offers the holder of a returned form only himself', async () => {
-    await expect(listFor(expert(HOLDER), FormStatus.RETURNED, HOLDER)).resolves.toEqual([HOLDER]);
+    await expect(listFor(expert(HOLDER), FormStatus.RETURNED, HOLDER)).resolves.toEqual({
+      ids: [HOLDER],
+      total: 1,
+    });
   });
 
   it('offers an admin every expert of the species except the author', async () => {
-    await expect(listFor(admin, FormStatus.SUBMITTED, HOLDER)).resolves.toEqual([
-      HOLDER,
-      OTHER_EXPERT,
-    ]);
+    await expect(listFor(admin, FormStatus.SUBMITTED, HOLDER)).resolves.toEqual({
+      ids: [HOLDER, OTHER_EXPERT],
+      total: 2,
+    });
   });
 });
