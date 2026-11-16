@@ -7,10 +7,33 @@ export interface FormImportRow {
   y?: number;
   geometry?: string;
   description?: string;
+  activity?: string;
+  evolution?: string;
   method?: string;
   source?: number;
   photos?: { url: string; name?: string; size?: number }[];
 }
+
+export type ImportCriteriaOption = {
+  id: number;
+  value: string;
+};
+
+export type ImportCriteriaSign = ImportCriteriaOption & {
+  stages: ImportCriteriaOption[];
+};
+
+export type ImportCriteria = {
+  signs: ImportCriteriaSign[];
+  stages: ImportCriteriaOption[];
+};
+
+export type ImportClassifiers = {
+  activity?: number;
+  evolution?: number;
+};
+
+export const EMPTY_IMPORT_CRITERIA: ImportCriteria = { signs: [], stages: [] };
 
 export interface FormImportTaxonomy {
   speciesId: number;
@@ -37,6 +60,10 @@ export const FormImportErrors = {
   NO_COORDINATES: 'IMPORT_NO_COORDINATES',
   BAD_COORDINATES: 'IMPORT_BAD_COORDINATES',
   BAD_GEOMETRY: 'IMPORT_BAD_GEOMETRY',
+  NO_ACTIVITY: 'IMPORT_NO_ACTIVITY',
+  UNKNOWN_ACTIVITY: 'IMPORT_UNKNOWN_ACTIVITY',
+  NO_EVOLUTION: 'IMPORT_NO_EVOLUTION',
+  UNKNOWN_EVOLUTION: 'IMPORT_UNKNOWN_EVOLUTION',
   BAD_METHOD: 'IMPORT_BAD_METHOD',
   NO_SOURCE: 'IMPORT_NO_SOURCE',
   BAD_SOURCE: 'IMPORT_BAD_SOURCE',
@@ -285,7 +312,54 @@ export function validateFormImportRow(
   return errors;
 }
 
-export function formImportRowToParams(row: FormImportRow) {
+const sameLabel = (option: ImportCriteriaOption, value: unknown) =>
+  option.value.trim().toLowerCase() === String(value).trim().toLowerCase();
+
+export function resolveImportClassifiers(
+  row: FormImportRow,
+  criteria: ImportCriteria,
+): ImportClassifiers & { errors: string[] } {
+  const errors: string[] = [];
+  const { signs } = criteria;
+  let activity: number | undefined;
+
+  if (signs.length) {
+    const sign = isBlank(row.activity) ? undefined : signs.find((s) => sameLabel(s, row.activity));
+
+    if (!sign) {
+      // The offered stages hang off the sign, so an unresolved one makes the stage unknowable.
+      errors.push(
+        isBlank(row.activity) ? FormImportErrors.NO_ACTIVITY : FormImportErrors.UNKNOWN_ACTIVITY,
+      );
+      return { errors };
+    }
+
+    activity = sign.id;
+  } else if (!isBlank(row.activity)) {
+    errors.push(FormImportErrors.UNKNOWN_ACTIVITY);
+  }
+
+  const offeredStages = signs.length
+    ? signs.find((sign) => sign.id === activity)?.stages || []
+    : criteria.stages;
+
+  if (!offeredStages.length) {
+    if (!isBlank(row.evolution)) errors.push(FormImportErrors.UNKNOWN_EVOLUTION);
+    return { errors, activity, evolution: undefined };
+  }
+
+  if (isBlank(row.evolution)) {
+    errors.push(FormImportErrors.NO_EVOLUTION);
+    return { errors, activity, evolution: undefined };
+  }
+
+  const stage = offeredStages.find((option) => sameLabel(option, row.evolution));
+  if (!stage) errors.push(FormImportErrors.UNKNOWN_EVOLUTION);
+
+  return { errors, activity, evolution: stage?.id };
+}
+
+export function formImportRowToParams(row: FormImportRow, classifiers?: ImportClassifiers) {
   const geometry = getRowGeometry(row);
   const isArea = geometry?.type === 'Polygon' || geometry?.type === 'MultiPolygon';
 
@@ -295,6 +369,8 @@ export function formImportRowToParams(row: FormImportRow) {
     observedAt: row.observedAt,
     observedBy: String(row.observedBy).trim(),
     ...(!isBlank(row.description) && { description: String(row.description) }),
+    ...(classifiers?.activity !== undefined && { activity: classifiers.activity }),
+    ...(classifiers?.evolution !== undefined && { evolution: classifiers.evolution }),
     ...(!isBlank(row.method) && { method: String(row.method).trim() }),
     ...(!isBlank(row.source) && { source: Number(row.source) }),
     photos: row.photos || [],

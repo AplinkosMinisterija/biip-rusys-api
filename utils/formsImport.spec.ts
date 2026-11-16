@@ -1,7 +1,10 @@
 import {
+  EMPTY_IMPORT_CRITERIA,
+  ImportCriteria,
   formImportRowToParams,
   FormImportErrors,
   parseGeometry,
+  resolveImportClassifiers,
   validateFormImportRow,
 } from './formsImport';
 
@@ -143,6 +146,84 @@ describe('validateFormImportRow', () => {
   });
 });
 
+describe('resolveImportClassifiers', () => {
+  const criteria: ImportCriteria = {
+    signs: [
+      { id: 11, value: 'Lizdas, ola ir pan', stages: [{ id: 21, value: 'Kiaušinis' }] },
+      { id: 12, value: 'Gyvas individas', stages: [] },
+    ],
+    stages: [],
+  };
+
+  it('resolves a sign and its stage by label, ignoring case and padding', () => {
+    expect(
+      resolveImportClassifiers(
+        { activity: ' lizdas, ola ir pan ', evolution: 'KIAUŠINIS' },
+        criteria,
+      ),
+    ).toEqual({ errors: [], activity: 11, evolution: 21 });
+  });
+
+  it('requires an activity when the species offers signs', () => {
+    expect(resolveImportClassifiers({ evolution: '' }, criteria).errors).toEqual([
+      FormImportErrors.NO_ACTIVITY,
+    ]);
+  });
+
+  it('reports only the activity when the label is unknown', () => {
+    expect(
+      resolveImportClassifiers({ activity: 'Nėra tokio', evolution: 'Kiaušinis' }, criteria).errors,
+    ).toEqual([FormImportErrors.UNKNOWN_ACTIVITY]);
+  });
+
+  it('requires an evolution when the chosen sign offers stages', () => {
+    expect(resolveImportClassifiers({ activity: 'Lizdas, ola ir pan' }, criteria).errors).toEqual([
+      FormImportErrors.NO_EVOLUTION,
+    ]);
+  });
+
+  it('accepts a sign that offers no stage', () => {
+    expect(resolveImportClassifiers({ activity: 'Gyvas individas' }, criteria)).toEqual({
+      errors: [],
+      activity: 12,
+      evolution: undefined,
+    });
+  });
+
+  it('rejects a stage the chosen sign does not offer', () => {
+    expect(
+      resolveImportClassifiers({ activity: 'Gyvas individas', evolution: 'Kiaušinis' }, criteria)
+        .errors,
+    ).toEqual([FormImportErrors.UNKNOWN_EVOLUTION]);
+  });
+
+  it('takes the stages from the criterion itself when it offers no sign', () => {
+    const stagesOnly: ImportCriteria = { signs: [], stages: [{ id: 31, value: 'Sėkla' }] };
+    expect(resolveImportClassifiers({ evolution: 'Sėkla' }, stagesOnly)).toEqual({
+      errors: [],
+      activity: undefined,
+      evolution: 31,
+    });
+  });
+
+  it('rejects a value for a species that offers nothing', () => {
+    expect(
+      resolveImportClassifiers({ activity: 'Lizdas' }, EMPTY_IMPORT_CRITERIA).errors,
+    ).toEqual([FormImportErrors.UNKNOWN_ACTIVITY]);
+    expect(
+      resolveImportClassifiers({ evolution: 'Kiaušinis' }, EMPTY_IMPORT_CRITERIA).errors,
+    ).toEqual([FormImportErrors.UNKNOWN_EVOLUTION]);
+  });
+
+  it('accepts an empty pair for a species that offers nothing', () => {
+    expect(resolveImportClassifiers({}, EMPTY_IMPORT_CRITERIA)).toEqual({
+      errors: [],
+      activity: undefined,
+      evolution: undefined,
+    });
+  });
+});
+
 describe('formImportRowToParams', () => {
   it('builds a point in LKS-94 and keeps optional fields out when empty', () => {
     const params = formImportRowToParams({
@@ -172,6 +253,21 @@ describe('formImportRowToParams', () => {
         ],
       },
     });
+  });
+
+  it('carries the resolved classifier ids', () => {
+    const params = formImportRowToParams(
+      {
+        species: 767,
+        observedAt: '2026-10-24T15:15:00.000Z',
+        observedBy: 'Vardenis',
+        x: 306945.2,
+        y: 6134367.25,
+      },
+      { activity: 11, evolution: 21 },
+    );
+
+    expect(params).toMatchObject({ activity: 11, evolution: 21 });
   });
 });
 
