@@ -4,9 +4,10 @@ A `form` is one observation of one species at one point in time. A citizen or an
 submits it, an **expert of that species** checks it, and an approved form feeds a `place`
 (radavietė) and the `approved_forms` materialized view the maps read.
 
-This note covers the **assignment / status / permission** path — who may do what to a form, and
-how to drive it locally. The rest of `forms.service.ts` (geometry, places, criteria, classifiers,
-CSV import) is not written down here yet; the file layout itself is in the codemap.
+This note covers the **assignment / status / permission** path and the **CSV import** — who may do
+what to a form, how a spreadsheet row becomes one, and how to drive both locally. The rest of
+`forms.service.ts` (geometry, places, criteria) is not written down here yet; the file layout
+itself is in the codemap.
 
 ## Shape
 
@@ -86,6 +87,48 @@ CSV import) is not written down here yet; the file layout itself is in the codem
   reassigned APPROVED form (measured: the row ended `APPROVED/3`). Any rule that spans two fields
   must read `params` for the other one, not `entity`.
 
+## CSV import (`POST /rusys/forms/import`)
+
+An administrator uploads a CSV in `biip-admin-web`
+(`src/modules/species/pages/ObservationFormsImport.tsx`), the browser parses it
+(`src/modules/species/utils/csv.ts`) and posts the rows; every row becomes an auto-approved form.
+The screen checks twice — a client pass in `src/modules/species/utils/importValidation.ts`, then a
+`dryRun: true` call to the same action that will create the rows, so the "Patikrinti" button and
+the real submit run identical server rules.
+
+- **The row validator is pure and the action owns everything async.** `utils/formsImport.ts ›
+  validateFormImportRow` is a plain function over one row plus the already-fetched taxonomy and
+  the set of known source ids; anything that needs a query (PostGIS containment, the method
+  classifier, the criterion) is done by `forms.service.ts › import` around it. Keep it that way:
+  the pure half is the only part that has tests.
+- **The CSV carries a classifier's LABEL, never its code or its id.** `FormSettingsOptions.name`
+  is the code derived from the label (`optionCodeFromLabel`), `value` is what the officer reads.
+  `utils/formsImport.ts › resolveImportClassifiers` matches `activity` / `evolution` against
+  `value`, trimmed and case-folded, and hands `forms.create` the option id.
+- **Which stages are on offer is one rule written in three places** — `utils/functions.ts ›
+  stageIsOffered`, admin-web `getStageOptions`, and `resolveImportClassifiers`: a criterion that
+  offers signs hangs its stages off the chosen sign, one that offers none carries them itself.
+  Change one and change all three.
+- **`forms.create` re-validates the pair and throws.** The `activity` / `evolution` field hooks
+  call `forms.types.validate*` on every create, so a row the import did not pre-check comes back
+  as `IMPORT_CREATE_FAILED` with the reason only in the server log. The point of resolving the
+  labels before the create is to turn that into a per-cell message.
+- **`forms.criteria.bySpecies` is not safe for a root context.** It resolves the taxonomy itself,
+  and `taxonomies` has a default `applyHidden` scope, so a hidden species throws
+  `Taxonomy not found` unless the caller is an admin or an expert. The import action is
+  admin-only, which is exactly why it must pass its own `ctx` — see
+  `ctx-call-vs-broker-call-hides-species`.
+- **The downloaded template is not static.** `source`, `activity` and `evolution` reference rows
+  that differ per environment, so the page reads them (`Api.sources`, `Api.speciesCriteria`) and
+  `importTemplateCsv(values)` fills them in. A template with a hard-coded id imports cleanly on
+  one environment and fails on the next.
+- **The template is semicolon-separated on purpose.** Excel with Lithuanian settings writes `;`;
+  a comma file opened and re-saved there comes back as one quoted column. The reader
+  (`parseCsv › detectDelimiter`) accepts `,`, `;` and tab, so only the writer is pinned.
+- **`handleError` takes a server error CODE.** The import screen's own sentences
+  ("Faile trūksta privalomų stulpelių…") must go through `handleErrorMessage`, or
+  `getErrorMessage` misses them and the toast reads "Įvyko nenumatyta klaida".
+
 ## Verifying it live
 
 `forms.service.spec.ts` drives the `@Method`s off the prototype with a hand-built `this`; that
@@ -101,4 +144,11 @@ assignment test needs is three rows: an APPROVED `CHECK` request per expert
 `tenant_id` NULL), then a form of that species in SUBMITTED with `assignee_id` set. A dev database
 has no experts at all until those rows exist.
 
-_Updated 2026-11-13._
+For the import, the compose database is already enough: `taxonomy_species` 767 (`Ledinė antis`) is
+a bird, so it resolves to criterion 5, which offers six signs and stages under five of them —
+a species that exercises every branch of `resolveImportClassifiers`. Call
+`forms.import` with `dryRun: true` for the error table and once without it for the row, then read
+`forms.activity_id` / `evolution_id` straight out of postgres; the action's own return value only
+says a form was created.
+
+_Updated 2026-11-16._
