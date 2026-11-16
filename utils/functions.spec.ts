@@ -1,6 +1,7 @@
 import {
   classifierChanged,
   hasDuplicates,
+  nestPhotosMissing,
   OfferedCriteria,
   signIsOffered,
   stageIsOffered,
@@ -273,5 +274,25 @@ describe('toDateRangeFilter', () => {
     expect(toDateRangeFilter(undefined)).toBe(undefined);
     expect(toDateRangeFilter('not json')).toBe(undefined);
     expect(toDateRangeFilter('2024-01-01')).toBe(undefined);
+  });
+});
+
+describe('nestPhotosMissing', () => {
+  const nest = 'VEISIMOSI_VIETA_LIZDAS_UOKSAS_TUOKVIETE_IR_PAN';
+
+  it('demands a photo for a nest of a species that needs one', () => {
+    expect(nestPhotosMissing({ nestNeedsPhotos: true, activityCode: nest, photos: [] })).toBe(true);
+    expect(nestPhotosMissing({ nestNeedsPhotos: true, activityCode: nest })).toBe(true);
+  });
+
+  it('lets the nest through once a photo is attached', () => {
+    expect(
+      nestPhotosMissing({ nestNeedsPhotos: true, activityCode: nest, photos: [{ url: 'a' }] }),
+    ).toBe(false);
+  });
+
+  it('leaves other signs and other species alone', () => {
+    expect(nestPhotosMissing({ nestNeedsPhotos: true, activityCode: 'BALSAS_GARSAS' })).toBe(false);
+    expect(nestPhotosMissing({ nestNeedsPhotos: false, activityCode: nest })).toBe(false);
   });
 });

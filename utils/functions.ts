@@ -1,7 +1,7 @@
 import { createHash, createHmac } from 'crypto';
 import _ from 'lodash';
 import { Readable } from 'stream';
-import { FormStatus } from '../types';
+import { FormStatus, NEST_SIGN_CODE } from '../types';
 
 export function toReadableStream(fetchReadable: any): NodeJS.ReadableStream {
   return new Readable({
@@ -105,6 +105,18 @@ export type OfferedCriteria = {
 
 export function hasDuplicates(ids: number[]): boolean {
   return new Set(ids).size !== ids.length;
+}
+
+export function nestPhotosMissing({
+  nestNeedsPhotos,
+  activityCode,
+  photos,
+}: {
+  nestNeedsPhotos?: boolean;
+  activityCode?: string;
+  photos?: unknown[];
+}): boolean {
+  return !!nestNeedsPhotos && activityCode === NEST_SIGN_CODE && !photos?.length;
 }
 
 export function signIsOffered(signs: OfferedSign[], signId: number): boolean {
