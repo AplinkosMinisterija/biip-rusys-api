@@ -34,6 +34,7 @@ export interface TaxonomySpecies extends BaseModelInterface {
   content?: { [key: string]: string };
   conventionsText?: string[];
   formNeedsApproval?: boolean;
+  nestNeedsPhotos?: boolean;
 }
 
 // Re-exported from types/constants so a pure util can read them without
@@ -143,6 +144,10 @@ const publicPopulate = ['class', 'conventions'];
       },
 
       formNeedsApproval: {
+        type: 'boolean',
+      },
+
+      nestNeedsPhotos: {
         type: 'boolean',
       },
 

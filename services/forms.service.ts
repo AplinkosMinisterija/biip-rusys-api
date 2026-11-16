@@ -34,6 +34,7 @@ import { UserAuthMeta } from './api.service';
 import _ from 'lodash';
 import {
   classifierChanged,
+  nestPhotosMissing,
   parseToObject,
   shouldRecomputePlaceOnRelevancyChange,
 } from '../utils/functions';
@@ -701,8 +702,8 @@ export interface Form extends BaseModelInterface {
 
   hooks: {
     before: {
-      create: ['validateIsInformational', 'validateStatusChange'],
-      update: ['validateStatusChange'],
+      create: ['validateIsInformational', 'validateNestPhotos', 'validateStatusChange'],
+      update: ['validateNestPhotos', 'validateStatusChange'],
       remove: ['validateDeletion'],
       list: 'speciesTypeFilter',
     },
@@ -918,7 +919,7 @@ export default class FormsService extends moleculer.Service {
 
       try {
         const form: Form = await ctx.call('forms.create', formImportRowToParams(row, classifiers), {
-          meta: { autoApprove: true, skipApprovedFormsRefresh: true },
+          meta: { autoApprove: true, skipApprovedFormsRefresh: true, isImport: true },
         });
         results.push({ index, errors, id: form.id });
       } catch (err) {
@@ -1586,6 +1587,55 @@ export default class FormsService extends moleculer.Service {
       taxonomySpecies?.id &&
       !taxonomySpecies.formNeedsApproval &&
       (formType === FormType.INVASIVE_PLANT ? !!method : quantity >= 0);
+
+    return ctx;
+  }
+
+  @Method
+  async validateNestPhotos(
+    ctx: Context<
+      { id?: number; species?: number; activity?: number | null; photos?: unknown[] },
+      UserAuthMeta & { isImport?: boolean }
+    >,
+  ) {
+    const { params } = ctx;
+    const touchesNest = ['species', 'activity', 'photos'].some((key) => key in params);
+
+    if (ctx.meta.isImport || !touchesNest) return ctx;
+
+    const form: Form | undefined = params.id
+      ? await ctx.call('forms.resolve', {
+          id: params.id,
+          fields: ['id', 'species', 'activity', 'photos'],
+          populate: [],
+          throwIfNotExist: true,
+        })
+      : undefined;
+
+    const speciesId = params.species ?? (form?.species as number);
+    const activityId = 'activity' in params ? params.activity : (form?.activity as number);
+    const photos = 'photos' in params ? params.photos : form?.photos;
+
+    if (!speciesId || !activityId || photos?.length) return ctx;
+
+    const species: TaxonomySpecies = await ctx.call('taxonomies.species.resolve', {
+      id: speciesId,
+      showHidden: true,
+      fields: ['id', 'nestNeedsPhotos'],
+    });
+    if (!species?.nestNeedsPhotos) return ctx;
+
+    const activity: FormSettingsOptions = await ctx.call('forms.settings.options.resolve', {
+      id: activityId,
+    });
+
+    if (nestPhotosMissing({ nestNeedsPhotos: true, activityCode: activity?.name, photos })) {
+      throwValidationError(
+        FormErrors.NEST_PHOTOS_REQUIRED,
+        params,
+        FormErrors.NEST_PHOTOS_REQUIRED,
+      );
+    }
 
     return ctx;
   }
