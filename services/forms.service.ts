@@ -891,13 +891,13 @@ export default class FormsService extends moleculer.Service {
       }
 
       let classifiers: ImportClassifiers = {};
-      if (!errors.length && taxonomy) {
-        const resolved = resolveImportClassifiers(
+      if (taxonomy) {
+        const { errors: classifierErrors, ...resolved } = resolveImportClassifiers(
           row,
           criteriaBySpecies[Number(row.species)] || EMPTY_IMPORT_CRITERIA,
         );
         classifiers = resolved;
-        errors.push(...resolved.errors);
+        errors.push(...classifierErrors);
       }
 
       if (!errors.length && taxonomy?.formType) {

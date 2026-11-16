@@ -320,11 +320,13 @@ export function resolveImportClassifiers(
   criteria: ImportCriteria,
 ): ImportClassifiers & { errors: string[] } {
   const errors: string[] = [];
-  const { signs } = criteria;
   let activity: number | undefined;
+  let offeredStages = criteria.stages;
 
-  if (signs.length) {
-    const sign = isBlank(row.activity) ? undefined : signs.find((s) => sameLabel(s, row.activity));
+  if (criteria.signs.length) {
+    const sign = isBlank(row.activity)
+      ? undefined
+      : criteria.signs.find((offered) => sameLabel(offered, row.activity));
 
     if (!sign) {
       // The offered stages hang off the sign, so an unresolved one makes the stage unknowable.
@@ -335,13 +337,10 @@ export function resolveImportClassifiers(
     }
 
     activity = sign.id;
+    offeredStages = sign.stages;
   } else if (!isBlank(row.activity)) {
     errors.push(FormImportErrors.UNKNOWN_ACTIVITY);
   }
-
-  const offeredStages = signs.length
-    ? signs.find((sign) => sign.id === activity)?.stages || []
-    : criteria.stages;
 
   if (!offeredStages.length) {
     if (!isBlank(row.evolution)) errors.push(FormImportErrors.UNKNOWN_EVOLUTION);
