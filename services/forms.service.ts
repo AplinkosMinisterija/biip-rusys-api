@@ -838,6 +838,9 @@ export default class FormsService extends moleculer.Service {
 
   @Action({
     rest: 'POST /import',
+    // 1000 creates plus a view refresh outlast the broker's 10 s budget, and the retry
+    // that follows a timed-out import writes every row twice.
+    timeout: 0,
     params: {
       rows: {
         type: 'array',
