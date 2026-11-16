@@ -38,9 +38,13 @@ import {
   shouldRecomputePlaceOnRelevancyChange,
 } from '../utils/functions';
 import {
+  EMPTY_IMPORT_CRITERIA,
   FormImportErrors,
   FormImportRow,
   formImportRowToParams,
+  ImportClassifiers,
+  ImportCriteria,
+  resolveImportClassifiers,
   validateFormImportRow,
 } from '../utils/formsImport';
 import { approvedFormsViewNeedsRefresh } from '../utils/approvedFormsView';
@@ -869,6 +873,13 @@ export default class FormsService extends moleculer.Service {
       : [];
     const knownSources = new Set(sources.map((source) => Number(source.id)));
 
+    const criteriaBySpecies: Record<number, ImportCriteria> = {};
+    for (const speciesId of speciesIds.filter((id) => !!taxonomies?.[id])) {
+      // `ctx.call`, not `this.broker.call`: the criterion is resolved through the taxonomy, whose
+      // default scope hides a hidden species from a context that carries no user.
+      criteriaBySpecies[speciesId] = await ctx.call('forms.criteria.bySpecies', { speciesId });
+    }
+
     const results: { index: number; errors: string[]; id?: number }[] = [];
 
     for (const [index, row] of rows.entries()) {
@@ -877,6 +888,16 @@ export default class FormsService extends moleculer.Service {
 
       if (!errors.length && !(await this.geomIsInLithuania(formImportRowToParams(row).geom))) {
         errors.push(FormImportErrors.BAD_COORDINATES);
+      }
+
+      let classifiers: ImportClassifiers = {};
+      if (!errors.length && taxonomy) {
+        const resolved = resolveImportClassifiers(
+          row,
+          criteriaBySpecies[Number(row.species)] || EMPTY_IMPORT_CRITERIA,
+        );
+        classifiers = resolved;
+        errors.push(...resolved.errors);
       }
 
       if (!errors.length && taxonomy?.formType) {
@@ -893,7 +914,7 @@ export default class FormsService extends moleculer.Service {
       }
 
       try {
-        const form: Form = await ctx.call('forms.create', formImportRowToParams(row), {
+        const form: Form = await ctx.call('forms.create', formImportRowToParams(row, classifiers), {
           meta: { autoApprove: true, skipApprovedFormsRefresh: true },
         });
         results.push({ index, errors, id: form.id });
