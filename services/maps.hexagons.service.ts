@@ -9,7 +9,7 @@ import _, { snakeCase } from 'lodash';
 import PostgisMixin from 'moleculer-postgis';
 import { queryBooleanPlain } from '../types';
 import { getMapsGridStatsQuery } from '../utils/db.queries';
-import { toPositiveIntegerIds } from '../utils/functions';
+import { toDateRangeFilter, toPositiveIntegerIds } from '../utils/functions';
 import { AuthType, UserAuthMeta } from './api.service';
 import {
   mapsInvaNoQuantityIntroducedFormsLayerId,
@@ -182,6 +182,9 @@ export default class MapsHexagonService extends moleculer.Service {
         id?: number | object;
         forms?: number | object;
         layers?: { [key: string]: string[] };
+        observedAt?: string | object;
+        firstObservedAt?: string | object;
+        lastObservedAt?: string | object;
       },
       UserAuthMeta
     >,
@@ -195,7 +198,17 @@ export default class MapsHexagonService extends moleculer.Service {
     let placesIds: number[];
     let formsIds: number[];
 
-    const { kingdomId, classId, speciesId, phylumId, layers: requestLayers, forms } = ctx?.params;
+    const {
+      kingdomId,
+      classId,
+      speciesId,
+      phylumId,
+      layers: requestLayers,
+      forms,
+      observedAt,
+      firstObservedAt,
+      lastObservedAt,
+    } = ctx?.params;
 
     let layers: { [key: string]: string[] } = {
       sris: [mapsSrisPlacesLayerId],
@@ -237,6 +250,9 @@ export default class MapsHexagonService extends moleculer.Service {
       classId,
       speciesId,
       phylumId,
+      observedAt: toDateRangeFilter(observedAt),
+      firstObservedAt: toDateRangeFilter(firstObservedAt),
+      lastObservedAt: toDateRangeFilter(lastObservedAt),
       places: {
         id: !placeId && !!placesIds ? { $in: placesIds } : placeId,
       },
@@ -397,6 +413,9 @@ export default class MapsHexagonService extends moleculer.Service {
       classId?: number | object;
       speciesId?: number | object;
       speciesType?: string;
+      observedAt?: Record<string, string>;
+      firstObservedAt?: Record<string, string>;
+      lastObservedAt?: Record<string, string>;
     },
     query = getMapsGridStatsQuery(itemsTable),
   ) {
@@ -417,6 +436,19 @@ export default class MapsHexagonService extends moleculer.Service {
     if (options?.speciesId) addToQuery(itemsTable, 'speciesId', options.speciesId);
     if (options?.speciesType) addToQuery(itemsTable, 'speciesType', options.speciesType);
     if (options?.id) addToQuery(itemsTable, 'id', options.id);
+
+    // A place spans every observation it holds, so it is kept while that span meets the period;
+    // a form is kept when it was made within the period.
+    if (itemsTable === 'placesWithTaxonomies') {
+      if (options?.firstObservedAt) {
+        taxonomiesQuery[`${itemsTable}.firstObservedAt`] = options.firstObservedAt;
+      }
+      if (options?.lastObservedAt) {
+        taxonomiesQuery[`${itemsTable}.lastObservedAt`] = options.lastObservedAt;
+      }
+    } else if (options?.observedAt) {
+      taxonomiesQuery[`${itemsTable}.observedAt`] = options.observedAt;
+    }
 
     return adapter.computeQuery(query, taxonomiesQuery);
   }

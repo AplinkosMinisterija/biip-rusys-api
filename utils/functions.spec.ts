@@ -8,6 +8,7 @@ import {
   optionCodeFromLabel,
   shouldRecomputePlaceOnRelevancyChange,
   toHmacHash,
+  toDateRangeFilter,
   toPositiveIntegerIds,
 } from './functions';
 
@@ -251,6 +252,28 @@ describe('toHmacHash', () => {
 
   it('changes when the text changes', () => {
     expect(toHmacHash('id=1', 'key')).not.toBe(toHmacHash('id=2', 'key'));
+  });
+});
+
+describe('toDateRangeFilter', () => {
+  it('keeps plain date bounds sent as JSON', () => {
+    expect(toDateRangeFilter('{"$gte":"2024-01-01","$lt":"2025-01-01"}')).toEqual({
+      $gte: '2024-01-01',
+      $lt: '2025-01-01',
+    });
+  });
+
+  it('drops anything that is not a date bound', () => {
+    expect(toDateRangeFilter({ $gte: "2024-01-01'; DROP TABLE forms;--", $in: ['x'] })).toBe(
+      undefined,
+    );
+    expect(toDateRangeFilter({ $raw: 'true', $lte: '2024-12-31' })).toEqual({ $lte: '2024-12-31' });
+  });
+
+  it('ignores empty or broken input', () => {
+    expect(toDateRangeFilter(undefined)).toBe(undefined);
+    expect(toDateRangeFilter('not json')).toBe(undefined);
+    expect(toDateRangeFilter('2024-01-01')).toBe(undefined);
   });
 });
 

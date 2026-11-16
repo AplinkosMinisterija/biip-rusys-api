@@ -150,3 +150,29 @@ export function classifierChanged(value: unknown, stored: unknown): boolean {
 
   return toId(value) !== toId(stored);
 }
+
+const DATE_RANGE_OPERATORS = ['$gt', '$gte', '$lt', '$lte'];
+const ISO_DATE = /^\d{4}-\d{2}-\d{2}$/;
+
+// Map filters arrive as JSON strings straight from the query, so only plain date bounds are let
+// through to the SQL builder.
+export function toDateRangeFilter(value: unknown): Record<string, string> | undefined {
+  if (typeof value === 'string') {
+    try {
+      value = JSON.parse(value);
+    } catch (err) {
+      return;
+    }
+  }
+
+  if (!value || typeof value !== 'object' || Array.isArray(value)) return;
+
+  const range = Object.entries(value).reduce((acc: Record<string, string>, [key, bound]) => {
+    if (DATE_RANGE_OPERATORS.includes(key) && typeof bound === 'string' && ISO_DATE.test(bound)) {
+      acc[key] = bound;
+    }
+    return acc;
+  }, {});
+
+  return Object.keys(range).length ? range : undefined;
+}
