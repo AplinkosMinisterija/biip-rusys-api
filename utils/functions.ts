@@ -176,3 +176,29 @@ export function toDateRangeFilter(value: unknown): Record<string, string> | unde
 
   return Object.keys(range).length ? range : undefined;
 }
+
+const escapeLike = (value: string) => value.replace(/[\\%_]/g, (char) => `\\${char}`);
+
+// Every word has to appear in the first or the last name, so "Vardas Pavardė", "Pavardė Vardas"
+// and a trailing space all find the person.
+export function fullNameSearchCondition(input: unknown) {
+  const words = String(input ?? '')
+    .trim()
+    .split(/\s+/)
+    .filter(Boolean)
+    .slice(0, 5);
+
+  if (!words.length) return;
+
+  return {
+    $raw: {
+      condition: words
+        .map(() => '(users.first_name ilike ? or users.last_name ilike ?)')
+        .join(' and '),
+      bindings: words.flatMap((word) => {
+        const value = `%${escapeLike(word)}%`;
+        return [value, value];
+      }),
+    },
+  };
+}

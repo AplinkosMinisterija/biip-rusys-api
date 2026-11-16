@@ -1,5 +1,6 @@
 import {
   classifierChanged,
+  fullNameSearchCondition,
   hasDuplicates,
   nestPhotosMissing,
   OfferedCriteria,
@@ -294,5 +295,26 @@ describe('nestPhotosMissing', () => {
   it('leaves other signs and other species alone', () => {
     expect(nestPhotosMissing({ nestNeedsPhotos: true, activityCode: 'BALSAS_GARSAS' })).toBe(false);
     expect(nestPhotosMissing({ nestNeedsPhotos: false, activityCode: nest })).toBe(false);
+  });
+});
+
+describe('fullNameSearchCondition', () => {
+  it('looks for every word in the first or the last name', () => {
+    expect(fullNameSearchCondition(' Jonas  Jonaitis ')).toEqual({
+      $raw: {
+        condition:
+          '(users.first_name ilike ? or users.last_name ilike ?) and (users.first_name ilike ? or users.last_name ilike ?)',
+        bindings: ['%Jonas%', '%Jonas%', '%Jonaitis%', '%Jonaitis%'],
+      },
+    });
+  });
+
+  it('treats wildcards in the input as plain text', () => {
+    expect(fullNameSearchCondition('a_b%')?.$raw.bindings[0]).toBe('%a\\_b\\%%');
+  });
+
+  it('skips an empty search', () => {
+    expect(fullNameSearchCondition('   ')).toBe(undefined);
+    expect(fullNameSearchCondition(undefined)).toBe(undefined);
   });
 });
