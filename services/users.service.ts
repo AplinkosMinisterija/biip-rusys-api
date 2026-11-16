@@ -1,7 +1,7 @@
 'use strict';
 
 import moleculer, { Context } from 'moleculer';
-import { Action, Event, Service } from 'moleculer-decorators';
+import { Action, Event, Method, Service } from 'moleculer-decorators';
 
 import DbConnection, { PopulateHandlerFn } from '../mixins/database.mixin';
 import {
@@ -16,7 +16,7 @@ import {
   throwNotFoundError,
   throwUnauthorizedError,
 } from '../types';
-import { parseToObject } from '../utils/functions';
+import { fullNameSearchCondition, parseToObject } from '../utils/functions';
 import { UserAuthMeta } from './api.service';
 import { Tenant } from './tenants.service';
 import { TenantUserRole } from './tenantUsers.service';
@@ -225,6 +225,12 @@ export const USERS_DEFAULT_SCOPES = [
     defaultPopulates: ['stats'],
   },
 
+  hooks: {
+    before: {
+      list: 'applyFullNameSearch',
+    },
+  },
+
   actions: {
     create: {
       rest: null,
@@ -248,6 +254,24 @@ export const USERS_DEFAULT_SCOPES = [
   },
 })
 export default class UsersService extends moleculer.Service {
+  @Method
+  applyFullNameSearch(ctx: Context<{ filter?: any; query?: any }>) {
+    const filter: any = parseToObject(ctx.params.filter);
+    if (!filter || typeof filter !== 'object' || !filter.fullName) return ctx;
+
+    const { fullName, ...rest } = filter;
+    ctx.params.filter = Object.keys(rest).length ? rest : undefined;
+
+    const condition = fullNameSearchCondition(fullName);
+    if (!condition) return ctx;
+
+    const query: any = parseToObject(ctx.params.query) || {};
+    query.$and = [...(query.$and || []), condition];
+    ctx.params.query = query;
+
+    return ctx;
+  }
+
   @Action({
     rest: 'POST /',
     params: {
