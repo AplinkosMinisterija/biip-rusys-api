@@ -18,6 +18,7 @@ describe('validateFormImportRow', () => {
     x: 306945.2,
     y: 6134367.25,
     description: 'Stebėti du suaugę paukščiai jūroje',
+    source: 7,
   };
 
   it('accepts a complete row, including a point at sea', () => {
@@ -111,6 +112,18 @@ describe('validateFormImportRow', () => {
         now,
       ),
     ).toEqual([FormImportErrors.BAD_COORDINATES]);
+  });
+
+  it('requires a description', () => {
+    expect(validateFormImportRow({ ...row, description: ' ' }, taxonomy, now)).toEqual([
+      FormImportErrors.NO_DESCRIPTION,
+    ]);
+  });
+
+  it('requires a source', () => {
+    expect(validateFormImportRow({ ...row, source: undefined }, taxonomy, now)).toEqual([
+      FormImportErrors.NO_SOURCE,
+    ]);
   });
 
   it('checks the source id format and that the source exists', () => {

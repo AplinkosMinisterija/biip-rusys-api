@@ -33,10 +33,12 @@ export const FormImportErrors = {
   BAD_DATE: 'IMPORT_BAD_DATE',
   FUTURE_DATE: 'IMPORT_FUTURE_DATE',
   NO_OBSERVER: 'IMPORT_NO_OBSERVER',
+  NO_DESCRIPTION: 'IMPORT_NO_DESCRIPTION',
   NO_COORDINATES: 'IMPORT_NO_COORDINATES',
   BAD_COORDINATES: 'IMPORT_BAD_COORDINATES',
   BAD_GEOMETRY: 'IMPORT_BAD_GEOMETRY',
   BAD_METHOD: 'IMPORT_BAD_METHOD',
+  NO_SOURCE: 'IMPORT_NO_SOURCE',
   BAD_SOURCE: 'IMPORT_BAD_SOURCE',
   UNKNOWN_SOURCE: 'IMPORT_UNKNOWN_SOURCE',
   CREATE_FAILED: 'IMPORT_CREATE_FAILED',
@@ -265,7 +267,13 @@ export function validateFormImportRow(
     errors.push(FormImportErrors.BAD_COORDINATES);
   }
 
-  if (!isBlank(row.source)) {
+  if (isBlank(row.description)) {
+    errors.push(FormImportErrors.NO_DESCRIPTION);
+  }
+
+  if (isBlank(row.source)) {
+    errors.push(FormImportErrors.NO_SOURCE);
+  } else {
     const source = Number(row.source);
     if (!Number.isInteger(source) || source <= 0) {
       errors.push(FormImportErrors.BAD_SOURCE);
