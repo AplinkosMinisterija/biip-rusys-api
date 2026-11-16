@@ -21,6 +21,7 @@ import { FormCriteriaSign } from './forms.criteria.signs.service';
 import { FormCriteriaSignStage } from './forms.criteria.signs.stages.service';
 import { ENDANGERED_FORM_TYPES } from './forms.types.service';
 import { Taxonomy } from './taxonomies.service';
+import { TaxonomySpecies } from './taxonomies.species.service';
 import { hasDuplicates } from '../utils/functions';
 
 export interface FormCriteria extends BaseModelInterface {
@@ -41,6 +42,7 @@ export type SpeciesCriteria = {
   criteria: { id: number; name: string } | null;
   signs: CriteriaSign[];
   stages: CriteriaOption[];
+  nestNeedsPhotos: boolean;
 };
 
 type ResolvedCriteria = {
@@ -223,7 +225,13 @@ export default class FormCriteriaService extends moleculer.Service {
       ? await this.findNearestCriteria(ctx, taxonomy)
       : null;
 
-    if (!criteria) return { criteria: null, signs: [], stages: [] };
+    if (!criteria) return { criteria: null, signs: [], stages: [], nestNeedsPhotos: false };
+
+    const species: TaxonomySpecies = await ctx.call('taxonomies.species.resolve', {
+      id: ctx.params.speciesId,
+      showHidden: true,
+      fields: ['id', 'nestNeedsPhotos'],
+    });
 
     const signs: OfferedSign[] = criteria.signs || [];
     const stages: Offered[] = criteria.stages || [];
@@ -235,6 +243,7 @@ export default class FormCriteriaService extends moleculer.Service {
         stages: (sign.stages || []).filter(isOffered).map((stage) => toOption(stage.option)),
       })),
       stages: stages.filter(isOffered).map((stage) => toOption(stage.option)),
+      nestNeedsPhotos: !!species?.nestNeedsPhotos,
     };
   }
 

@@ -24,7 +24,10 @@ export const FormStatus = {
 
 export const FormErrors = {
   GEOM_OUTSIDE_LITHUANIA: 'FORM_GEOM_OUTSIDE_LITHUANIA',
+  NEST_PHOTOS_REQUIRED: 'FORM_NEST_PHOTOS_REQUIRED',
 };
+
+export const NEST_SIGN_CODE = 'VEISIMOSI_VIETA_LIZDAS_UOKSAS_TUOKVIETE_IR_PAN';
 
 export const TaxonomySpeciesType = {
   INVASIVE: 'INVASIVE',
