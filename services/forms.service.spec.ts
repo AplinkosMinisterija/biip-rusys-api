@@ -9,7 +9,7 @@ jest.mock('../utils/mails', () => ({
 import './requests.service';
 
 import { FormStatus } from '../types';
-import FormsService, { adminCanReturnApprovedForm } from './forms.service';
+import FormsService, { adminCanReturnApprovedForm, formsVisibleToUser } from './forms.service';
 import { User, UserType } from './users.service';
 
 type FormRow = {
@@ -221,6 +221,55 @@ describe('listAssignees', () => {
     await expect(listFor(admin, FormStatus.SUBMITTED, HOLDER)).resolves.toEqual({
       ids: [HOLDER, OTHER_EXPERT],
       total: 2,
+    });
+  });
+});
+
+describe('formsVisibleToUser — a person sees the forms they filed, whichever profile they used', () => {
+  const person: Partial<User> = {
+    id: AUTHOR,
+    type: UserType.USER,
+    isExpert: false,
+    expertSpecies: [],
+  };
+  const tenant = { id: 42 };
+
+  const visible = (
+    query: Record<string, unknown>,
+    meta: { user?: Partial<User>; profile?: { id: number } },
+  ) => formsVisibleToUser(query, meta as never, {});
+
+  it('keeps every own form when a tenant profile is active', () => {
+    expect(visible({ createdBy: AUTHOR }, { user: person, profile: tenant })).toEqual({
+      createdBy: AUTHOR,
+    });
+  });
+
+  it('keeps every own form when no profile is active', () => {
+    expect(visible({ createdBy: AUTHOR }, { user: person })).toEqual({ createdBy: AUTHOR });
+  });
+
+  it('keeps every own form of an expert', () => {
+    expect(visible({ createdBy: HOLDER }, { user: expert(HOLDER) })).toEqual({
+      createdBy: HOLDER,
+    });
+  });
+
+  it('still narrows a plain listing to the active tenant', () => {
+    expect(visible({}, { user: person, profile: tenant })).toEqual({ tenant: tenant.id });
+  });
+
+  it('still narrows a plain listing of a profile-less person to their own forms', () => {
+    expect(visible({}, { user: person })).toEqual({
+      createdBy: AUTHOR,
+      tenant: { $exists: false },
+    });
+  });
+
+  it('refuses to list somebody else by createdBy', () => {
+    expect(visible({ createdBy: OTHER_EXPERT }, { user: person })).toEqual({
+      createdBy: AUTHOR,
+      tenant: { $exists: false },
     });
   });
 });

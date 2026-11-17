@@ -145,6 +145,63 @@ const populatePermissions = (field: string) => {
   };
 };
 
+export function formsVisibleToUser(
+  query: Record<string, unknown>,
+  meta: { user?: User; profile?: Tenant } | undefined,
+  params: { id?: unknown },
+) {
+  const { user, profile } = meta || {};
+  if (!user?.id || user?.type === UserType.ADMIN) {
+    return query;
+  }
+
+  const createdByUserQuery = {
+    createdBy: user?.id,
+    tenant: { $exists: false },
+  };
+
+  // A submission stays the person's own whichever profile filed it, so their own forms are
+  // never narrowed down to the active one.
+  if (Number(query.createdBy) === user.id) {
+    return query;
+  }
+
+  if (profile?.id) {
+    return { ...query, tenant: profile.id };
+  } else if (user.type === UserType.USER && !user.isExpert) {
+    return { ...query, ...createdByUserQuery };
+  }
+
+  if (query.place || query.createdBy) {
+    return query;
+  }
+
+  if (user.isExpert && !params.id) {
+    const expertSpeciesQuery = { species: { $in: user.expertSpecies } };
+    extendAndQuery(query, expertSpeciesQuery);
+  }
+
+  return query;
+}
+
+// `tenants.resolve` refuses an id the caller no longer belongs to, which would take the whole
+// list of their own forms down with it.
+function populateFormTenant(
+  ctx: Context,
+  _values: unknown,
+  forms: Array<Record<string, unknown>>,
+  field: { name: string; columnName?: string },
+) {
+  return Promise.all(
+    forms.map((form) => {
+      const id = form[field.columnName || field.name];
+      if (!id) return null;
+
+      return ctx.call('tenants.resolve', { id, fields: ['id', 'name'], scope: false });
+    }),
+  );
+}
+
 // Reopening a checked form is an administrator's call alone, and only back to its author:
 // nobody else may touch an APPROVED form, and no other status may follow one.
 export function adminCanReturnApprovedForm(
@@ -668,7 +725,10 @@ export interface Form extends BaseModelInterface {
         enum: Object.values(FormNoQuantityReason),
       },
 
-      ...TENANT_FIELD,
+      tenant: {
+        ...TENANT_FIELD.tenant,
+        populate: populateFormTenant,
+      },
 
       tags: TAGS_FIELD('forms'),
 
@@ -678,36 +738,7 @@ export interface Form extends BaseModelInterface {
     scopes: {
       ...COMMON_SCOPES,
       visibleToUser(query: any, ctx: Context<null, UserAuthMeta>, params: any) {
-        const { user, profile } = ctx?.meta;
-        if (!user?.id || user?.type === UserType.ADMIN) {
-          return query;
-        }
-
-        const createdByUserQuery = {
-          createdBy: user?.id,
-          tenant: { $exists: false },
-        };
-
-        if (profile?.id) {
-          return { ...query, tenant: profile.id };
-        } else if (user.type === UserType.USER && !user.isExpert) {
-          return { ...query, ...createdByUserQuery };
-        }
-
-        if (query.createdBy === user.id) {
-          return { ...query, ...createdByUserQuery };
-        }
-
-        if (query.place || query.createdBy) {
-          return query;
-        }
-
-        if (user.isExpert && !params.id) {
-          const expertSpeciesQuery = { species: { $in: user.expertSpecies } };
-          extendAndQuery(query, expertSpeciesQuery);
-        }
-
-        return query;
+        return formsVisibleToUser(query, ctx?.meta, params);
       },
       tasks(query: any, ctx: Context<null, UserAuthMeta>, params: any) {
         const { user } = ctx?.meta;
@@ -1213,7 +1244,7 @@ export default class FormsService extends moleculer.Service {
 
   @Action({
     rest: 'GET /my',
-    types: [EndpointType.ADMIN, EndpointType.EXPERT, EndpointType.TENANT_USER],
+    types: [EndpointType.ADMIN, EndpointType.USER],
   })
   async my(ctx: Context<{ query: any }, UserAuthMeta>) {
     ctx.params.query = parseToObject(ctx.params.query);
