@@ -12,6 +12,8 @@ import { getMapsGridStatsQuery } from '../utils/db.queries';
 import { toDateRangeFilter, toPositiveIntegerIds } from '../utils/functions';
 import { AuthType, UserAuthMeta } from './api.service';
 import {
+  mapsInvaInformationalIntroducedFormsLayerId,
+  mapsInvaInformationalInvasiveFormsLayerId,
   mapsInvaNoQuantityIntroducedFormsLayerId,
   mapsInvaNoQuantityInvasiveFormsLayerId,
   mapsInvaPlacesIntroducedLayerId,
@@ -22,6 +24,8 @@ import {
 import { TaxonomySpeciesType } from './taxonomies.species.service';
 import { UserType } from './users.service';
 import { FormNoQuantityReason } from './forms.service';
+
+type ConditionQuery = { where: (...args: unknown[]) => ConditionQuery };
 @Service({
   name: 'maps.hexagons',
 
@@ -359,6 +363,19 @@ export default class MapsHexagonService extends moleculer.Service {
     const noQuantityCondition = (query: any, table: string) =>
       query.where(`${table}.noQuantityReason`, FormNoQuantityReason.RESEARCH);
 
+    const informationalCondition = (query: ConditionQuery, table: string) =>
+      query.where(
+        adapter.client.raw(`${snakeCase(table)}.${queryBooleanPlain('isInformational', true)}`),
+      );
+
+    // INVA has a layer for each, so a form that is both would be counted twice in one hexagon.
+    const invaInformationalCondition = (query: ConditionQuery, table: string) =>
+      informationalCondition(query, table).where(
+        adapter.client.raw(`${snakeCase(table)}.no_quantity_reason is distinct from ?`, [
+          FormNoQuantityReason.RESEARCH,
+        ]),
+      );
+
     if (layers?.sris?.includes(mapsSrisPlacesLayerId)) {
       queries.push({ key: 'srisPlaces', query: placesQuery(TaxonomySpeciesType.ENDANGERED) });
     }
@@ -388,14 +405,24 @@ export default class MapsHexagonService extends moleculer.Service {
       });
     }
 
+    if (layers?.inva?.includes(mapsInvaInformationalInvasiveFormsLayerId)) {
+      queries.push({
+        key: 'invaInformationalForms',
+        query: formsQuery(TaxonomySpeciesType.INVASIVE, invaInformationalCondition),
+      });
+    }
+
+    if (layers?.inva?.includes(mapsInvaInformationalIntroducedFormsLayerId)) {
+      queries.push({
+        key: 'invaIntroducedInformationalForms',
+        query: formsQuery(TaxonomySpeciesType.INTRODUCED, invaInformationalCondition),
+      });
+    }
+
     if (layers?.sris?.includes(mapsSrisInformationalFormsLayerId)) {
       queries.push({
         key: 'srisInformationalForms',
-        query: formsQuery(TaxonomySpeciesType.ENDANGERED, (query: any, table: string) =>
-          query.where(
-            adapter.client.raw(`${snakeCase(table)}.${queryBooleanPlain('isInformational', true)}`),
-          ),
-        ),
+        query: formsQuery(TaxonomySpeciesType.ENDANGERED, informationalCondition),
       });
     }
 

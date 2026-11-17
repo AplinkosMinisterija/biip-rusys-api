@@ -21,7 +21,21 @@ views directly.
 - **The SRIS project publishes exactly two layers**: `radavietes` (`places_with_taxonomies`, with
   `relevant_forms_count > 0`) and `stebejimai_interpretuojami` (`approved_forms`, informational
   and relevant only). Both carry `species_is_hidden is not true` in their own datasource SQL, so a
-  hidden species can never render through them whatever this service sends. INVA has its own six.
+  hidden species can never render through them whatever this service sends.
+- **INVA has six layers and this service never filters them.** `biip-maps-web` points the INVA
+  service straight at `qgisServerUrl/inva`; only SRIS goes through `maps.qgisserver`. So every
+  INVA layer has to carry the hidden-species guard in its own datasource SQL — there is no
+  per-caller filter behind it. Two layers per species type (`_invazines` / `_svetimzemes`):
+  `radavietes_*` over `places_with_taxonomies`, `stebejimai_tyrineta_nerasta_*`
+  (`no_quantity_reason='RESEARCH'`) and `stebejimai_pavieniai_*` (`is_informational`) over
+  `approved_forms`.
+- **A form can be informational AND researched-not-found.** admin-web offers „Pavienis
+  stebėjimas" whatever the no-quantity reason, so the two INVA observation layers would draw the
+  same row twice; `stebejimai_pavieniai_*` excludes `'RESEARCH'` and the hexagon branch
+  (`maps.hexagons.service.ts › getLayersQueries`) repeats that exclusion.
+- **`approved_forms` holds every approved form, whatever the species type** — the only `WHERE` is
+  `f.status = 'APPROVED'`, species type comes from the `taxonomies_all` join. A new INVA layer
+  over it needs no migration.
 - **A layer QGIS renders with no `FILTER` entry of its own shows every row.** So an empty id list
   must send a filter that matches nothing (`"id" in ( -1 )`), never drop the entry and rely on the
   caller's `LAYERS` list to be filtered out by an exact string comparison. `allowedIdsFilter`
@@ -52,6 +66,16 @@ views directly.
   `{ $in: [] }`, which matches nothing. Keep it that way — it is the same rule as the layer filter.
 
 ## Verifying it live
+
+A QGIS layer is verified without the stack: `docker compose up` in `biip-qgis-server` with
+`.pg_service.conf` copied from the template and `port=5731`, then
+`?SERVICE=WFS&REQUEST=GetFeature&TYPENAME=<layer>&OUTPUTFORMAT=GeoJSON&MAP=/etc/qgisserver/inva.qgs`
+lists exactly the rows that layer serves. The `/qgisserver/<project>` path is the biip-infra
+proxy, not the container — locally the project goes in `MAP=`.
+
+In `biip-maps-web`, an INVA layer that will not draw locally is usually the zoom gate, not the
+project: with no authenticated user `togglePrivateSrisService(false)` sets `invaService` to
+`minZoom = +Infinity` and leaves only the hexagon grid.
 
 `services/maps.service.spec.ts` drives `computeFilterValue` off the prototype with a stubbed
 `maps.getMapsData`, which covers the branch table (both layers, each one empty, the refusal, the

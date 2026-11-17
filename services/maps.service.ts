@@ -26,6 +26,8 @@ export const mapsInvaPlacesIntroducedLayerId = 'radavietes_svetimzemes';
 export const mapsSrisInformationalFormsLayerId = 'stebejimai_interpretuojami';
 export const mapsInvaNoQuantityInvasiveFormsLayerId = 'stebejimai_tyrineta_nerasta_invazines';
 export const mapsInvaNoQuantityIntroducedFormsLayerId = 'stebejimai_tyrineta_nerasta_svetimzemes';
+export const mapsInvaInformationalInvasiveFormsLayerId = 'stebejimai_pavieniai_invazines';
+export const mapsInvaInformationalIntroducedFormsLayerId = 'stebejimai_pavieniai_svetimzemes';
 
 @Service({
   name: 'maps',
@@ -132,8 +134,10 @@ export default class MapsService extends moleculer.Service {
             mapsInvaPlacesInvasiveLayerId,
             mapsInvaPlacesIntroducedLayerId,
             mapsInvaNoQuantityIntroducedFormsLayerId,
+            mapsInvaInformationalInvasiveFormsLayerId,
+            mapsInvaInformationalIntroducedFormsLayerId,
           ].join(',')
-        : mapsInvaPlacesInvasiveLayerId,
+        : [mapsInvaPlacesInvasiveLayerId, mapsInvaInformationalInvasiveFormsLayerId].join(','),
     });
   }
 
