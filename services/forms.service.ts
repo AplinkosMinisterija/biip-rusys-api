@@ -50,6 +50,7 @@ import {
 } from '../utils/formsImport';
 import { approvedFormsViewNeedsRefresh } from '../utils/approvedFormsView';
 import { geometriesIntersectLithuania } from '../utils/db.queries';
+import { existingTagIds, removeTagsFilter, TAGS_FIELD } from '../utils/tags';
 import { emailCanBeSent, notifyFormAssignee, notifyOnFormUpdate } from '../utils/mails';
 import { FormHistoryTypes } from './forms.histories.service';
 import { FormSettingsGroupType, FormSettingsOptions } from './forms.settings.options.service';
@@ -646,6 +647,8 @@ export interface Form extends BaseModelInterface {
 
       ...TENANT_FIELD,
 
+      tags: TAGS_FIELD('forms'),
+
       ...COMMON_FIELDS,
     },
 
@@ -705,7 +708,7 @@ export interface Form extends BaseModelInterface {
       create: ['validateIsInformational', 'validateNestPhotos', 'validateStatusChange'],
       update: ['validateNestPhotos', 'validateStatusChange'],
       remove: ['validateDeletion'],
-      list: 'speciesTypeFilter',
+      list: ['speciesTypeFilter', 'removeTagsFilterForOthers'],
     },
   },
   actions: {
@@ -717,6 +720,12 @@ export interface Form extends BaseModelInterface {
   },
 })
 export default class FormsService extends moleculer.Service {
+  @Method
+  removeTagsFilterForOthers(ctx: Context<any, UserAuthMeta>) {
+    removeTagsFilter(ctx);
+    return ctx;
+  }
+
   @Method
   async speciesTypeFilter(ctx: any) {
     ctx.params.query = parseToObject(ctx.params.query);
@@ -743,6 +752,29 @@ export default class FormsService extends moleculer.Service {
     }
 
     return ctx;
+  }
+
+  @Action({
+    rest: 'PATCH /:id/tags',
+    types: [EndpointType.ADMIN, EndpointType.EXPERT],
+    params: {
+      id: { type: 'number', convert: true },
+      tags: { type: 'array', items: { type: 'number', convert: true } },
+    },
+  })
+  async setTags(ctx: Context<{ id: number; tags: number[] }, UserAuthMeta>) {
+    const form: any = await this.resolveEntities(ctx, {
+      id: ctx.params.id,
+      throwIfNotExist: true,
+    });
+    const tags = await existingTagIds(ctx, ctx.params.tags);
+
+    // Straight to the table: tags are a label, not a change of the form itself, so they must
+    // not trigger its history, notifications or status checks.
+    const adapter = await this.getAdapter(ctx);
+    await adapter.updateById(form.id, { tags });
+
+    return { id: form.id, tags };
   }
 
   @Action({

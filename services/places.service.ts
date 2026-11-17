@@ -29,6 +29,7 @@ import { TaxonomySpecies } from './taxonomies.species.service';
 import { User, UserType } from './users.service';
 
 import PostgisMixin, { asGeoJsonQuery } from 'moleculer-postgis';
+import { existingTagIds, TAGS_FIELD } from '../utils/tags';
 
 const VISIBLE_TO_EXPERT_SCOPE = 'visibleToExpert';
 
@@ -147,6 +148,8 @@ export interface Place extends BaseModelInterface {
         },
       },
 
+      tags: TAGS_FIELD('places'),
+
       ...COMMON_FIELDS,
     },
 
@@ -212,6 +215,29 @@ export interface Place extends BaseModelInterface {
   },
 })
 export default class PlacesService extends moleculer.Service {
+  @Action({
+    rest: 'PATCH /:id/tags',
+    types: [EndpointType.ADMIN, EndpointType.EXPERT],
+    params: {
+      id: { type: 'number', convert: true },
+      tags: { type: 'array', items: { type: 'number', convert: true } },
+    },
+  })
+  async setTags(ctx: Context<{ id: number; tags: number[] }, UserAuthMeta>) {
+    const place: any = await this.resolveEntities(ctx, {
+      id: ctx.params.id,
+      throwIfNotExist: true,
+    });
+    const tags = await existingTagIds(ctx, ctx.params.tags);
+
+    // Straight to the table: tags are a label, not a change of the place itself, so they must
+    // not trigger its history, notifications or status checks.
+    const adapter = await this.getAdapter(ctx);
+    await adapter.updateById(place.id, { tags });
+
+    return { id: place.id, tags };
+  }
+
   @Action({
     rest: 'GET /:id/history',
     params: {
