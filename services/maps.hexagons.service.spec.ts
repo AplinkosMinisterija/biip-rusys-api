@@ -12,7 +12,11 @@ import {
 } from './maps.service';
 
 type Layers = { [key: string]: string[] };
-type QueryStub = { calls: unknown[][] };
+type QueryStub = { calls: unknown[][] } & Record<
+  'where' | 'whereNull' | 'whereRaw',
+  (...args: unknown[]) => QueryStub
+>;
+type RawCall = { sql: string; bindings?: unknown[] };
 type LayerQuery = { key: string; query: QueryStub };
 
 type GetLayersQueries = (
@@ -27,17 +31,19 @@ const { getLayersQueries } = MapsHexagonsService.prototype as unknown as {
   getLayersQueries: GetLayersQueries;
 };
 
-const makeQueryStub = () => {
+const makeQueryStub = (): QueryStub => {
   const calls: unknown[][] = [];
-  const query: any = { calls };
-  for (const method of ['where', 'whereNull', 'whereRaw']) {
-    query[method] = (...args: unknown[]) => {
-      calls.push(args);
-      return query;
-    };
-  }
-  return query as QueryStub;
+  const chain = (...args: unknown[]) => {
+    calls.push(args);
+    return query;
+  };
+  const query: QueryStub = { calls, where: chain, whereNull: chain, whereRaw: chain };
+
+  return query;
 };
+
+const isRawCall = (arg: unknown): arg is RawCall =>
+  typeof arg === 'object' && arg !== null && 'sql' in arg;
 
 const adapter = {
   client: { raw: (sql: string, bindings?: unknown[]) => ({ sql, bindings }) },
@@ -49,13 +55,13 @@ const build = (layers: Layers): LayerQuery[] =>
 const conditionsOf = (entry: LayerQuery) =>
   entry.query.calls
     .flat()
-    .map((arg: any) => (arg && typeof arg === 'object' && 'sql' in arg ? arg.sql : String(arg)))
+    .map((arg) => (isRawCall(arg) ? arg.sql : String(arg)))
     .join(' ');
 
 const bindingsOf = (entry: LayerQuery) =>
   entry.query.calls
     .flat()
-    .flatMap((arg: any) => (arg && typeof arg === 'object' ? arg.bindings || [] : []));
+    .flatMap((arg) => (isRawCall(arg) ? arg.bindings ?? [] : []));
 
 describe('getLayersQueries — which observations the hexagon grid counts', () => {
   it('counts invasive single observations when that layer is on', () => {
