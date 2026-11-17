@@ -25,6 +25,7 @@ import {
   FormStatus,
   queryBoolean,
   TENANT_FIELD,
+  throwUnauthorizedError,
   throwValidationError,
   USER_PUBLIC_GET,
   USER_PUBLIC_POPULATE,
@@ -1091,6 +1092,80 @@ export default class FormsService extends moleculer.Service {
     const index = Math.floor(Math.random() * selectFromUserIds.length);
 
     return selectFromUserIds[index];
+  }
+
+  @Action({
+    rest: 'PATCH /:id/species',
+    types: [EndpointType.ADMIN, EndpointType.EXPERT],
+    params: {
+      id: { type: 'number', convert: true },
+      species: { type: 'number', convert: true, integer: true, positive: true },
+    },
+  })
+  async setSpecies(ctx: Context<{ id: number; species: number }, UserAuthMeta>) {
+    const { user } = ctx.meta;
+    const form: Form = await this.resolveEntities(ctx, {
+      id: ctx.params.id,
+      throwIfNotExist: true,
+    });
+
+    if (![FormStatus.SUBMITTED, FormStatus.RETURNED].includes(form.status)) {
+      return throwValidationError('The species can only change before the form is approved');
+    }
+
+    if (user?.type !== UserType.ADMIN && Number(form.assignee) !== Number(user?.id)) {
+      return throwUnauthorizedError('Only the assigned expert can change the species');
+    }
+
+    const species = ctx.params.species;
+    const prevSpecies = Number(form.species);
+    if (prevSpecies === species) return form;
+
+    const taxonomies: Record<number, Taxonomy> = await ctx.call('taxonomies.findBySpeciesId', {
+      id: [prevSpecies, species],
+      showHidden: true,
+      mapping: true,
+    });
+    if (!taxonomies?.[species]) {
+      return throwValidationError('Unknown species', { species });
+    }
+
+    // The form stays with its expert only if that expert also checks the new species.
+    const expertIds: number[] = await ctx.call('requests.getExpertsIdsBySpecies', {
+      speciesId: species,
+    });
+    const assignee =
+      form.assignee && (expertIds || []).map(Number).includes(Number(form.assignee))
+        ? Number(form.assignee)
+        : (await ctx.call('forms.getAssigneeForForm', {
+            species,
+            createdBy: form.createdBy,
+          })) || null;
+
+    // Signs, stages and methods belong to a species, so they are cleared for the expert to set again.
+    const adapter = await this.getAdapter(ctx);
+    await adapter.updateById(form.id, {
+      speciesId: species,
+      assigneeId: assignee,
+      activity: null,
+      activityId: null,
+      evolution: null,
+      evolutionId: null,
+      method: null,
+      methodValue: null,
+    });
+
+    const updated: Form = await this.resolveEntities(ctx, { id: form.id });
+    await this._entityChanged('update', updated, form, ctx, {});
+
+    await this.createFormHistory(
+      form.id,
+      ctx.meta,
+      FormHistoryTypes.SPECIES_CHANGED,
+      `${taxonomies[prevSpecies]?.speciesName || prevSpecies} → ${taxonomies[species].speciesName}`,
+    );
+
+    return updated;
   }
 
   @Action({
