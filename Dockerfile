@@ -12,7 +12,7 @@ WORKDIR /app
 
 # Install dependencies
 COPY package.json yarn.lock ./
-RUN yarn install --immutable --immutable-cache --inline-builds --production=false
+RUN yarn install --frozen-lockfile --production=false
 
 # Copy source
 COPY . .
@@ -31,7 +31,7 @@ WORKDIR /app
 
 # Install only production dependencies
 COPY package.json yarn.lock ./
-RUN yarn install --immutable --immutable-cache --inline-builds --production \
+RUN yarn install --frozen-lockfile --production \
     && yarn cache clean
 
 # Copy built artifacts from builder stage
