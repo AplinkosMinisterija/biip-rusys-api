@@ -356,6 +356,9 @@ export interface Form extends BaseModelInterface {
           const statusChanged = ctx?.meta?.statusChanged;
           const speciesId = entity?.speciesId;
 
+          // `canManageApprovedEntity` below freezes an approved status, so the reopen passes here too.
+          if (adminCanReturnApprovedForm(user, entity, value)) return value;
+
           const canManageApprovedEntity =
             entity.status === FormStatus.APPROVED &&
             ((user?.isExpert && user?.expertSpecies.includes(speciesId)) ||

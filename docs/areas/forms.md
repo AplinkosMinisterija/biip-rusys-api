@@ -11,13 +11,13 @@ itself is in the codemap.
 
 ## Shape
 
-| Piece | Where |
-|---|---|
-| CRUD, statuses, assignment, permissions, events | `services/forms.service.ts` (~2000 LOC) |
-| who counts as an expert of a species | `services/requests.service.ts › getExpertSpecies`, `› getExpertsIdsBySpecies` |
-| the history rows each transition writes | `services/forms.histories.service.ts` |
-| the mails | `utils/mails.ts › notifyFormAssignee`, `› notifyOnFormUpdate` |
-| the UI that drives all of it | `biip-admin-web` `src/modules/species/pages/ObservationForm.tsx` + `src/components/other/UserPicker.tsx` |
+| Piece                                           | Where                                                                                                    |
+| ----------------------------------------------- | -------------------------------------------------------------------------------------------------------- |
+| CRUD, statuses, assignment, permissions, events | `services/forms.service.ts` (~2000 LOC)                                                                  |
+| who counts as an expert of a species            | `services/requests.service.ts › getExpertSpecies`, `› getExpertsIdsBySpecies`                            |
+| the history rows each transition writes         | `services/forms.histories.service.ts`                                                                    |
+| the mails                                       | `utils/mails.ts › notifyFormAssignee`, `› notifyOnFormUpdate`                                            |
+| the UI that drives all of it                    | `biip-admin-web` `src/modules/species/pages/ObservationForm.tsx` + `src/components/other/UserPicker.tsx` |
 
 ## Invariants
 
@@ -62,10 +62,10 @@ itself is in the codemap.
 ## Traps
 
 - **`hasPermissionToEdit` mistakes a profile-less user for the tenant owner when the form has no
-  tenant.** It computes `tenant = form.tenant || form.tenantId`; on a *mapped* entity (what
+  tenant.** It computes `tenant = form.tenant || form.tenantId`; on a _mapped_ entity (what
   `forms.resolve` returns) `tenant` is `null` and `tenantId` does not exist, so the expression is
   `undefined`, and `isCreatedByTenant = profile?.id === tenant` is then `undefined === undefined`
-  → **true**, returning `{edit, validate: false}` for a plain user. It only behaves on a *raw* row
+  → **true**, returning `{edit, validate: false}` for a plain user. It only behaves on a _raw_ row
   (`tenantId` is `null`, and `undefined === null` is false), which is the shape the field hooks
   pass it. Do not hand it a resolved entity — that is why `expertCanReassign` states the rule
   itself instead of reusing `.validate`.
@@ -96,8 +96,7 @@ The screen checks twice — a client pass in `src/modules/species/utils/importVa
 `dryRun: true` call to the same action that will create the rows, so the "Patikrinti" button and
 the real submit run identical server rules.
 
-- **The row validator is pure and the action owns everything async.** `utils/formsImport.ts ›
-  validateFormImportRow` is a plain function over one row plus the already-fetched taxonomy and
+- **The row validator is pure and the action owns everything async.** `utils/formsImport.ts › validateFormImportRow` is a plain function over one row plus the already-fetched taxonomy and
   the set of known source ids; anything that needs a query (PostGIS containment, the method
   classifier, the criterion) is done by `forms.service.ts › import` around it. Keep it that way:
   the pure half is the only part that has tests.
@@ -105,8 +104,7 @@ the real submit run identical server rules.
   is the code derived from the label (`optionCodeFromLabel`), `value` is what the officer reads.
   `utils/formsImport.ts › resolveImportClassifiers` matches `activity` / `evolution` against
   `value`, trimmed and case-folded, and hands `forms.create` the option id.
-- **Which stages are on offer is one rule written in three places** — `utils/functions.ts ›
-  stageIsOffered`, admin-web `getStageOptions`, and `resolveImportClassifiers`: a criterion that
+- **Which stages are on offer is one rule written in three places** — `utils/functions.ts › stageIsOffered`, admin-web `getStageOptions`, and `resolveImportClassifiers`: a criterion that
   offers signs hangs its stages off the chosen sign, one that offers none carries them itself.
   Change one and change all three.
 - **`forms.create` re-validates the pair and throws.** The `activity` / `evolution` field hooks
@@ -163,9 +161,14 @@ says a form was created.
   form" and calls `places.create`. The only way to clear the column is to RETURN `null` from that
   hook, which is what the reopen branch at the top of it does. The hook runs on every update, not
   only when `place` is in the params, which is also how approving without a place creates one.
+- **Two hooks guard the status, not one.** `validateStatus` only decides whether the value is
+  allowed; the `status` field's `onUpdate` separately freezes an APPROVED form's status for an
+  administrator or the species expert (`canManageApprovedEntity` returns `undefined`, i.e. keep the
+  old value). A reopen has to pass both, or the form silently stays APPROVED while its place is
+  already detached — which is how it behaved until the live run on 2026-11-17.
 - **A place keeps only the forms that feed it.** `forms.updated` asks for forms at the old place
   with `status: APPROVED, isRelevant: true` before deciding between a recompute and
-  `places.remove(MISTAKEN)`. It used to ask for *any* form there, so a place whose remaining forms
+  `places.remove(MISTAKEN)`. It used to ask for _any_ form there, so a place whose remaining forms
   were rejected or already irrelevant was recomputed from nothing: `places.changed` then throws
   `Empty geometry` inside an event handler and the stale geometry stays on the map
   (`place-not-cleaned-when-forms-moved-away`).
