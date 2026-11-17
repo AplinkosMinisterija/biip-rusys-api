@@ -14,6 +14,7 @@ import {
 
 export interface FormSettingSource extends BaseModelInterface {
   name: string;
+  position?: number;
 }
 
 @Service({
@@ -35,6 +36,13 @@ export interface FormSettingSource extends BaseModelInterface {
       },
 
       name: 'string|required',
+
+      position: {
+        type: 'number',
+        integer: true,
+        positive: true,
+        nullable: true,
+      },
 
       ...COMMON_FIELDS,
     },
