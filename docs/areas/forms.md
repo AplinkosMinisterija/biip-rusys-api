@@ -151,4 +151,19 @@ a species that exercises every branch of `resolveImportClassifiers`. Call
 `forms.activity_id` / `evolution_id` straight out of postgres; the action's own return value only
 says a form was created.
 
-_Updated 2026-11-16._
+## Who sees which forms (#205)
+
+- **`forms.service.ts › formsVisibleToUser` is the scope, extracted so it can be tested.** Its
+  first rule: a query whose `createdBy` is the caller is never narrowed by the active profile, so
+  "my forms" means every form that person filed, personally or for an organisation. Everything
+  else is unchanged — a plain listing is still scoped to the active tenant, or to the person's own
+  personal forms.
+- **`GET /forms/my` is open to any signed-in person** (`EndpointType.ADMIN, USER`); it used to
+  need an admin, an expert or a selected tenant, which is why `biip-rusys-web` only showed the
+  "Mano" tab to organisation members.
+- **A form's `tenant` populate ignores the tenant scope on purpose.** `tenants.resolve` throws for
+  an id the caller no longer belongs to, and a person keeps the forms they filed for an
+  organisation after leaving it — the plain populate would 401 their whole list. Only `id` and
+  `name` come back.
+
+_Updated 2026-11-17._
