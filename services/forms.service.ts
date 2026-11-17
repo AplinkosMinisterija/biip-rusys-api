@@ -50,6 +50,7 @@ import {
 } from '../utils/formsImport';
 import { approvedFormsViewNeedsRefresh } from '../utils/approvedFormsView';
 import { geometriesIntersectLithuania } from '../utils/db.queries';
+import { existingTagIds, removeTagsFilter, TAGS_FIELD } from '../utils/tags';
 import { emailCanBeSent, notifyFormAssignee, notifyOnFormUpdate } from '../utils/mails';
 import { FormHistoryTypes } from './forms.histories.service';
 import { FormSettingsGroupType, FormSettingsOptions } from './forms.settings.options.service';
@@ -198,6 +199,20 @@ function populateFormTenant(
 
       return ctx.call('tenants.resolve', { id, fields: ['id', 'name'], scope: false });
     }),
+  );
+}
+
+// Reopening a checked form is an administrator's call alone, and only back to its author:
+// nobody else may touch an APPROVED form, and no other status may follow one.
+export function adminCanReturnApprovedForm(
+  user: { type?: string } | undefined,
+  entity: { status?: string } | undefined,
+  value?: string,
+) {
+  return (
+    user?.type === UserType.ADMIN &&
+    entity?.status === FormStatus.APPROVED &&
+    value === FormStatus.RETURNED
   );
 }
 
@@ -399,6 +414,9 @@ export interface Form extends BaseModelInterface {
           const statusChanged = ctx?.meta?.statusChanged;
           const speciesId = entity?.speciesId;
 
+          // `canManageApprovedEntity` below freezes an approved status, so the reopen passes here too.
+          if (adminCanReturnApprovedForm(user, entity, value)) return value;
+
           const canManageApprovedEntity =
             entity.status === FormStatus.APPROVED &&
             ((user?.isExpert && user?.expertSpecies.includes(speciesId)) ||
@@ -487,6 +505,12 @@ export interface Form extends BaseModelInterface {
           ContextMeta<FormPlaceChanged> &
           ContextMeta<FormAutoApprove>) {
           const { statusChanged, autoApprove, placeChanged, user } = ctx?.meta ?? {};
+
+          // A place's geometry is the union of its approved forms, so one that is reopened
+          // for correction leaves its place.
+          if (adminCanReturnApprovedForm(user, entity, params?.status)) {
+            return null;
+          }
 
           const isInformational = params?.isInformational ?? entity?.isInformational ?? false;
           const createNewPlace = params?.place === null;
@@ -706,6 +730,8 @@ export interface Form extends BaseModelInterface {
         populate: populateFormTenant,
       },
 
+      tags: TAGS_FIELD('forms'),
+
       ...COMMON_FIELDS,
     },
 
@@ -736,7 +762,7 @@ export interface Form extends BaseModelInterface {
       create: ['validateIsInformational', 'validateNestPhotos', 'validateStatusChange'],
       update: ['validateNestPhotos', 'validateStatusChange'],
       remove: ['validateDeletion'],
-      list: 'speciesTypeFilter',
+      list: ['speciesTypeFilter', 'removeTagsFilterForOthers'],
     },
   },
   actions: {
@@ -748,6 +774,12 @@ export interface Form extends BaseModelInterface {
   },
 })
 export default class FormsService extends moleculer.Service {
+  @Method
+  removeTagsFilterForOthers(ctx: Context<any, UserAuthMeta>) {
+    removeTagsFilter(ctx);
+    return ctx;
+  }
+
   @Method
   async speciesTypeFilter(ctx: any) {
     ctx.params.query = parseToObject(ctx.params.query);
@@ -774,6 +806,29 @@ export default class FormsService extends moleculer.Service {
     }
 
     return ctx;
+  }
+
+  @Action({
+    rest: 'PATCH /:id/tags',
+    types: [EndpointType.ADMIN, EndpointType.EXPERT],
+    params: {
+      id: { type: 'number', convert: true },
+      tags: { type: 'array', items: { type: 'number', convert: true } },
+    },
+  })
+  async setTags(ctx: Context<{ id: number; tags: number[] }, UserAuthMeta>) {
+    const form: any = await this.resolveEntities(ctx, {
+      id: ctx.params.id,
+      throwIfNotExist: true,
+    });
+    const tags = await existingTagIds(ctx, ctx.params.tags);
+
+    // Straight to the table: tags are a label, not a change of the form itself, so they must
+    // not trigger its history, notifications or status checks.
+    const adapter = await this.getAdapter(ctx);
+    await adapter.updateById(form.id, { tags });
+
+    return { id: form.id, tags };
   }
 
   @Action({
@@ -1803,6 +1858,8 @@ export default class FormsService extends moleculer.Service {
       return newStatuses.includes(value) || error;
     }
 
+    if (adminCanReturnApprovedForm(user, entity, value)) return true;
+
     const editingPermissions = this.hasPermissionToEdit(entity, user, profile);
 
     if (editingPermissions.edit) {
@@ -2012,7 +2069,9 @@ export default class FormsService extends moleculer.Service {
 
       await this.assignPlaceIfNeeded(ctx, form);
       if (prevForm.place) {
-        const forms: Form[] = await ctx.call('forms.find', { query: { place: prevForm.place } });
+        const forms: Form[] = await ctx.call('forms.find', {
+          query: { place: prevForm.place, status: FormStatus.APPROVED, isRelevant: true },
+        });
         if (!forms?.length) {
           await ctx.call('places.remove', {
             id: prevForm.place,

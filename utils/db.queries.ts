@@ -3,7 +3,7 @@ import _, { snakeCase } from 'lodash';
 import { areaQuery, asGeoJsonQuery } from 'moleculer-postgis';
 import moment from 'moment';
 import config from '../knexfile';
-import { queryBooleanPlain } from '../types';
+import { FormStatus, queryBooleanPlain } from '../types';
 
 let knexAdapter: Knex;
 const getAdapter = () => {
@@ -290,4 +290,41 @@ export async function geometriesIntersectLithuania(geometries: unknown[]): Promi
   );
 
   return rows?.[0]?.inside === true;
+}
+
+// The map layers take id lists, so an observer's own data is two of them: the places their
+// approved forms feed, and their own single observations.
+export async function getPlacesAndFormsByAuthor(userId: number) {
+  const knex = getAdapter();
+  const formsTable = 'forms';
+  const placesTable = 'places';
+  const taxonomiesTable = 'taxonomiesAll';
+
+  const rows: Array<{ id: number; placeId: number | null; isInformational: boolean }> = await knex
+    .select(`${formsTable}.id`, `${formsTable}.placeId`, `${formsTable}.isInformational`)
+    .from(formsTable)
+    .leftJoin(placesTable, `${placesTable}.id`, `${formsTable}.placeId`)
+    .join(`${taxonomiesTable} as ta`, 'ta.speciesId', `${formsTable}.speciesId`)
+    .where(`${formsTable}.createdBy`, userId)
+    .where(`${formsTable}.status`, FormStatus.APPROVED)
+    .where(knex.raw(`${snakeCase(formsTable)}.${queryBooleanPlain('isRelevant', true)}`))
+    // A species hidden after the fact stays hidden here too, exactly as on the request path.
+    .where(knex.raw(`ta.${queryBooleanPlain('speciesIsHidden', false)}`))
+    .whereNull(`${formsTable}.deletedAt`)
+    .whereNull(`${placesTable}.deletedAt`);
+
+  const own = rows.reduce(
+    (acc: { places: number[]; forms: number[] }, row) => {
+      if (row.isInformational) {
+        acc.forms.push(row.id);
+      } else if (row.placeId) {
+        acc.places.push(row.placeId);
+      }
+
+      return acc;
+    },
+    { places: [], forms: [] },
+  );
+
+  return { places: _.uniq(own.places), forms: _.uniq(own.forms) };
 }

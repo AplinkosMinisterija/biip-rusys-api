@@ -233,7 +233,7 @@ export default class MapsHexagonService extends moleculer.Service {
     if (user?.id && !userIsAdmin && !userIsExpert) {
       const mapData: any = await ctx.call('maps.getMapsData');
 
-      if (!mapData.places?.length) {
+      if (!mapData.places?.length && !mapData.forms?.length) {
         return;
       }
 
