@@ -51,7 +51,7 @@
   },
   "dependencies": {
     "@aplinkosministerija/moleculer-accounts": "^1.6.0",
-    "@faker-js/faker": "^6.0.0-alpha.7",
+    "@faker-js/faker": "^10.5.0",
     "@moleculer/database": "github:ambrazasp/moleculerjs-database",
     "@r2d2bzh/moleculer-cron": "^0.1.4",
     "@sentry/node": "^7.60.1",
@@ -82,7 +82,7 @@
     "moleculer-postgis": "github:AplinkosMinisterija/moleculer-postgis#v0.4.0",
     "moleculer-sentry": "^2.0.0",
     "moleculer-web": "^0.10.4",
-    "moment": "^2.29.4",
+    "moment": "^2.31.0",
     "moment-timezone": "^0.5.43",
     "nats": "^2.6.0",
     "objection": "^3.0.1",
