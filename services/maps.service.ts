@@ -9,9 +9,9 @@ import { UserType } from './users.service';
 
 import { getFeatureCollection } from 'geojsonjs';
 import jwt, { VerifyErrors } from 'jsonwebtoken';
-import { camelCase } from 'lodash';
+import { camelCase, uniq } from 'lodash';
 import moment from 'moment';
-import { getPlacesAndFromsByRequestsIds } from '../utils/db.queries';
+import { getPlacesAndFormsByAuthor, getPlacesAndFromsByRequestsIds } from '../utils/db.queries';
 import { toReadableStream } from '../utils/functions';
 
 export const mapsSrisPlacesLayerId = 'radavietes';
@@ -358,11 +358,15 @@ export default class MapsService extends moleculer.Service {
     if (!userIsAdmin && !userIsExpert) {
       const { places: placesIds, forms: formsIds }: any = await ctx.call('maps.getMapsData');
 
-      if (!placesIds?.length) {
+      if (!placesIds?.length && !formsIds?.length) {
         return throwUnauthorizedError('Cannot access places');
       }
 
-      items.push(`${mapsSrisPlacesLayerId}:( ${`"id" in ( ${placesIds.join(' , ')} )`} )`);
+      if (placesIds?.length) {
+        items.push(`${mapsSrisPlacesLayerId}:( ${`"id" in ( ${placesIds.join(' , ')} )`} )`);
+      } else {
+        allLayers = allLayers.filter((l) => l !== mapsSrisPlacesLayerId);
+      }
 
       if (formsIds?.length) {
         items.push(
@@ -386,31 +390,28 @@ export default class MapsService extends moleculer.Service {
       keys: ['#user.id', '#profile.id'],
     },
   })
-  async getMapsData(ctx: Context) {
+  async getMapsData(ctx: Context<{}, UserAuthMeta>) {
     const requests: Request[] = await ctx.call('requests.find', {
       query: this.getRequestsQuery(),
     });
 
-    if (!requests?.length) return { places: [], forms: [] };
+    const byRequests = requests?.length
+      ? await getPlacesAndFromsByRequestsIds(requests.map((r) => r.id))
+      : [];
 
-    const data = await getPlacesAndFromsByRequestsIds(requests.map((r) => r.id));
+    // An observer sees what they reported themselves even with no approved request behind it.
+    const own = ctx.meta?.user?.id
+      ? await getPlacesAndFormsByAuthor(ctx.meta.user.id)
+      : { places: [], forms: [] };
 
-    return data.reduce(
-      (acc, item) => {
-        if (item.places?.length) {
-          acc.places = [...(acc.places || []), ...item.places];
-        }
-
-        if (item.forms?.length) {
-          acc.forms = [...(acc.forms || []), ...item.forms];
-        }
+    return byRequests.reduce(
+      (acc: { places: number[]; forms: number[] }, item) => {
+        acc.places = uniq([...acc.places, ...(item.places || [])]);
+        acc.forms = uniq([...acc.forms, ...(item.forms || [])]);
 
         return acc;
       },
-      {
-        places: [],
-        forms: [],
-      },
+      { places: own.places, forms: own.forms },
     );
   }
 
@@ -425,6 +426,17 @@ export default class MapsService extends moleculer.Service {
     ) {
       return;
     }
+
+    this.broker.emit('cache.clean.maps');
+  }
+
+  // An observer's own places and forms are part of the cached answer, so approving, returning
+  // or re-placing a form changes what the map may show them.
+  @Event()
+  async 'forms.updated'(ctx: Context<EntityChangedParams<{ status: string; place?: number }>>) {
+    const { oldData: prevForm, data: form } = ctx.params;
+
+    if (prevForm?.status === form.status && prevForm?.place === form.place) return;
 
     this.broker.emit('cache.clean.maps');
   }
