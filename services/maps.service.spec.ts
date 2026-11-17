@@ -45,11 +45,20 @@ describe('computeFilterValue — what an observer is allowed to see on the map',
     expect(result.layers).toBe(layers);
   });
 
-  it('drops the places layer when the observer only has single observations', async () => {
+  it('denies the places layer when the observer only has single observations', async () => {
     const result = await compute({ places: [], forms: [7] });
 
-    expect(result.filter).toBe(`${mapsSrisInformationalFormsLayerId}:( "id" in ( 7 ) )`);
-    expect(result.layers).toBe(mapsSrisInformationalFormsLayerId);
+    expect(result.filter).toContain(`${mapsSrisPlacesLayerId}:( "id" in ( -1 ) )`);
+    expect(result.filter).toContain(`${mapsSrisInformationalFormsLayerId}:( "id" in ( 7 ) )`);
+    expect(result.layers).toBe(layers);
+  });
+
+  it('denies the single observations layer when the observer only has places', async () => {
+    const result = await compute({ places: [3], forms: [] });
+
+    expect(result.filter).toContain(`${mapsSrisPlacesLayerId}:( "id" in ( 3 ) )`);
+    expect(result.filter).toContain(`${mapsSrisInformationalFormsLayerId}:( "id" in ( -1 ) )`);
+    expect(result.layers).toBe(mapsSrisPlacesLayerId);
   });
 
   it('refuses an observer with nothing of their own and no approved request', async () => {

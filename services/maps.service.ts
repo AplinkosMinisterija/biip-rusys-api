@@ -14,6 +14,12 @@ import moment from 'moment';
 import { getPlacesAndFormsByAuthor, getPlacesAndFromsByRequestsIds } from '../utils/db.queries';
 import { toReadableStream } from '../utils/functions';
 
+// No row carries it, so an id list that came back empty denies the whole layer.
+const NO_MATCHING_ID = -1;
+
+const allowedIdsFilter = (ids?: number[]) =>
+  `"id" in ( ${ids?.length ? ids.join(' , ') : NO_MATCHING_ID} )`;
+
 export const mapsSrisPlacesLayerId = 'radavietes';
 export const mapsInvaPlacesInvasiveLayerId = 'radavietes_invazines';
 export const mapsInvaPlacesIntroducedLayerId = 'radavietes_svetimzemes';
@@ -362,17 +368,12 @@ export default class MapsService extends moleculer.Service {
         return throwUnauthorizedError('Cannot access places');
       }
 
-      if (placesIds?.length) {
-        items.push(`${mapsSrisPlacesLayerId}:( ${`"id" in ( ${placesIds.join(' , ')} )`} )`);
-      } else {
-        allLayers = allLayers.filter((l) => l !== mapsSrisPlacesLayerId);
-      }
+      // Both layers are always filtered: a layer QGIS renders with no FILTER entry of its own
+      // shows every row, so an empty id list has to deny, not drop the filter.
+      items.push(`${mapsSrisPlacesLayerId}:( ${allowedIdsFilter(placesIds)} )`);
+      items.push(`${mapsSrisInformationalFormsLayerId}:( ${allowedIdsFilter(formsIds)} )`);
 
-      if (formsIds?.length) {
-        items.push(
-          `${mapsSrisInformationalFormsLayerId}:( ${`"id" in ( ${formsIds.join(' , ')} )`} )`,
-        );
-      } else {
+      if (!formsIds?.length) {
         allLayers = allLayers.filter((l) => l !== mapsSrisInformationalFormsLayerId);
       }
     }

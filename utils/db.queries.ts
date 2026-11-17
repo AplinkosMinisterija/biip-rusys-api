@@ -298,18 +298,22 @@ export async function getPlacesAndFormsByAuthor(userId: number) {
   const knex = getAdapter();
   const formsTable = 'forms';
   const placesTable = 'places';
+  const taxonomiesTable = 'taxonomiesAll';
 
   const rows: Array<{ id: number; placeId: number | null; isInformational: boolean }> = await knex
     .select(`${formsTable}.id`, `${formsTable}.placeId`, `${formsTable}.isInformational`)
     .from(formsTable)
     .leftJoin(placesTable, `${placesTable}.id`, `${formsTable}.placeId`)
+    .join(`${taxonomiesTable} as ta`, 'ta.speciesId', `${formsTable}.speciesId`)
     .where(`${formsTable}.createdBy`, userId)
     .where(`${formsTable}.status`, FormStatus.APPROVED)
     .where(knex.raw(`${snakeCase(formsTable)}.${queryBooleanPlain('isRelevant', true)}`))
+    // A species hidden after the fact stays hidden here too, exactly as on the request path.
+    .where(knex.raw(`ta.${queryBooleanPlain('speciesIsHidden', false)}`))
     .whereNull(`${formsTable}.deletedAt`)
     .whereNull(`${placesTable}.deletedAt`);
 
-  return rows.reduce(
+  const own = rows.reduce(
     (acc: { places: number[]; forms: number[] }, row) => {
       if (row.isInformational) {
         acc.forms.push(row.id);
@@ -321,4 +325,6 @@ export async function getPlacesAndFormsByAuthor(userId: number) {
     },
     { places: [], forms: [] },
   );
+
+  return { places: _.uniq(own.places), forms: _.uniq(own.forms) };
 }
