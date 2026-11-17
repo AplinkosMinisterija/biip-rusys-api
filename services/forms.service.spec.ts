@@ -9,7 +9,7 @@ jest.mock('../utils/mails', () => ({
 import './requests.service';
 
 import { FormStatus } from '../types';
-import FormsService from './forms.service';
+import FormsService, { adminCanReturnApprovedForm } from './forms.service';
 import { User, UserType } from './users.service';
 
 type FormRow = {
@@ -222,5 +222,73 @@ describe('listAssignees', () => {
       ids: [HOLDER, OTHER_EXPERT],
       total: 2,
     });
+  });
+});
+
+describe('adminCanReturnApprovedForm — reopening a checked form', () => {
+  const approved = { status: FormStatus.APPROVED };
+
+  it('lets an admin send an approved form back to its author', () => {
+    expect(adminCanReturnApprovedForm(admin, approved, FormStatus.RETURNED)).toBe(true);
+  });
+
+  it.each([FormStatus.REJECTED, FormStatus.SUBMITTED, FormStatus.CREATED])(
+    'refuses an admin setting %s instead',
+    (status) => {
+      expect(adminCanReturnApprovedForm(admin, approved, status)).toBe(false);
+    },
+  );
+
+  it.each([FormStatus.SUBMITTED, FormStatus.RETURNED, FormStatus.REJECTED])(
+    'leaves a %s form to the usual rules',
+    (status) => {
+      expect(adminCanReturnApprovedForm(admin, { status }, FormStatus.RETURNED)).toBe(false);
+    },
+  );
+
+  it('refuses an expert', () => {
+    expect(adminCanReturnApprovedForm(expert(HOLDER), approved, FormStatus.RETURNED)).toBe(false);
+  });
+
+  it('refuses an anonymous caller', () => {
+    expect(adminCanReturnApprovedForm(undefined, approved, FormStatus.RETURNED)).toBe(false);
+  });
+});
+
+describe('validateStatus — who may change an approved form', () => {
+  const { validateStatus, hasPermissionToEdit } = FormsService.prototype as unknown as {
+    validateStatus: (
+      this: unknown,
+      args: {
+        ctx: { meta: { user?: Partial<User>; profile?: unknown } };
+        value: string;
+        entity: { id: number; status: string; createdBy: number };
+      },
+    ) => true | string;
+    hasPermissionToEdit: unknown;
+  };
+
+  const approvedForm = { id: 10, status: FormStatus.APPROVED, createdBy: AUTHOR };
+
+  const check = (user: Partial<User>, value: string) =>
+    validateStatus.call(
+      { hasPermissionToEdit },
+      { ctx: { meta: { user } }, value, entity: approvedForm },
+    );
+
+  it('lets an admin return an approved form', () => {
+    expect(check(admin, FormStatus.RETURNED)).toBe(true);
+  });
+
+  it('still refuses an admin rejecting an approved form', () => {
+    expect(check(admin, FormStatus.REJECTED)).toBe(
+      `Cannot set status with value ${FormStatus.REJECTED}`,
+    );
+  });
+
+  it('still refuses an expert returning an approved form', () => {
+    expect(check(expert(HOLDER), FormStatus.RETURNED)).toBe(
+      `Cannot set status with value ${FormStatus.RETURNED}`,
+    );
   });
 });
