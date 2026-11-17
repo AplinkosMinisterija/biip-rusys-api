@@ -356,7 +356,7 @@ export default class MapsService extends moleculer.Service {
     layersValue: string = '',
   ) {
     const items = filterValue.split(';');
-    let allLayers = layersValue.split(',');
+    const allLayers = layersValue.split(',');
 
     const userIsExpert = !!ctx?.meta?.user?.isExpert;
     const userIsAdmin = !ctx?.meta?.user?.id || ctx?.meta?.user?.type === UserType.ADMIN;
@@ -368,14 +368,16 @@ export default class MapsService extends moleculer.Service {
         return throwUnauthorizedError('Cannot access places');
       }
 
-      // Both layers are always filtered: a layer QGIS renders with no FILTER entry of its own
-      // shows every row, so an empty id list has to deny, not drop the filter.
-      items.push(`${mapsSrisPlacesLayerId}:( ${allowedIdsFilter(placesIds)} )`);
-      items.push(`${mapsSrisInformationalFormsLayerId}:( ${allowedIdsFilter(formsIds)} )`);
+      // An unfiltered layer shows every row, so an empty id list denies instead of dropping
+      // the filter — and FILTER never names a layer the caller left out of LAYERS.
+      const filterLayer = (layerId: string, ids?: number[]) => {
+        if (!allLayers.includes(layerId)) return;
 
-      if (!formsIds?.length) {
-        allLayers = allLayers.filter((l) => l !== mapsSrisInformationalFormsLayerId);
-      }
+        items.push(`${layerId}:( ${allowedIdsFilter(ids)} )`);
+      };
+
+      filterLayer(mapsSrisPlacesLayerId, placesIds);
+      filterLayer(mapsSrisInformationalFormsLayerId, formsIds);
     }
 
     return {
