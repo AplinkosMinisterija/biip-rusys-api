@@ -1549,9 +1549,10 @@ export default class FormsService extends moleculer.Service {
     const isCreatedByUser = !tenant && user?.id === form.createdBy;
     const isCreatedByTenant = profile?.id === tenant;
 
+    // The author may still fix a submitted form until an expert approves or rejects it.
     if (isCreatedByTenant || isCreatedByUser) {
       return {
-        edit: [FormStatus.RETURNED].includes(form.status),
+        edit: [FormStatus.RETURNED, FormStatus.SUBMITTED].includes(form.status),
         validate: false,
       };
     } else if (user.isExpert) {
@@ -2119,6 +2120,14 @@ export default class FormsService extends moleculer.Service {
       await this.createFormHistory(form.id, ctx.meta, typesByStatus[form.status], comment);
 
       await this.sendNotificationOnStatusChange(form, comment);
+    } else if (
+      form.status === FormStatus.SUBMITTED &&
+      (ctx.meta as UserAuthMeta & Partial<FormStatusChanged>)?.statusChanged &&
+      this.hasPermissionToEdit(prevForm, ctx.meta?.user, ctx.meta?.profile).edit
+    ) {
+      // The status stays SUBMITTED, so without this the expert would not see that it was fixed.
+      const { comment } = (ctx.options?.parentCtx?.params as any) || {};
+      await this.createFormHistory(form.id, ctx.meta, FormHistoryTypes.UPDATED, comment);
     }
 
     if (form.isInformational && prevForm.isRelevant !== form.isRelevant) {
