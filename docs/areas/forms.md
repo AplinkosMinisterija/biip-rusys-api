@@ -151,4 +151,23 @@ a species that exercises every branch of `resolveImportClassifiers`. Call
 `forms.activity_id` / `evolution_id` straight out of postgres; the action's own return value only
 says a form was created.
 
-_Updated 2026-11-16._
+## Reopening an approved form (#588)
+
+- **`forms.service.ts › adminCanReturnApprovedForm` is the whole rule.** An administrator — and
+  nobody else — may set an APPROVED form to RETURNED, and to nothing else. `validateStatus` calls
+  it before `hasPermissionToEdit`, so `nonEditableStatuses` still closes an approved form to
+  everyone else, and `canEdit` / `canValidate` stay false for the admin too: the admin-web button
+  is wired to this one transition, not to a general edit.
+- **`place: null` in the params does NOT detach a form — it creates a new place.** The `place`
+  field's `set` hook reads `params?.place === null` as "the expert wants a new place for this
+  form" and calls `places.create`. The only way to clear the column is to RETURN `null` from that
+  hook, which is what the reopen branch at the top of it does. The hook runs on every update, not
+  only when `place` is in the params, which is also how approving without a place creates one.
+- **A place keeps only the forms that feed it.** `forms.updated` asks for forms at the old place
+  with `status: APPROVED, isRelevant: true` before deciding between a recompute and
+  `places.remove(MISTAKEN)`. It used to ask for *any* form there, so a place whose remaining forms
+  were rejected or already irrelevant was recomputed from nothing: `places.changed` then throws
+  `Empty geometry` inside an event handler and the stale geometry stays on the map
+  (`place-not-cleaned-when-forms-moved-away`).
+
+_Updated 2026-11-17._
