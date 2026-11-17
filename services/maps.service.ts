@@ -368,16 +368,10 @@ export default class MapsService extends moleculer.Service {
         return throwUnauthorizedError('Cannot access places');
       }
 
-      // An unfiltered layer shows every row, so an empty id list denies instead of dropping
-      // the filter — and FILTER never names a layer the caller left out of LAYERS.
-      const filterLayer = (layerId: string, ids?: number[]) => {
-        if (!allLayers.includes(layerId)) return;
-
-        items.push(`${layerId}:( ${allowedIdsFilter(ids)} )`);
-      };
-
-      filterLayer(mapsSrisPlacesLayerId, placesIds);
-      filterLayer(mapsSrisInformationalFormsLayerId, formsIds);
+      // Both layers are filtered whatever LAYERS says: QGIS picks the layers it renders from
+      // parameters this code does not read, and an unfiltered layer shows every row.
+      items.push(`${mapsSrisPlacesLayerId}:( ${allowedIdsFilter(placesIds)} )`);
+      items.push(`${mapsSrisInformationalFormsLayerId}:( ${allowedIdsFilter(formsIds)} )`);
     }
 
     return {
