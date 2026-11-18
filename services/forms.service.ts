@@ -23,6 +23,8 @@ import {
   FieldHookCallback,
   FormErrors,
   FormStatus,
+  MEDIA_MAX_SIZE,
+  MEDIA_TYPES,
   queryBoolean,
   TENANT_FIELD,
   throwUnauthorizedError,
@@ -317,6 +319,7 @@ export interface Form extends BaseModelInterface {
   geom: any;
   area: number;
   photos?: { url: string }[];
+  media?: { url: string; name?: string; size?: number; mimetype?: string }[];
   observedBy: string;
   noQuantityReason: string;
 }
@@ -721,6 +724,13 @@ export interface Form extends BaseModelInterface {
         items: { type: 'object' },
       },
 
+      // Audio and video recordings, kept apart from photos, which are shown as images elsewhere.
+      media: {
+        type: 'array',
+        columnType: 'json',
+        items: { type: 'object' },
+      },
+
       noQuantityReason: {
         type: 'string',
         enum: Object.values(FormNoQuantityReason),
@@ -1044,6 +1054,34 @@ export default class FormsService extends moleculer.Service {
       payload: ctx.params,
       folder: 'uploads/forms',
     });
+  }
+
+  @Action({
+    rest: <RestSchema>{
+      method: 'POST',
+      path: '/upload/media',
+      type: 'multipart',
+      busboyConfig: {
+        limits: {
+          files: 1,
+          // One byte over the limit, so a cut-off upload can be told apart from one that fits.
+          fileSize: MEDIA_MAX_SIZE + 1,
+        },
+      },
+    },
+    timeout: 0,
+  })
+  async uploadMedia(ctx: Context<{}>) {
+    return ctx.call(
+      'minio.uploadFile',
+      {
+        payload: ctx.params,
+        folder: 'uploads/forms/media',
+        types: MEDIA_TYPES,
+        maxSize: MEDIA_MAX_SIZE,
+      },
+      { timeout: 0 },
+    );
   }
 
   @Action({
