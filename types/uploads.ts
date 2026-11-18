@@ -3,6 +3,24 @@ import Moleculer, { Errors } from 'moleculer';
 
 export const IMAGE_TYPES = ['image/png', 'image/jpeg', 'image/jpg'];
 
+// Browsers and operating systems name the same audio formats differently, so all spellings are kept.
+export const AUDIO_TYPES = [
+  'audio/mpeg',
+  'audio/mp3',
+  'audio/wav',
+  'audio/x-wav',
+  'audio/wave',
+  'audio/mp4',
+  'audio/x-m4a',
+  'audio/m4a',
+];
+
+export const VIDEO_TYPES = ['video/mp4', 'video/quicktime', 'video/webm'];
+
+export const MEDIA_TYPES = [...AUDIO_TYPES, ...VIDEO_TYPES];
+
+export const MEDIA_MAX_SIZE = 100 * 1024 * 1024;
+
 export const FILE_TYPES = ['application/pdf', 'application/geo+json'];
 
 // Either zip mimetype can arrive, depending on the OS mime table.
@@ -18,6 +36,9 @@ export const ALL_FILE_TYPES = [...IMAGE_TYPES, ...FILE_TYPES];
 // mime.extension() returns false and uploaded objects get named "<name>.false".
 const EXTENSION_BY_UNLISTED_MIMETYPE: Record<string, string> = {
   [GPKG_MIMETYPE]: 'gpkg',
+  'audio/mpeg': 'mp3',
+  'audio/m4a': 'm4a',
+  'video/quicktime': 'mov',
 };
 
 export function getExtention(mimetype: string) {
@@ -34,6 +55,10 @@ export function throwUnsupportedMimetypeError(): Errors.MoleculerError {
     400,
     'UNSUPPORTED_MIMETYPE',
   );
+}
+
+export function throwFileTooLargeError(): Errors.MoleculerError {
+  throw new Moleculer.Errors.MoleculerClientError('File is too large.', 400, 'FILE_TOO_LARGE');
 }
 
 export function throwUnableToUploadError(): Errors.MoleculerError {

@@ -11,6 +11,7 @@ import {
   getPublicFileName,
   IMAGE_TYPES,
   MultipartMeta,
+  throwFileTooLargeError,
   throwNotFoundError,
   throwUnableToUploadError,
   throwUnsupportedMimetypeError,
@@ -29,6 +30,7 @@ export interface FileUploadResponse {
   privateUrl: string;
   publicUrl: string;
   presignedUrl?: string;
+  mimetype?: string;
 }
 
 @Service({
@@ -90,6 +92,10 @@ export default class MinioService extends Moleculer.Service {
         type: 'boolean',
         default: false,
       },
+      maxSize: {
+        type: 'number',
+        optional: true,
+      },
     },
     timeout: 0,
   })
@@ -102,12 +108,13 @@ export default class MinioService extends Moleculer.Service {
         name: string;
         presign?: boolean;
         isPrivate?: boolean;
+        maxSize?: number;
       },
       UserAuthMeta & MultipartMeta & { protected?: boolean }
     >,
   ) {
     const { mimetype, filename } = ctx.meta;
-    const { folder, payload, types, isPrivate, name: defaultName, presign } = ctx.params;
+    const { folder, payload, types, isPrivate, name: defaultName, presign, maxSize } = ctx.params;
     const name = defaultName || getPublicFileName(50);
 
     if (!types.includes(mimetype)) {
@@ -143,6 +150,11 @@ export default class MinioService extends Moleculer.Service {
       { timeout: 0 },
     );
 
+    if (maxSize && size > maxSize) {
+      await ctx.call('minio.removeObject', { bucketName, objectName: objectFileName });
+      throwFileTooLargeError();
+    }
+
     const url: string = await ctx.call('minio.getUrl', {
       objectName: objectFileName,
       isPrivate,
@@ -155,6 +167,7 @@ export default class MinioService extends Moleculer.Service {
       size,
       filename,
       path: `${bucketName}/${objectFileName}`,
+      mimetype,
       privateUrl: this.getObjectUrl(objectFileName, true, bucketName),
       publicUrl: this.getObjectUrl(objectFileName, false, bucketName),
     };
