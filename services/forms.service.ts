@@ -25,6 +25,7 @@ import {
   FormStatus,
   MEDIA_MAX_SIZE,
   MEDIA_TYPES,
+  NEST_PHOTOS_MIN,
   queryBoolean,
   TENANT_FIELD,
   throwUnauthorizedError,
@@ -1816,7 +1817,7 @@ export default class FormsService extends moleculer.Service {
     const activityId = 'activity' in params ? params.activity : (form?.activity as number);
     const photos = 'photos' in params ? params.photos : form?.photos;
 
-    if (!speciesId || !activityId || photos?.length) return ctx;
+    if (!speciesId || !activityId || (photos?.length || 0) >= NEST_PHOTOS_MIN) return ctx;
 
     const species: TaxonomySpecies = await ctx.call('taxonomies.species.resolve', {
       id: speciesId,
