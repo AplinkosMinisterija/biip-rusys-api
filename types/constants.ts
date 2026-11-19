@@ -29,6 +29,9 @@ export const FormErrors = {
 
 export const NEST_SIGN_CODE = 'VEISIMOSI_VIETA_LIZDAS_UOKSAS_TUOKVIETE_IR_PAN';
 
+// A general view of the tree and a close-up of the nest.
+export const NEST_PHOTOS_MIN = 2;
+
 export const TaxonomySpeciesType = {
   INVASIVE: 'INVASIVE',
   ENDANGERED: 'ENDANGERED',

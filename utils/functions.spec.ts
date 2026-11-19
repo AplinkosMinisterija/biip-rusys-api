@@ -286,9 +286,19 @@ describe('nestPhotosMissing', () => {
     expect(nestPhotosMissing({ nestNeedsPhotos: true, activityCode: nest })).toBe(true);
   });
 
-  it('lets the nest through once a photo is attached', () => {
+  it('demands a second photo of the nest', () => {
     expect(
       nestPhotosMissing({ nestNeedsPhotos: true, activityCode: nest, photos: [{ url: 'a' }] }),
+    ).toBe(true);
+  });
+
+  it('lets the nest through once two photos are attached', () => {
+    expect(
+      nestPhotosMissing({
+        nestNeedsPhotos: true,
+        activityCode: nest,
+        photos: [{ url: 'a' }, { url: 'b' }],
+      }),
     ).toBe(false);
   });
 
