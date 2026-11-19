@@ -294,7 +294,12 @@ export async function geometriesIntersectLithuania(geometries: unknown[]): Promi
 
 // The map layers take id lists, so an observer's own data is two of them: the places their
 // approved forms feed, and their own single observations.
-export async function getPlacesAndFormsByAuthor(userId: number) {
+// withNoQuantityForms adds "tyrinėta, bet nerasta" forms, which have neither a place nor the
+// informational flag, for the map's "only my data" view.
+export async function getPlacesAndFormsByAuthor(
+  userId: number,
+  { withNoQuantityForms = false }: { withNoQuantityForms?: boolean } = {},
+) {
   const knex = getAdapter();
   const formsTable = 'forms';
   const placesTable = 'places';
@@ -319,6 +324,8 @@ export async function getPlacesAndFormsByAuthor(userId: number) {
         acc.forms.push(row.id);
       } else if (row.placeId) {
         acc.places.push(row.placeId);
+      } else if (withNoQuantityForms) {
+        acc.forms.push(row.id);
       }
 
       return acc;

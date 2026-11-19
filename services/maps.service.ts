@@ -244,6 +244,19 @@ export default class MapsService extends moleculer.Service {
   }
 
   @Action({
+    rest: 'GET /access/own',
+    auth: AuthType.MAPS_PRIVATE,
+    cache: {
+      keys: ['#user.id'],
+    },
+  })
+  async getOwnData(ctx: Context<{}, UserAuthMeta>) {
+    if (!ctx.meta?.user?.id) return { places: [], forms: [] };
+
+    return getPlacesAndFormsByAuthor(ctx.meta.user.id, { withNoQuantityForms: true });
+  }
+
+  @Action({
     rest: 'GET /auth',
   })
   async generateToken(ctx: Context<{}, UserAuthMeta>) {
