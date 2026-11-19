@@ -341,3 +341,39 @@ describe('validateStatus — who may change an approved form', () => {
     );
   });
 });
+
+describe('hasPermissionToEdit — the author fixing a form before it is checked', () => {
+  const { hasPermissionToEdit } = FormsService.prototype as unknown as {
+    hasPermissionToEdit: (
+      form: { id: number; status: string; createdBy: number; tenantId: null },
+      user: Partial<User>,
+    ) => { edit: boolean; validate: boolean };
+  };
+
+  const author: Partial<User> = { id: AUTHOR, type: UserType.USER, isExpert: false };
+  const canEdit = (status: string) =>
+    hasPermissionToEdit({ id: 10, status, createdBy: AUTHOR, tenantId: null }, author).edit;
+
+  it('lets the author edit a freshly submitted form', () => {
+    expect(canEdit(FormStatus.CREATED)).toBe(true);
+  });
+
+  it('lets the author edit a resubmitted or returned form', () => {
+    expect(canEdit(FormStatus.SUBMITTED)).toBe(true);
+    expect(canEdit(FormStatus.RETURNED)).toBe(true);
+  });
+
+  it('refuses the author once the form is approved or rejected', () => {
+    expect(canEdit(FormStatus.APPROVED)).toBe(false);
+    expect(canEdit(FormStatus.REJECTED)).toBe(false);
+  });
+
+  it('refuses somebody else', () => {
+    expect(
+      hasPermissionToEdit(
+        { id: 10, status: FormStatus.CREATED, createdBy: AUTHOR, tenantId: null },
+        { id: 77 },
+      ).edit,
+    ).toBe(false);
+  });
+});
