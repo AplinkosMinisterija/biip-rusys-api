@@ -1590,7 +1590,7 @@ export default class FormsService extends moleculer.Service {
     // The author may still fix a submitted form until an expert approves or rejects it.
     if (isCreatedByTenant || isCreatedByUser) {
       return {
-        edit: [FormStatus.RETURNED, FormStatus.SUBMITTED].includes(form.status),
+        edit: [FormStatus.CREATED, FormStatus.SUBMITTED, FormStatus.RETURNED].includes(form.status),
         validate: false,
       };
     } else if (user.isExpert) {
