@@ -58,6 +58,22 @@ describe('computeFilterValue — what an observer is allowed to see on the map',
 
     expect(result.filter).toContain(`${mapsSrisPlacesLayerId}:( "id" in ( 3 ) )`);
     expect(result.filter).toContain(`${mapsSrisInformationalFormsLayerId}:( "id" in ( -1 ) )`);
+    expect(result.layers).toBe(layers);
+  });
+
+  it('filters both layers even when the caller lists only one, and leaves LAYERS alone', async () => {
+    const result = (await computeFilterValue.call(
+      {},
+      {
+        meta: { user: observer },
+        call: async (): Promise<MapsData> => ({ places: [3], forms: [] }),
+      },
+      '',
+      mapsSrisPlacesLayerId,
+    )) as FilterResult;
+
+    expect(result.filter).toContain(`${mapsSrisPlacesLayerId}:( "id" in ( 3 ) )`);
+    expect(result.filter).toContain(`${mapsSrisInformationalFormsLayerId}:( "id" in ( -1 ) )`);
     expect(result.layers).toBe(mapsSrisPlacesLayerId);
   });
 

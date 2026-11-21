@@ -373,7 +373,7 @@ export default class MapsService extends moleculer.Service {
     layersValue: string = '',
   ) {
     const items = filterValue.split(';');
-    let allLayers = layersValue.split(',');
+    const allLayers = layersValue.split(',');
 
     const userIsExpert = !!ctx?.meta?.user?.isExpert;
     const userIsAdmin = !ctx?.meta?.user?.id || ctx?.meta?.user?.type === UserType.ADMIN;
@@ -385,14 +385,10 @@ export default class MapsService extends moleculer.Service {
         return throwUnauthorizedError('Cannot access places');
       }
 
-      // Both layers are always filtered: a layer QGIS renders with no FILTER entry of its own
-      // shows every row, so an empty id list has to deny, not drop the filter.
+      // Both layers are filtered whatever LAYERS says: QGIS picks the layers it renders from
+      // parameters this code does not read, and an unfiltered layer shows every row.
       items.push(`${mapsSrisPlacesLayerId}:( ${allowedIdsFilter(placesIds)} )`);
       items.push(`${mapsSrisInformationalFormsLayerId}:( ${allowedIdsFilter(formsIds)} )`);
-
-      if (!formsIds?.length) {
-        allLayers = allLayers.filter((l) => l !== mapsSrisInformationalFormsLayerId);
-      }
     }
 
     return {
