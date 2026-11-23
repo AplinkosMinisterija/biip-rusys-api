@@ -377,3 +377,52 @@ describe('hasPermissionToEdit — the author fixing a form before it is checked'
     ).toBe(false);
   });
 });
+
+describe('import — imported forms follow the usual review rules', () => {
+  const { import: importForms } = FormsService.prototype as unknown as {
+    import: (this: unknown, ctx: unknown) => Promise<{ created: number }>;
+  };
+
+  const row = {
+    species: SPECIES,
+    quantity: 2,
+    observedAt: '2026-10-24T15:15:00.000Z',
+    observedBy: 'Vardenis Pavardenis',
+    x: 306945.2,
+    y: 6134367.25,
+    description: 'Stebėti du suaugę paukščiai',
+    source: 9,
+  };
+
+  it('does not approve the forms itself, whatever an earlier row left in the meta', async () => {
+    const createMetas: Array<Record<string, unknown>> = [];
+    const ctx = {
+      params: { rows: [row, row], dryRun: false },
+      meta: { user: { id: 1, type: UserType.ADMIN } } as Record<string, unknown>,
+      call: jest.fn(async (action: string, _params?: unknown, opts?: { meta?: object }) => {
+        if (action === 'taxonomies.findBySpeciesId') {
+          return { [SPECIES]: { speciesId: SPECIES, speciesType: 'ENDANGERED' } };
+        }
+        if (action === 'forms.settings.sources.find') return [{ id: 9 }];
+        if (action === 'forms.criteria.bySpecies') return { signs: [], stages: [] };
+        if (action === 'forms.create') {
+          createMetas.push({ ...opts?.meta });
+          ctx.meta.autoApprove = true;
+          return { id: createMetas.length };
+        }
+      }),
+    };
+
+    const result = await importForms.call(
+      {
+        geomIsInLithuania: async () => true,
+        refreshMaterializedView: jest.fn(),
+        logger: { warn: jest.fn() },
+      },
+      ctx,
+    );
+
+    expect(result.created).toBe(2);
+    expect(createMetas.map((meta) => meta.autoApprove)).toEqual([false, false]);
+  });
+});
