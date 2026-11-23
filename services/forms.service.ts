@@ -1017,7 +1017,7 @@ export default class FormsService extends moleculer.Service {
 
       try {
         const form: Form = await ctx.call('forms.create', formImportRowToParams(row, classifiers), {
-          meta: { autoApprove: true, skipApprovedFormsRefresh: true, isImport: true },
+          meta: { autoApprove: false, skipApprovedFormsRefresh: true, isImport: true },
         });
         results.push({ index, errors, id: form.id });
       } catch (err) {
