@@ -7,6 +7,7 @@ jest.mock('../utils/mails', () => ({
 // forms.service reaches taxonomies.species.service before requests.service, which leaves
 // requests.service with an undefined enum; loading requests.service first unwinds the cycle.
 import './requests.service';
+import RequestsService from './requests.service';
 
 import { FormStatus } from '../types';
 import FormsService, { adminCanReturnApprovedForm, formsVisibleToUser } from './forms.service';
@@ -90,6 +91,124 @@ const form = (overrides: Partial<FormRow> = {}): FormRow => ({
   createdBy: AUTHOR,
   speciesId: SPECIES,
   ...overrides,
+});
+
+describe('automatic assignment excludes manual-only request coverage', () => {
+  const requests = [
+    { createdBy: HOLDER, inheritedSpecies: [SPECIES], data: { autoAssignDisabled: true } },
+    { createdBy: OTHER_EXPERT, inheritedSpecies: [SPECIES], data: {} },
+  ];
+  const expertLookup = (params: unknown, rows = requests) =>
+    (RequestsService.prototype as any).getExpertsIdsBySpecies.call(
+      {},
+      {
+        params,
+        call: jest.fn().mockResolvedValue(rows),
+      },
+    );
+
+  it('automatically selects the unmarked expert even when the commission has fewer tasks', async () => {
+    const result = await (FormsService.prototype as any).getAssigneeForForm.call(
+      {},
+      {
+        params: { species: SPECIES, createdBy: AUTHOR },
+        call: async (action: string, params: any) => {
+          if (action === 'requests.getExpertsIdsBySpecies') return expertLookup(params);
+          if (action === 'forms.getTasksCount') return params.userId === HOLDER ? 0 : 10;
+          throw new Error(`unexpected call: ${action}`);
+        },
+      },
+    );
+    expect(result).toBe(OTHER_EXPERT);
+  });
+
+  it('leaves the form unassigned when only the commission covers the species', async () => {
+    const result = await (FormsService.prototype as any).getAssigneeForForm.call(
+      {},
+      {
+        params: { species: SPECIES },
+        call: async (action: string, params: any) => {
+          if (action === 'requests.getExpertsIdsBySpecies')
+            return expertLookup(params, [requests[0]]);
+          if (action === 'forms.getTasksCount') return 0;
+          throw new Error(`unexpected call: ${action}`);
+        },
+      },
+    );
+    expect(result).toBeUndefined();
+  });
+
+  it('still offers the commission in the administrator manual assignee list', async () => {
+    const result: AssigneeList = await listAssignees.call(serviceSelf(), {
+      params: { id: 10 },
+      meta: { user: admin },
+      call: async (action: string, params: any) => {
+        if (action === 'forms.resolve') return { ...form(), species: SPECIES, assignee: HOLDER };
+        if (action === 'requests.getExpertsIdsBySpecies') return expertLookup(params);
+        if (action === 'users.resolve') return params.id.map((id: number) => ({ id }));
+        throw new Error(`unexpected call: ${action}`);
+      },
+    });
+    expect(result.rows.map((row) => row.id)).toContain(HOLDER);
+  });
+
+  it('can still pick an expert through their other unmarked request', async () => {
+    const rows = [requests[0], { ...requests[1], createdBy: HOLDER }];
+    const result = await (FormsService.prototype as any).getAssigneeForForm.call(
+      {},
+      {
+        params: { species: SPECIES },
+        call: async (action: string, params: any) => {
+          if (action === 'requests.getExpertsIdsBySpecies') return expertLookup(params, rows);
+          if (action === 'forms.getTasksCount') return 0;
+          throw new Error(`unexpected call: ${action}`);
+        },
+      },
+    );
+    expect(result).toBe(HOLDER);
+  });
+
+  it('keeps the manually assigned commission when changing to another covered species', async () => {
+    const updateById = jest.fn();
+    const original = { ...form(), assignee: HOLDER, species: SPECIES };
+    await (FormsService.prototype as any).setSpecies.call(
+      {
+        resolveEntities: async () => original,
+        getAdapter: async () => ({ updateById }),
+        _entityChanged: jest.fn(),
+        createFormHistory: jest.fn(),
+      },
+      {
+        params: { id: 10, species: SPECIES + 1 },
+        meta: { user: admin },
+        call: async (action: string, params: any) => {
+          if (action === 'taxonomies.findBySpeciesId') return { [SPECIES + 1]: {} };
+          if (action === 'requests.getExpertsIdsBySpecies') {
+            return expertLookup(params, [{ ...requests[0], inheritedSpecies: [SPECIES + 1] }]);
+          }
+          throw new Error(`unexpected call: ${action}`);
+        },
+      },
+    );
+    expect(updateById).toHaveBeenCalledWith(10, expect.objectContaining({ assigneeId: HOLDER }));
+  });
+
+  it.each([FormStatus.APPROVED, FormStatus.RETURNED, FormStatus.REJECTED])(
+    'allows the assigned commission to decide %s',
+    (status) => {
+      const prototype = FormsService.prototype as any;
+      expect(
+        prototype.validateStatus.call(
+          { hasPermissionToEdit: prototype.hasPermissionToEdit },
+          {
+            ctx: { meta: { user: expert(HOLDER) } },
+            value: status,
+            entity: { ...form(), tenantId: null },
+          },
+        ),
+      ).toBe(true);
+    },
+  );
 });
 
 const assign = (

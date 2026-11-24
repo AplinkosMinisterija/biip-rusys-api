@@ -1101,6 +1101,7 @@ export default class FormsService extends moleculer.Service {
   async getAssigneeForForm(ctx: Context<{ species: number; createdBy?: number }>) {
     const userIdsAll: number[] = await ctx.call('requests.getExpertsIdsBySpecies', {
       speciesId: ctx.params.species,
+      forAutoAssign: true,
     });
 
     const userIds = (userIdsAll || []).filter((i) => i !== ctx.params.createdBy);

@@ -11,6 +11,10 @@ jest.mock('../utils/pdf/requests', () => ({
 import { notifyOnFileGenerated } from '../utils/mails';
 import { getRequestData } from '../utils/pdf/requests';
 import { LKS_94_CRS } from '../utils/requests';
+import { ServiceBroker } from 'moleculer';
+import { EndpointType } from '../types';
+import { UserType } from './users.service';
+import DbConnection from '../mixins/database.mixin';
 import RequestsService, {
   Request,
   RequestDocumentType,
@@ -84,6 +88,160 @@ const approvedRequest = {
   type: RequestType.GET_ONCE,
   documentTypes: Object.values(RequestDocumentType),
 } as Request;
+
+describe('expert automatic assignment preference', () => {
+  const prototype = RequestsService.prototype as any;
+  const requests = [
+    { createdBy: 20, inheritedSpecies: [7, 8], data: { autoAssignDisabled: true } },
+    { createdBy: 20, inheritedSpecies: [7], data: {} },
+    { createdBy: 30, inheritedSpecies: [7, 8], data: { autoAssignDisabled: true } },
+    { createdBy: 40, inheritedSpecies: [7], data: { autoAssignDisabled: false } },
+  ];
+  const experts = (speciesId: number, forAutoAssign?: boolean) =>
+    prototype.getExpertsIdsBySpecies.call(
+      {},
+      {
+        params: { speciesId, forAutoAssign },
+        call: jest.fn().mockResolvedValue(requests),
+      },
+    );
+
+  it('skips marked requests while retaining overlapping unmarked coverage', async () => {
+    await expect(experts(7, true)).resolves.toEqual([20, 40]);
+  });
+
+  it('does not use species covered only by a marked request', async () => {
+    await expect(experts(8, true)).resolves.toEqual([]);
+  });
+
+  it('keeps marked experts for manual callers by default', async () => {
+    await expect(experts(8)).resolves.toEqual([20, 30]);
+    await expect(experts(7, false)).resolves.toEqual([20, 30, 40]);
+  });
+
+  const service = new RequestsService(new ServiceBroker({ logger: false }));
+  const fields = service.schema.settings.fields;
+
+  it.each([true, false])('strips the flag on generic create (%s)', (flag) => {
+    const hook = fields.data.onCreate;
+    expect(typeof hook).toBe('function');
+    expect(hook({ value: { description: 'Synthetic', autoAssignDisabled: flag } })).toEqual({
+      description: 'Synthetic',
+    });
+  });
+
+  it.each(['onUpdate', 'onReplace'])(
+    '%s preserves the stored flag and other edited data',
+    (name) => {
+      const hook = fields.data[name];
+      expect(typeof hook).toBe('function');
+      for (const stored of [true, false, undefined]) {
+        const result = hook({
+          value: { description: 'Edited', autoAssignDisabled: !stored },
+          entity: { data: { autoAssignDisabled: stored } },
+        });
+        expect(result.description).toBe('Edited');
+        expect(result.autoAssignDisabled).toBe(stored);
+      }
+      expect(
+        hook({ value: undefined, entity: { data: { autoAssignDisabled: true } } }),
+      ).toBeUndefined();
+      expect(hook({ value: null, entity: { data: { autoAssignDisabled: true } } })).toEqual({
+        autoAssignDisabled: true,
+      });
+    },
+  );
+
+  it('confirms why a generic data-only update cannot be used for the admin toggle', async () => {
+    const ctx = { params: { id: 42 }, meta: { user: { id: 99, type: UserType.ADMIN } } };
+    await prototype.validateStatusChange.call({}, ctx);
+    expect(fields.status.onUpdate({ ctx, value: undefined })).toBe(RequestStatus.SUBMITTED);
+  });
+
+  it('enforces the flag through the database field validation used by regular-user writes', async () => {
+    const dataService = new ServiceBroker({ logger: false }).createService({
+      name: 'requestDataWrites',
+      mixins: [DbConnection({ collection: 'requests' })],
+      settings: { fields: { data: fields.data } },
+    });
+    // Initialize field validation without starting a database adapter.
+    dataService._processFields();
+    const write = (type: string, params: object, data?: object) =>
+      dataService._validateObject(
+        { meta: { user: { id: 20, type: UserType.USER } } },
+        dataService.$fields,
+        params,
+        { type, entity: { data }, nestedFieldSupport: false },
+      );
+    const created = await write('create', {
+      data: { description: 'Synthetic', autoAssignDisabled: true },
+    });
+    expect(JSON.parse(created.data)).toEqual({ description: 'Synthetic' });
+    for (const type of ['update', 'replace']) {
+      const changed = await write(
+        type,
+        { data: { description: 'Edited', autoAssignDisabled: false } },
+        { autoAssignDisabled: true },
+      );
+      expect(JSON.parse(changed.data)).toEqual({ description: 'Edited', autoAssignDisabled: true });
+      await expect(write(type, {}, { autoAssignDisabled: true })).resolves.toEqual({});
+    }
+  });
+
+  it('restricts the dedicated REST action to administrators', () => {
+    expect(service.schema.actions.setAutoAssign).toEqual(
+      expect.objectContaining({ rest: 'PATCH /:id/auto-assign', types: [EndpointType.ADMIN] }),
+    );
+  });
+
+  const runToggle = (request: any, flag = true) => {
+    const ctx = { params: { id: 42, autoAssignDisabled: flag } };
+    const updated = { ...request, data: { ...request?.data, autoAssignDisabled: flag } };
+    const self = {
+      resolveEntities: jest.fn().mockResolvedValue(request),
+      getAdapter: jest.fn().mockResolvedValue({ updateById: jest.fn().mockResolvedValue(updated) }),
+      _entityChanged: jest.fn(),
+    };
+    return { ctx, self, updated };
+  };
+
+  it.each([true, false])(
+    'writes only data and invalidates caches when toggling to %s',
+    async (flag) => {
+      expect(typeof prototype.setAutoAssign).toBe('function');
+      const original = {
+        id: 42,
+        type: RequestType.CHECK,
+        status: RequestStatus.APPROVED,
+        data: { description: 'Synthetic', autoAssignDisabled: !flag },
+      };
+      const { ctx, self, updated } = runToggle(original, flag);
+      await expect(prototype.setAutoAssign.call(self, ctx)).resolves.toEqual(updated);
+      const adapter = await self.getAdapter();
+      expect(adapter.updateById).toHaveBeenCalledWith(42, {
+        data: { description: 'Synthetic', autoAssignDisabled: flag },
+      });
+      expect(self._entityChanged).toHaveBeenCalledWith('update', updated, original, ctx, {});
+      expect(updated.status).toBe(RequestStatus.APPROVED);
+    },
+  );
+
+  it('rejects requests that are not expert requests', async () => {
+    expect(typeof prototype.setAutoAssign).toBe('function');
+    const { ctx, self } = runToggle({ id: 42, type: RequestType.GET });
+    await expect(prototype.setAutoAssign.call(self, ctx)).rejects.toThrow();
+    expect(self.getAdapter).not.toHaveBeenCalled();
+  });
+
+  it('resolves with throwIfNotExist and refuses a missing request', async () => {
+    expect(typeof prototype.setAutoAssign).toBe('function');
+    const { ctx, self } = runToggle(undefined);
+    self.resolveEntities.mockRejectedValue(new Error('Not found'));
+    await expect(prototype.setAutoAssign.call(self, ctx)).rejects.toThrow('Not found');
+    expect(self.resolveEntities).toHaveBeenCalledWith(ctx, { id: 42, throwIfNotExist: true });
+    expect(self.getAdapter).not.toHaveBeenCalled();
+  });
+});
 
 describe('generateDocumentsIfNeeded', () => {
   it('logs every generation it could not enqueue, instead of leaving the rejection unhandled', async () => {
