@@ -22,6 +22,7 @@ import {
   TENANT_FIELD,
   throwNotFoundError,
   throwUnauthorizedError,
+  throwValidationError,
 } from '../types';
 import { UserAuthMeta } from './api.service';
 import { RequestHistoryTypes } from './requests.histories.service';
@@ -143,6 +144,17 @@ const populatePermissions = (field: string) => {
       return !!editingPermissions[field];
     });
   };
+};
+
+// Generic writes may edit request data, but only setAutoAssign owns this flag.
+const sanitizeRequestData = ({ value, entity }: FieldHookCallback) => {
+  if (value === undefined) return;
+  const data = { ...value };
+  delete data.autoAssignDisabled;
+  if (typeof entity?.data?.autoAssignDisabled === 'boolean') {
+    data.autoAssignDisabled = entity.data.autoAssignDisabled;
+  }
+  return data;
 };
 
 @Service({
@@ -311,6 +323,9 @@ const populatePermissions = (field: string) => {
 
       data: {
         type: 'object',
+        onCreate: sanitizeRequestData,
+        onUpdate: sanitizeRequestData,
+        onReplace: sanitizeRequestData,
       },
 
       files: {
@@ -564,13 +579,14 @@ export default class RequestsService extends moleculer.Service {
 
   @Action({
     params: {
+      forAutoAssign: { type: 'boolean', optional: true, default: false },
       speciesId: {
         type: 'number',
         convert: true,
       },
     },
   })
-  async getExpertsIdsBySpecies(ctx: Context<{ speciesId: number }>) {
+  async getExpertsIdsBySpecies(ctx: Context<{ speciesId: number; forAutoAssign?: boolean }>) {
     const approvedRequests: Request[] = await ctx.call('requests.find', {
       query: {
         type: RequestType.CHECK,
@@ -584,6 +600,7 @@ export default class RequestsService extends moleculer.Service {
 
     return Object.keys(
       approvedRequests.reduce((acc: any, r) => {
+        if (ctx.params.forAutoAssign && r.data?.autoAssignDisabled === true) return acc;
         const hasSpecies = r.inheritedSpecies.includes(ctx.params.speciesId);
         if (hasSpecies) {
           acc[r.createdBy] = true;
@@ -591,6 +608,31 @@ export default class RequestsService extends moleculer.Service {
         return acc;
       }, {}),
     ).map((i: string) => Number(i));
+  }
+
+  @Action({
+    rest: 'PATCH /:id/auto-assign',
+    types: [EndpointType.ADMIN],
+    params: {
+      id: { type: 'number', convert: true },
+      autoAssignDisabled: 'boolean',
+    },
+  })
+  async setAutoAssign(ctx: Context<{ id: number; autoAssignDisabled: boolean }, UserAuthMeta>) {
+    const request: Request = await this.resolveEntities(ctx, {
+      id: ctx.params.id,
+      throwIfNotExist: true,
+    });
+    if (request.type !== RequestType.CHECK) {
+      return throwValidationError('Only expert requests support automatic assignment preferences');
+    }
+
+    const adapter = await this.getAdapter(ctx);
+    const updated: Request = await adapter.updateById(request.id, {
+      data: { ...request.data, autoAssignDisabled: ctx.params.autoAssignDisabled },
+    });
+    await this._entityChanged('update', updated, request, ctx, {});
+    return updated;
   }
 
   @Action({
