@@ -112,42 +112,24 @@ export default class ToolsService extends moleculer.Service {
     visibility: 'protected',
     timeout: 0,
   })
-  async makePdf(ctx: Context<{ url: string; header?: string; footer?: string }>) {
+  async makePdf(
+    ctx: Context<{ url: string; header?: string; footer?: string }>,
+  ): Promise<NodeJS.ReadableStream> {
     const { url, footer, header } = ctx.params;
 
-    const pdfEndpoint = `${this.toolsHost()}/pdf`;
-
-    return new Promise(async (resolve, reject) => {
-      fetch(pdfEndpoint, {
-        method: 'POST',
-        body: JSON.stringify({
-          url,
-          height: 877,
-          width: 620,
-          footer,
-          header,
-          margin: {
-            top: 50,
-            bottom: 50,
-            left: 50,
-            right: 50,
-          },
-        }),
-        headers: {
-          'Content-Type': 'application/json',
-        },
-      })
-        .then((r) => {
-          if (!r.ok) {
-            throw new Error(`PDF service responded with ${r.status}`);
-          }
-          return r.body?.getReader();
-        })
-        .then(resolve)
-        .catch((err) => {
-          console.error(err);
-          reject(err?.message || 'Error while getting pdf');
-        });
+    // Not `fetch`: undici abandons a response after 300s of waiting for headers, and tools takes minutes to print a large request.
+    return this.postToTools('/pdf', {
+      url,
+      height: 877,
+      width: 620,
+      footer,
+      header,
+      margin: {
+        top: 50,
+        bottom: 50,
+        left: 50,
+        right: 50,
+      },
     });
   }
 
@@ -185,7 +167,12 @@ export default class ToolsService extends moleculer.Service {
   ): Promise<NodeJS.ReadableStream> {
     const { layers, name, srid } = params;
     // Not `fetch`: undici abandons a response after 300s of waiting for headers, and tools answers only once ogr2ogr is done.
-    const response = await postJson(`${this.toolsHost()}${path}`, { layers, name, srid });
+    return this.postToTools(path, { layers, name, srid });
+  }
+
+  @Method
+  async postToTools(path: string, body: unknown): Promise<NodeJS.ReadableStream> {
+    const response = await postJson(`${this.toolsHost()}${path}`, body);
     const status = response.statusCode || 0;
 
     if (status < 200 || status > 299) {

@@ -6,7 +6,7 @@ import moment from 'moment';
 import { PassThrough, Readable } from 'stream';
 import BullMqMixin from '../mixins/bullmq.mixin';
 import { FILE_TYPES, throwNotFoundError, throwValidationError } from '../types';
-import { toHmacHash, toMD5Hash, toReadableStream } from '../utils/functions';
+import { toHmacHash, toMD5Hash } from '../utils/functions';
 import { getTemplateHtml } from '../utils/html';
 import {
   getInformationalForms,
@@ -114,7 +114,7 @@ export default class JobsRequestsService extends moleculer.Service {
       systemName: requestData.systemNameFooter,
     });
 
-    const pdf = await ctx.call('tools.makePdf', {
+    const pdf: NodeJS.ReadableStream = await ctx.call('tools.makePdf', {
       url: `${process.env.SERVER_HOST}/jobs/requests/${id}/html?secret=${secret}&skey=${screenshotsHash}`,
       footer: footerHtml,
     });
@@ -127,7 +127,7 @@ export default class JobsRequestsService extends moleculer.Service {
     const result: any = await ctx.call(
       'minio.uploadFile',
       {
-        payload: toReadableStream(pdf),
+        payload: pdf,
         folder,
         isPrivate: true,
         types: FILE_TYPES,

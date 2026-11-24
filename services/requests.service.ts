@@ -37,7 +37,7 @@ import {
   getPlacesByRequestIds,
   getPlacesByRequestIdsCount,
 } from '../utils/db.queries';
-import { parseToObject, toReadableStream } from '../utils/functions';
+import { parseToObject } from '../utils/functions';
 import { getTemplateHtml } from '../utils/html';
 import { emailCanBeSent, notifyOnFileGenerated, notifyOnRequestUpdate } from '../utils/mails';
 import { getRequestData } from '../utils/pdf/requests';
@@ -833,13 +833,13 @@ export default class RequestsService extends moleculer.Service {
       systemName: requestData.systemNameFooter,
     });
 
-    const pdf = await ctx.call('tools.makePdf', {
+    const pdf: NodeJS.ReadableStream = await ctx.call('tools.makePdf', {
       url: `${process.env.SERVER_HOST}/jobs/requests/${id}/html?secret=${secret}&skey=admin_preview`,
       footer: footerHtml,
     });
 
     ctx.meta.$responseType = 'application/pdf';
-    return toReadableStream(pdf);
+    return pdf;
   }
 
   @Action({
