@@ -56,10 +56,15 @@ render from: adding a member makes a new checkbox appear in `biip-rusys-web` and
   `finally`. biip-tools fetches a url only when its host is in
   `VECTOR_EXPORT_SOURCE_HOSTS` (set per environment in biip-infra to that environment's
   `MINIO_ENDPOINT`); unset means it fetches nothing.
-- **The conversion is still bounded by the caller.** Node's global fetch (undici) abandons
-  a response after 300s of waiting for headers, and tools answers only when ogr2ogr is
-  done — measured 18–23s for 300k features. There is no timeout knob (undici is not a
-  declared dependency); the fix, when needed, is `node:http` in `tools.service.ts`.
+- **Every tools call that can run for minutes goes through `utils/http.ts › postJson`.**
+  Node's global fetch (undici) abandons a response after 300s of waiting for headers, and
+  tools answers only when it is done: ogr2ogr for the vector formats (18–23s for 300k
+  features), Chromium for the request PDF (minutes for a large area). `postJson` has no
+  timeout, and `tools.service.ts › postToTools` turns a non-2xx answer into an `Error`
+  with the status and body. `makePdf` and the vector actions return the `IncomingMessage`
+  itself, so callers pass it on as a stream (never through `toReadableStream`, which
+  expects a web stream reader). `makeScreenshot` is still on `fetch`; one place's
+  screenshot is short.
 - **Every action on `tools.service.ts` is `visibility: 'protected'`.** Each one takes a
   url and fetches it, so a published one is a fetcher pointed wherever an authenticated
   caller likes. moleculer-web refuses to publish any action whose visibility is set and
