@@ -1148,7 +1148,7 @@ export default class FormsService extends moleculer.Service {
       throwIfNotExist: true,
     });
 
-    if (![FormStatus.SUBMITTED, FormStatus.RETURNED].includes(form.status)) {
+    if (![FormStatus.CREATED, FormStatus.SUBMITTED, FormStatus.RETURNED].includes(form.status)) {
       return throwValidationError('The species can only change before the form is approved');
     }
 
