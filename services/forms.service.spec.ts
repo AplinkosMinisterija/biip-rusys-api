@@ -426,3 +426,46 @@ describe('import — imported forms follow the usual review rules', () => {
     expect(createMetas.map((meta) => meta.autoApprove)).toEqual([false, false]);
   });
 });
+
+describe('setSpecies — the assigned expert corrects the species while checking', () => {
+  const { setSpecies } = FormsService.prototype as unknown as {
+    setSpecies: (this: unknown, ctx: unknown) => Promise<unknown>;
+  };
+
+  const run = (status: string) => {
+    const form = { id: 10, status, species: SPECIES, assignee: HOLDER, createdBy: AUTHOR };
+    const updateById = jest.fn();
+    const ctx = {
+      params: { id: form.id, species: SPECIES + 1 },
+      meta: { user: { id: HOLDER, type: UserType.USER, isExpert: true } },
+      call: jest.fn(async (action: string) => {
+        if (action === 'taxonomies.findBySpeciesId') {
+          return { [SPECIES]: { speciesName: 'A' }, [SPECIES + 1]: { speciesName: 'B' } };
+        }
+        if (action === 'requests.getExpertsIdsBySpecies') return [HOLDER];
+      }),
+    };
+    const service = {
+      resolveEntities: async () => form,
+      getAdapter: async () => ({ updateById }),
+      _entityChanged: jest.fn(),
+      createFormHistory: jest.fn(),
+    };
+    return { promise: setSpecies.call(service, ctx), updateById };
+  };
+
+  it('works on a form submitted for the first time', async () => {
+    const { promise, updateById } = run(FormStatus.CREATED);
+    await promise;
+    expect(updateById).toHaveBeenCalledWith(
+      10,
+      expect.objectContaining({ speciesId: SPECIES + 1 }),
+    );
+  });
+
+  it('is refused once the form is approved', async () => {
+    const { promise, updateById } = run(FormStatus.APPROVED);
+    await expect(promise).rejects.toThrow();
+    expect(updateById).not.toHaveBeenCalled();
+  });
+});
