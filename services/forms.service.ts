@@ -1860,7 +1860,11 @@ export default class FormsService extends moleculer.Service {
     } else if (isInformational) {
       ctx.meta.autoApprove = true;
     } else if (!id && ctx?.meta?.user?.isExpert && !ctx.meta.autoApprove) {
-      ctx.meta.autoApprove = ctx.meta.user.expertSpecies.includes(Number(species));
+      const autoApproveSpecies: number[] = await ctx.call('requests.getExpertSpecies', {
+        userId: ctx.meta.user.id,
+        forAutoApprove: true,
+      });
+      ctx.meta.autoApprove = autoApproveSpecies.includes(Number(species));
     }
 
     return ctx;
