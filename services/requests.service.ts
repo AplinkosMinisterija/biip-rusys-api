@@ -455,12 +455,13 @@ export default class RequestsService extends moleculer.Service {
         type: 'number',
         convert: true,
       },
+      forAutoApprove: { type: 'boolean', optional: true, default: false },
     },
     cache: {
-      keys: ['userId'],
+      keys: ['userId', 'forAutoApprove'],
     },
   })
-  async getExpertSpecies(ctx: Context<{ userId: number }>) {
+  async getExpertSpecies(ctx: Context<{ userId: number; forAutoApprove?: boolean }>) {
     const approvedRequests: Request[] = await ctx.call('requests.find', {
       query: {
         createdBy: ctx.params.userId,
@@ -474,6 +475,7 @@ export default class RequestsService extends moleculer.Service {
     });
 
     return approvedRequests.reduce((acc, r) => {
+      if (ctx.params.forAutoApprove && r.data?.autoAssignDisabled === true) return acc;
       return [...acc, ...r.inheritedSpecies];
     }, []);
   }

@@ -588,3 +588,31 @@ describe('setSpecies — the assigned expert corrects the species while checking
     expect(updateById).not.toHaveBeenCalled();
   });
 });
+
+describe('validateStatusChange — a commission member checks even their own forms', () => {
+  const { validateStatusChange } = FormsService.prototype as any;
+  const create = async (species: number, autoApproveSpecies: number[]) => {
+    const call = jest.fn().mockResolvedValue(autoApproveSpecies);
+    const ctx: any = {
+      params: { species },
+      meta: { user: { id: 20, isExpert: true, expertSpecies: [7, 8] } },
+      call,
+    };
+    await validateStatusChange.call({}, ctx);
+    return { ctx, call };
+  };
+
+  it('approves an expert form only for species from unmarked requests', async () => {
+    const { ctx, call } = await create(7, [7]);
+    expect(call).toHaveBeenCalledWith('requests.getExpertSpecies', {
+      userId: 20,
+      forAutoApprove: true,
+    });
+    expect(ctx.meta.autoApprove).toBe(true);
+  });
+
+  it('sends a form to review when the species is covered only by a marked request', async () => {
+    const { ctx } = await create(8, [7]);
+    expect(ctx.meta.autoApprove).toBe(false);
+  });
+});

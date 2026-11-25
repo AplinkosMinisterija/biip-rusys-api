@@ -114,6 +114,20 @@ describe('expert automatic assignment preference', () => {
     await expect(experts(8, true)).resolves.toEqual([]);
   });
 
+  const species = (forAutoApprove?: boolean) =>
+    prototype.getExpertSpecies.call(
+      {},
+      {
+        params: { userId: 20, forAutoApprove },
+        call: jest.fn().mockResolvedValue(requests.filter((r) => r.createdBy === 20)),
+      },
+    );
+
+  it('leaves species from marked requests out of automatic approval', async () => {
+    await expect(species(true)).resolves.toEqual([7]);
+    await expect(species()).resolves.toEqual([7, 8, 7]);
+  });
+
   it('keeps marked experts for manual callers by default', async () => {
     await expect(experts(8)).resolves.toEqual([20, 30]);
     await expect(experts(7, false)).resolves.toEqual([20, 30, 40]);
