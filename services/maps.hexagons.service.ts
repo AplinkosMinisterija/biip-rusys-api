@@ -59,6 +59,10 @@ type ConditionQuery = { where: (...args: unknown[]) => ConditionQuery };
   },
 })
 export default class MapsHexagonService extends moleculer.Service {
+  async started() {
+    await this.broker.cacher?.clean(`${this.fullName}.**`);
+  }
+
   @Action({
     rest: ['GET /stats', 'POST /stats'],
     auth: AuthType.MAPS_PUBLIC,
