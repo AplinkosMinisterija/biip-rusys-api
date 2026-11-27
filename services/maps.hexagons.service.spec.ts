@@ -95,3 +95,23 @@ describe('getLayersQueries — which observations the hexagon grid counts', () =
     expect(conditionsOf(queries[0])).not.toContain('no_quantity_reason');
   });
 });
+
+describe('started — a deploy shows grid changes at once', () => {
+  it('drops the cached grid so the next request reads the table', async () => {
+    const clean = jest.fn().mockResolvedValue(undefined);
+    await (MapsHexagonsService.prototype as any).started.call({
+      fullName: 'maps.hexagons',
+      broker: { cacher: { clean } },
+    });
+    expect(clean).toHaveBeenCalledWith('maps.hexagons.**');
+  });
+
+  it('starts without a cacher', async () => {
+    await expect(
+      (MapsHexagonsService.prototype as any).started.call({
+        fullName: 'maps.hexagons',
+        broker: {},
+      }),
+    ).resolves.toBeUndefined();
+  });
+});
