@@ -354,7 +354,12 @@ export default class JobsRequestsService extends moleculer.Service {
       // BullMQ reads `rdof` from the failing child's own options, not from the
       // parent's. On the parent it is a no-op and a failed screenshot leaves
       // `generateAndSavePdf` in `waiting-children` forever.
-      options: { removeDependencyOnFailure: true },
+      // A child takes the caller's job settings unless it carries its own.
+      options: {
+        removeDependencyOnFailure: true,
+        attempts: 3,
+        backoff: { type: 'exponential', delay: 2000 },
+      },
     }));
 
     return this.flow(ctx, 'jobs.requests', 'generateAndSavePdf', { id }, childrenJobs);
