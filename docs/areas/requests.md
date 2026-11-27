@@ -77,6 +77,14 @@ render from: adding a member makes a new checkbox appear in `biip-rusys-web` and
   streamed `jobs.requests.service.ts › generateAndSaveGeojson`. `ogrinfo -al -so <file>`
   must print `PROJCRS["LKS94 / Lithuania TM"]`; a WKT naming EPSG:4326 means the member
   is in the wrong place.
+- **A stored request geometry is a valid Polygon or MultiPolygon.** The postgis mixin writes
+  `ST_Collect` of the drawn features: overlapping Polygons give an invalid MultiPolygon, and a
+  Polygon mixed with a MultiPolygon gives a GeometryCollection that `ST_IsValid` passes even when
+  its members overlap. Either one makes `st_intersects(requests.geom, places.geom)` throw
+  `TopologyException: side location conflict`, so no format generates at all and the portal spins.
+  The trigger `rusys_normalize_request_geom` (migration `20261127120000_normalizeRequestGeometries`)
+  rewrites such a geometry on every insert/update. It is a trigger and not a field hook because a
+  request can be auto-approved at insert, and generation starts from `requests.created`.
 - **Vector export workers run `concurrency: 1`** (`utils/vector-export/service.ts`), not
   the repo's usual 5: each format has its own worker and ogr2ogr runs in a 512M tools
   container that also serves UETK.
@@ -104,6 +112,16 @@ render from: adding a member makes a new checkbox appear in `biip-rusys-web` and
   "download or spinner" with no third state, so a tools 500 shows an eternal
   "… išrašas kuriamas". The job does rethrow and reaches the logger, but nothing
   user-visible says "failed" — check the BullMQ failed queue, not the request row.
+- **Plain `ST_MakeValid` turns the overlap of two parts into a hole,** silently dropping the places
+  inside it. Dump the parts, make each valid, then union them.
+- **`ST_Intersects` may throw only when one side is prepared** (one request against many places):
+  a per-pair loop over the same geometries passes. Reproduce with the real join, not a loop.
+- **The PDF needs one maps-web screenshot per place and per informational group,** each a full page
+  load in browserless (~5 s, measured 2026-11-27); a direct QGIS WMS GetMap of the same bbox takes
+  ~0.2 s. A screenshot only works when maps-web and qgis-server in that environment agree on layer
+  names: a maps-web release ahead of qgis-server makes QGIS answer `LayerNotDefined`, every place
+  screenshot fails 10 times, and the PDF ends as `Empty screenshots` hours later. The overview
+  (`request=`) screenshot does not call `mapLayers.zoom(rusysService.id)`, so it alone survives.
 - **Only the request's author can edit it, and only at `RETURNED`** — an admin account
   cannot drive a request-edit flow live. See `only-the-author-can-edit-a-form` for the
   equivalent trap on forms.
