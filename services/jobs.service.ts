@@ -6,12 +6,14 @@ import moment from 'moment';
 import BullMqMixin from '../mixins/bullmq.mixin';
 import { toReadableStream } from '../utils/functions';
 
+const screenshotConcurrency = Number.parseInt(process.env.SCREENSHOT_CONCURRENCY || '', 10);
+
 @Service({
   name: 'jobs',
   mixins: [BullMqMixin],
   settings: {
     bullmq: {
-      worker: { concurrency: 5 },
+      worker: { concurrency: screenshotConcurrency > 0 ? screenshotConcurrency : 5 },
       job: {
         attempts: 10,
         backoff: 1000,

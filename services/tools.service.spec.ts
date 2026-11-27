@@ -54,9 +54,29 @@ describe('tools service', () => {
   const call = (action: string, params: unknown) =>
     broker.call(action, params, { timeout: 0 }) as Promise<NodeJS.ReadableStream>;
 
+  describe('makeScreenshot', () => {
+    // makeScreenshot uses the global fetch, which jest's node environment does not provide.
+    afterAll(() => {
+      delete (global as { fetch?: typeof fetch }).fetch;
+    });
+
+    it('rejects a refused browserless session so the job retries', async () => {
+      global.fetch = jest
+        .fn()
+        .mockResolvedValue({ ok: false, status: 429 }) as unknown as typeof fetch;
+
+      await expect(
+        call('tools.makeScreenshot', { url: 'http://example.test/map' }),
+      ).rejects.toThrow('Screenshot service responded with 429');
+    });
+  });
+
   describe('makePdf', () => {
     it('posts the page to /pdf and hands back the pdf bytes as a node stream', async () => {
-      const pdf = await call('tools.makePdf', { url: 'http://example.test/page', footer: '<b>1</b>' });
+      const pdf = await call('tools.makePdf', {
+        url: 'http://example.test/page',
+        footer: '<b>1</b>',
+      });
 
       expect(received.method).toBe('POST');
       expect(received.path).toBe('/pdf');
