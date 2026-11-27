@@ -120,8 +120,18 @@ render from: adding a member makes a new checkbox appear in `biip-rusys-web` and
   load in browserless (~5 s, measured 2026-11-27); a direct QGIS WMS GetMap of the same bbox takes
   ~0.2 s. A screenshot only works when maps-web and qgis-server in that environment agree on layer
   names: a maps-web release ahead of qgis-server makes QGIS answer `LayerNotDefined`, every place
-  screenshot fails 10 times, and the PDF ends as `Empty screenshots` hours later. The overview
+  screenshot fails, and the PDF ends as `Empty screenshots` hours later. The overview
   (`request=`) screenshot does not call `mapLayers.zoom(rusysService.id)`, so it alone survives.
+- **A BullMQ flow child takes the job settings of the service that calls `flow`,** not of the
+  service that runs it (`mixins/bullmq.mixin.ts › flow`). The screenshot retries therefore live on
+  the children in `jobs.requests.service.ts › initiatePdfGenerate`; `jobs.service.ts`'s own `job`
+  block is never read for them.
+- **Screenshots must wait for `networkidle0`.** maps-web keeps drawing after `#image-canvas-0`
+  appears; with `domcontentloaded` the same URL gave different pixels on 1 run in 3.
+- **browserless must not run with `KEEP_ALIVE`.** aadis connects over the websocket and calls
+  `browser.close()`; with `KEEP_ALIVE` that browser goes back to the pool dead and is never
+  replaced, so after 15 such calls every screenshot and PDF waits out `CONNECTION_TIMEOUT` while
+  `/metrics` stays green. `PREBOOT_CHROME` alone relaunches it.
 - **Only the request's author can edit it, and only at `RETURNED`** — an admin account
   cannot drive a request-edit flow live. See `only-the-author-can-edit-a-form` for the
   equivalent trap on forms.
